@@ -1,0 +1,69 @@
+{
+  "version": "7",
+  "dialect": "postgresql",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "7",
+      "when": 1791310173930,
+      "tag": "0000_products_blocklist_and_admin_writes",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1791316510767,
+      "tag": "0001_lock_down_products_hpp",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1791317417638,
+      "tag": "0002_native_orders",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1791386226885,
+      "tag": "0003_whatsapp_orders_and_purchasable",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1791390648828,
+      "tag": "0004_vita_chat_rate_limit",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1791489516609,
+      "tag": "0005_seller_center",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1791549838410,
+      "tag": "0006_seller_center_column_grants",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1791567613795,
+      "tag": "0007_store_branches_settings",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1791739122345,
+      "tag": "0008_promos_hero_branch_coords_referral",
+      "breakpoints": true
+    }
+  ]
+}
