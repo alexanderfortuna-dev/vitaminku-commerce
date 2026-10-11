@@ -14,7 +14,6 @@ import {
 } from "ai";
 import { z } from "zod";
 import type { Database } from "@/integrations/supabase/types";
-import { getLovableAiGatewayRunId, createLovableAiGatewayRunIdFetch, withLovableAiGatewayRunIdHeader } from "./ai-run-id.server";
 import {
   FORBIDDEN_REPLY,
   VITA_MAX_CARDS,
@@ -29,8 +28,12 @@ import {
 } from "./vita-safety";
 import { parseBudgetIdr, rankForBudget, wantsTrialSize } from "./vita-budget";
 
-const MODEL = "openai/gpt-6-luna";
-const GATEWAY = "https://ai.gateway.lovable.dev/v1";
+// Provider-agnostic: any OpenAI-compatible endpoint. Without AI_API_KEY Vita shows a polite
+// "unavailable" message and the rest of the store keeps working.
+const DEFAULT_AI_BASE_URL = "https://api.openai.com/v1";
+const DEFAULT_AI_MODEL = "gpt-4.1-mini";
+const UNAVAILABLE_REPLY =
+  "Vita sedang tidak tersedia saat ini. Silakan chat admin via WhatsApp, ya — kami siap membantu.";
 const CARD_COLUMNS =
   "id,sku,name,brand,category,subcategory,size,pack_count,servings,dose,flavor,price,compare_at_price,stock,image_url,bpom_number,slug";
 
@@ -94,6 +97,8 @@ export async function handleVitaChat(request: Request): Promise<Response> {
   } catch {
     return Response.json({ error: "Permintaan tidak valid." }, { status: 400 });
   }
+  const apiKey = process.env["AI_API_KEY"];
+  if (!apiKey) return cannedReply(UNAVAILABLE_REPLY);
   const messages = body.messages as UIMessage[];
   if (messages.length > VITA_MAX_MESSAGES) {
     return cannedReply("Percakapan ini sudah panjang. Tap ikon ↻ di atas untuk mulai obrolan baru, ya.");
@@ -120,9 +125,6 @@ export async function handleVitaChat(request: Request): Promise<Response> {
 
   // Server-side block: forbidden products never reach the model.
   if (isForbiddenRequest(lastText)) return cannedReply(FORBIDDEN_REPLY);
-
-  const apiKey = process.env["LOVABLE_API_KEY"];
-  if (!apiKey) return Response.json({ error: "Asisten belum dikonfigurasi." }, { status: 500 });
 
   const orderTokens = body.orderTokens ?? [];
   const pastedToken = extractOrderToken(lastText);
@@ -216,34 +218,21 @@ export async function handleVitaChat(request: Request): Promise<Response> {
     }),
   };
 
-  const runIdFetch = createLovableAiGatewayRunIdFetch(getLovableAiGatewayRunId(request));
   const provider = createOpenAI({
-    baseURL: GATEWAY,
+    baseURL: process.env["AI_BASE_URL"] || DEFAULT_AI_BASE_URL,
     apiKey,
-    headers: { "Lovable-API-Key": apiKey, "X-Lovable-AIG-SDK": "vercel-ai-sdk" },
-    fetch: runIdFetch.fetch,
   });
 
   const result = streamText({
-    model: provider.responses(MODEL),
+    model: provider.chat(process.env["AI_MODEL"] || DEFAULT_AI_MODEL),
     instructions: INSTRUCTIONS,
     messages: await convertToModelMessages(messages, { tools }),
     tools,
     stopWhen: stepCountIs(4),
     abortSignal: request.signal,
-    providerOptions: {
-      openai: {
-        forceReasoning: true,
-        reasoningEffort: "low",
-        reasoningSummary: "auto",
-        store: false,
-        include: ["reasoning.encrypted_content"],
-      },
-    },
   });
 
-  return withLovableAiGatewayRunIdHeader(
-    result.toUIMessageStreamResponse({
+  return result.toUIMessageStreamResponse({
       originalMessages: messages,
       onError: (e) => {
         console.error("vita stream", e);
@@ -252,7 +241,5 @@ export async function handleVitaChat(request: Request): Promise<Response> {
         if (status === 402) return "Asisten sedang tidak tersedia. Silakan chat admin via WhatsApp.";
         return "Maaf, Vita sedang gangguan. Coba lagi atau chat admin via WhatsApp.";
       },
-    }),
-    runIdFetch,
-  );
+  });
 }
