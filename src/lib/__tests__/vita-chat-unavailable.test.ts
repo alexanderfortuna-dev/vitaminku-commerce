@@ -1,15 +1,18 @@
 import { afterEach, describe, expect, it } from "vitest";
 import { handleVitaChat } from "../vita-chat.server";
 
-describe("Vita tanpa AI_API_KEY", () => {
-  const saved = process.env["AI_API_KEY"];
+describe("Vita tanpa kunci AI", () => {
+  const KEYS = ["AI_API_KEY", "ANTHROPIC_API_KEY"] as const;
+  const saved = Object.fromEntries(KEYS.map((k) => [k, process.env[k]]));
   afterEach(() => {
-    if (saved === undefined) delete process.env["AI_API_KEY"];
-    else process.env["AI_API_KEY"] = saved;
+    for (const k of KEYS) {
+      if (saved[k] === undefined) delete process.env[k];
+      else process.env[k] = saved[k];
+    }
   });
 
   it("menjawab sopan 'tidak tersedia' tanpa memanggil database atau penyedia AI", async () => {
-    delete process.env["AI_API_KEY"];
+    for (const k of KEYS) delete process.env[k];
     const res = await handleVitaChat(
       new Request("http://localhost/api/vita-chat", {
         method: "POST",

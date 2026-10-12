@@ -29,6 +29,7 @@ BEGIN
   INSERT INTO r VALUES ('products: trigger guard + activity', (SELECT count(*) FROM pg_trigger WHERE tgrelid='public.products'::regclass AND NOT tgisinternal)=2, '');
   -- 6. fungsi HPP tidak bisa dipanggil anon
   INSERT INTO r VALUES ('anon tidak boleh EXECUTE admin_get_product_hpp', NOT has_function_privilege('anon','public.admin_get_product_hpp(uuid[])','EXECUTE'), '');
+  INSERT INTO r VALUES ('anon/authenticated tidak bisa EXECUTE fungsi pemicu', NOT (has_function_privilege('anon','public.products_guard()','EXECUTE') OR has_function_privilege('authenticated','public.products_guard()','EXECUTE') OR has_function_privilege('authenticated','public.products_activity_log()','EXECUTE')), '');
   -- 7. FITLIFE10 persis & bucket foto
   INSERT INTO r VALUES ('FITLIFE10 31 Okt 16:00Z s/d 1 Des 15:59:59Z, 10%, fitlife',
     EXISTS (SELECT 1 FROM public.promos WHERE code='FITLIFE10' AND starts_at='2026-10-31T16:00:00Z' AND ends_at='2026-12-01T15:59:59Z' AND value=10 AND lower(brand)='fitlife' AND is_active), '');

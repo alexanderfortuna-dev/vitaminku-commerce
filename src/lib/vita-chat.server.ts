@@ -1,6 +1,7 @@
 // Server-only brain for the Vita shopping assistant. Catalog reads go through the
 // anonymous client, so storefront RLS (active + not blocked) always applies; the
 // tools additionally return only purchasable products.
+import { createAnthropic } from "@ai-sdk/anthropic";
 import { createOpenAI } from "@ai-sdk/openai";
 import { createClient } from "@supabase/supabase-js";
 import {
@@ -28,12 +29,26 @@ import {
 } from "./vita-safety";
 import { parseBudgetIdr, rankForBudget, wantsTrialSize } from "./vita-budget";
 
-// Provider-agnostic: any OpenAI-compatible endpoint. Without AI_API_KEY Vita shows a polite
-// "unavailable" message and the rest of the store keeps working.
+// Provider-agnostic. Prefers Claude (ANTHROPIC_API_KEY); otherwise any OpenAI-compatible endpoint
+// (AI_API_KEY + optional AI_BASE_URL). Without a key Vita shows a polite "unavailable" message and the
+// rest of the store keeps working. AI_MODEL overrides the default model of either provider.
+const DEFAULT_CLAUDE_MODEL = "claude-sonnet-5-5";
 const DEFAULT_AI_BASE_URL = "https://api.openai.com/v1";
-const DEFAULT_AI_MODEL = "gpt-4.1-mini";
+const DEFAULT_OPENAI_MODEL = "gpt-4.1-mini";
 const UNAVAILABLE_REPLY =
   "Vita sedang tidak tersedia saat ini. Silakan chat admin via WhatsApp, ya — kami siap membantu.";
+
+function resolveModel() {
+  const model = process.env["AI_MODEL"];
+  const claudeKey = process.env["ANTHROPIC_API_KEY"];
+  if (claudeKey) return createAnthropic({ apiKey: claudeKey })(model || DEFAULT_CLAUDE_MODEL);
+  const apiKey = process.env["AI_API_KEY"];
+  if (apiKey) {
+    const baseURL = process.env["AI_BASE_URL"] || DEFAULT_AI_BASE_URL;
+    return createOpenAI({ baseURL, apiKey }).chat(model || DEFAULT_OPENAI_MODEL);
+  }
+  return null;
+}
 const CARD_COLUMNS =
   "id,sku,name,brand,category,subcategory,size,pack_count,servings,dose,flavor,price,compare_at_price,stock,image_url,bpom_number,slug";
 
@@ -48,6 +63,10 @@ Aturan wajib:
 - Jangan pernah merekomendasikan obat keras, SARMs, modafinil, yohimbe/yohimbine, atau DHEA.
 - "Cek pesanan": minta nomor pesanan (contoh VK-...), lalu panggil check_order. Jangan pernah menebak status atau menampilkan data pesanan orang lain.
 - Jika kamu tidak yakin, tidak menemukan produk yang cocok, atau pengunjung ingin bicara dengan manusia/admin: panggil handoff_whatsapp dengan ringkasan singkat kebutuhannya.
+- Nama produk di katalog umumnya berbahasa Inggris. Terjemahkan kebutuhan pengunjung ke kata kunci produk (contoh: susah tidur -> "melatonin" atau "magnesium"; menambah massa otot -> "gainer", "whey", "creatine"; energi sebelum latihan -> "pre-workout"; sendi -> "glucosamine"; kulit -> "collagen", "glutathione"). Boleh memanggil search_products 2-3 kali dengan kata kunci berbeda sebelum menyerah.
+- Kebutuhan masih kabur? Tanyakan SATU hal singkat (tujuan atau budget); jangan beri daftar panjang.
+- Saat membandingkan, sebut 2-3 pilihan dengan alasan berbeda (isi/servings, ukuran, kecocokan) lalu ajak pengunjung menambahkan ke keranjang.
+- Promo: hanya sebut promo yang tampil di kartu produk; jangan menjanjikan diskon.
 - Tolak topik di luar belanja suplemen dengan sopan.`;
 
 function anonClient() {
@@ -97,8 +116,8 @@ export async function handleVitaChat(request: Request): Promise<Response> {
   } catch {
     return Response.json({ error: "Permintaan tidak valid." }, { status: 400 });
   }
-  const apiKey = process.env["AI_API_KEY"];
-  if (!apiKey) return cannedReply(UNAVAILABLE_REPLY);
+  const model = resolveModel();
+  if (!model) return cannedReply(UNAVAILABLE_REPLY);
   const messages = body.messages as UIMessage[];
   if (messages.length > VITA_MAX_MESSAGES) {
     return cannedReply("Percakapan ini sudah panjang. Tap ikon ↻ di atas untuk mulai obrolan baru, ya.");
@@ -218,17 +237,12 @@ export async function handleVitaChat(request: Request): Promise<Response> {
     }),
   };
 
-  const provider = createOpenAI({
-    baseURL: process.env["AI_BASE_URL"] || DEFAULT_AI_BASE_URL,
-    apiKey,
-  });
-
   const result = streamText({
-    model: provider.chat(process.env["AI_MODEL"] || DEFAULT_AI_MODEL),
+    model,
     instructions: INSTRUCTIONS,
     messages: await convertToModelMessages(messages, { tools }),
     tools,
-    stopWhen: stepCountIs(4),
+    stopWhen: stepCountIs(6),
     abortSignal: request.signal,
   });
 

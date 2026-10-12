@@ -3,7 +3,14 @@
 Status per 2026-10-12. Situs Lovable (vitaminku.lovable.app) tetap hidup sampai pemilik menulis **"alihkan"**.
 Tidak ada kunci/sandi di dokumen ini; semua nilai rahasia diisi pemilik di dashboard masing-masing.
 
-## T1 — Buat proyek Supabase (pemilik, ±5 menit)
+## STATUS TERKINI (2026-10-12)
+- **Supabase baru SUDAH dibuat**: proyek `vitaminku` (ref `vmhoohfwjtsojgcvopaf`, Singapore). Alamat: `https://vmhoohfwjtsojgcvopaf.supabase.co`.
+  Kunci publik (aman dipakai di `VITE_SUPABASE_PUBLISHABLE_KEY` / `SUPABASE_PUBLISHABLE_KEY`): ambil dari Supabase → Project Settings → API (jangan salin service_role ke mana pun selain Vercel).
+- **Skema terpasang** (urutan sama dengan file gabungan) + pengerasan 0009. Terverifikasi: hpp ditolak untuk anon & authenticated (ERROR 42501), RLS aktif di semua tabel public, FITLIFE10 tepat.
+- **Data termuat & terverifikasi** terhadap Lovable (sidik jari md5 identik): 1.461 produk, 1.413 aktif + 48 draf, 553 HPP, total harga 526.262.700, total stok 3.579, 31 foto (CDN Shopee), 2 cabang, 1 promo, 21 kata blokir. Orders 0 (tidak dimuat).
+- **Belum**: (1) dua fungsi berisi perintah hapus — tempel `supabase/PENDING_functions_with_delete.sql` di SQL Editor (sekali); (2) Vercel + variabel lingkungan; (3) akun owner (SQL di bawah); (4) kunci AI untuk Vita; (5) izin jaringan agar Claude bisa menguji preview.
+
+## T1 — (SELESAI) Buat proyek Supabase (pemilik, ±5 menit)
 1. supabase.com → **New project** (organisasi Anda).
 2. Nama: `vitaminku`. Region: **Southeast Asia (Singapore)**. Buat sandi database → simpan di password manager (jangan ditempel ke chat).
 3. Tunggu status *Healthy*.
