@@ -1,6 +1,7 @@
 // Pure planner for "Upload Massal" (Seller Center). The server runs it for the
 // dry-run and again on apply, so the browser preview is never trusted.
 import { parseIdrNumber, type RawCell } from "./bulk-price-stock";
+import { MSG, isSampleSku, numberReadProblem } from "./import-messages";
 
 export const FULL_HEADERS = [
   "SKU",
@@ -143,43 +144,47 @@ export function planFullImport(
     const cells = [r.nama, r.brand, r.kategori, r.deskripsi, r.harga, r.stok, r.berat, r.bpom, r.status, ...r.fotos];
     if (!sku && cells.every((c) => text(c) === "")) return;
     plan.totalRows++;
-    if (!sku) return void plan.errors.push({ row: r.row, sku: "", reason: "SKU kosong" });
+    if (!sku) return void plan.errors.push({ row: r.row, sku: "", reason: MSG.skuEmpty });
+    if (isSampleSku(sku)) return void plan.errors.push({ row: r.row, sku, reason: MSG.sample });
     const key = sku.toLowerCase();
-    if (seen.has(key)) return void plan.errors.push({ row: r.row, sku, reason: "SKU muncul lebih dari sekali di file" });
+    if (seen.has(key)) return void plan.errors.push({ row: r.row, sku, reason: MSG.skuDuplicate });
     seen.add(key);
 
     const existing = bySku.get(key) ?? null;
     const reasons: string[] = [];
     const blockReason = blocked[index] ?? "";
-    if (blockReason) reasons.push(`Diblokir: ${blockReason}`);
+    if (blockReason) reasons.push(MSG.blocked(blockReason));
 
     const price = parseIdrNumber(r.harga);
     const stock = parseIdrNumber(r.stok);
     const weight = parseIdrNumber(r.berat);
-    if (price.kind === "error") reasons.push(`Harga ${price.message}`);
-    if (price.kind === "ok" && Math.round(price.value) <= 0) reasons.push("Harga tidak boleh 0");
-    if (stock.kind === "error") reasons.push(`Stok ${stock.message}`);
-    if (stock.kind === "ok" && !Number.isInteger(stock.value)) reasons.push("Stok harus bilangan bulat");
-    if (weight.kind === "error") reasons.push(`Berat_gram ${weight.message}`);
-    if (weight.kind === "ok" && !(Math.round(weight.value) > 0)) reasons.push("Berat_gram harus lebih dari 0");
+    const priceBad = numberReadProblem("Harga", "125000", price, text(r.harga));
+    const stockBad = numberReadProblem("Stok", "10", stock, text(r.stok));
+    const weightBad = numberReadProblem("Berat_gram", "250", weight, text(r.berat));
+    if (priceBad) reasons.push(priceBad);
+    if (price.kind === "ok" && Math.round(price.value) <= 0) reasons.push(MSG.priceZero);
+    if (stockBad) reasons.push(stockBad);
+    if (stock.kind === "ok" && !Number.isInteger(stock.value)) reasons.push(MSG.stockFraction);
+    if (weightBad) reasons.push(weightBad);
+    if (weight.kind === "ok" && !(Math.round(weight.value) > 0)) reasons.push(MSG.weightZero);
     const status = parseStatus(r.status);
-    if (status === "invalid") reasons.push(`Status tidak dikenal ("${text(r.status)}"), pakai Live atau Draf`);
+    if (status === "invalid") reasons.push(MSG.status(text(r.status)));
 
     const photos = r.fotos.map(text).filter(Boolean);
     const badPhoto = photos.find((u) => !isPhotoUrl(u));
-    if (badPhoto) reasons.push(`Foto bukan URL yang valid ("${badPhoto.slice(0, 60)}")`);
-    if (photos.length > MAX_PHOTOS) reasons.push(`Maksimal ${MAX_PHOTOS} foto`);
+    if (badPhoto) reasons.push(MSG.photo(badPhoto));
+    if (photos.length > MAX_PHOTOS) reasons.push(MSG.maxPhotos(MAX_PHOTOS));
 
     const nama = text(r.nama);
     const brand = text(r.brand);
     const kategori = text(r.kategori);
     if (!existing) {
-      if (!nama) reasons.push("Produk baru wajib punya Nama");
-      if (!brand) reasons.push("Produk baru wajib punya Brand");
-      if (!kategori) reasons.push("Produk baru wajib punya Kategori");
+      if (!nama) reasons.push(MSG.newRequired("Nama"));
+      if (!brand) reasons.push(MSG.newRequired("Brand"));
+      if (!kategori) reasons.push(MSG.newRequired("Kategori"));
     }
 
-    if (reasons.length) return void plan.errors.push({ row: r.row, sku, reason: reasons.join("; ") });
+    if (reasons.length) return void plan.errors.push({ row: r.row, sku, reason: reasons.join(" ") });
 
     const patch: ProductPatch = {};
     const take = <K extends keyof ProductPatch>(k: K, next: ProductPatch[K], current: unknown, isEmpty: boolean) => {
@@ -216,7 +221,7 @@ export function planFullImport(
         weight: patch.weight_grams ?? cur?.weight_grams ?? null,
       });
       if (missing.length && !cur?.is_active) {
-        draftReason = `Tetap Draf: ${missing.join(", ")}`;
+        draftReason = MSG.draft(missing);
         plan.drafts.push({ row: r.row, sku, reason: draftReason });
       }
     }

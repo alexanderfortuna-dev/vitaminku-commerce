@@ -6,6 +6,7 @@ import {
   skuFromPhotoName,
   type ExistingProduct,
 } from "../seller-import";
+import { MSG } from "../import-messages";
 
 const existing: ExistingProduct[] = [
   {
@@ -36,8 +37,8 @@ describe("Upload Massal dry-run", () => {
     const blocked = ["", "", "", "DHEA", "", ""];
     const plan = planFullImport(rows, existing, "fill", blocked);
     expect(plan.totalRows).toBe(6);
-    expect(plan.errors).toEqual([{ row: 5, sku: "N-4", reason: "Diblokir: DHEA" }]);
-    expect(plan.drafts).toEqual([{ row: 4, sku: "N-3", reason: "Tetap Draf: tanpa harga" }]);
+    expect(plan.errors).toEqual([{ row: 5, sku: "N-4", reason: MSG.blocked("DHEA") }]);
+    expect(plan.drafts).toEqual([{ row: 4, sku: "N-3", reason: MSG.draft(["tanpa harga"]) }]);
     expect(plan.rows.filter((r) => r.kind === "new").map((r) => r.sku)).toEqual(["N-1", "N-2", "N-3", "N-5"]);
     expect(plan.rows.find((r) => r.sku === "N-1")?.patch.price).toBe(125000);
   });

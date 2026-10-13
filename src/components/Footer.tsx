@@ -19,7 +19,12 @@ export function Footer() {
             Pasang Aplikasi
           </button>
         </div>
-        <p className="mt-4 text-[11px] text-muted-foreground">
+        <nav aria-label="Informasi hukum" className="mt-1 flex flex-wrap gap-x-5 text-xs font-semibold text-navy">
+          <Link to="/syarat" className="inline-flex min-h-11 items-center">Syarat &amp; Ketentuan</Link>
+          <Link to="/privasi" className="inline-flex min-h-11 items-center">Privasi</Link>
+          <Link to="/pengembalian" className="inline-flex min-h-11 items-center">Pengembalian</Link>
+        </nav>
+        <p className="mt-2 text-[11px] text-muted-foreground">
           Informasi produk bukan pengganti nasihat medis. Konsultasikan dengan tenaga kesehatan bila
           kamu memiliki kondisi khusus.
         </p>
