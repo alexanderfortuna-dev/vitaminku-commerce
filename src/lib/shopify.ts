@@ -3,7 +3,9 @@ import { toast } from "sonner";
 export const SHOPIFY_API_VERSION = "2026-07";
 export const SHOPIFY_STORE_PERMANENT_DOMAIN = "vitaminku-commerce-u8xhy-ja6xbxet.myshopify.com";
 export const SHOPIFY_STOREFRONT_URL = `https://${SHOPIFY_STORE_PERMANENT_DOMAIN}/api/${SHOPIFY_API_VERSION}/graphql.json`;
-export const SHOPIFY_STOREFRONT_TOKEN = "3741c25149e2d171b182bb6d76ac4963";
+// Legacy (the store reads products from Supabase). Token is env-driven; never hard-code it.
+export const SHOPIFY_STOREFRONT_TOKEN: string =
+  (import.meta.env?.["VITE_SHOPIFY_STOREFRONT_TOKEN"] as string | undefined) ?? "";
 
 export interface ShopifyVariant {
   id: string;
@@ -98,6 +100,7 @@ export class ShopifyRequestError extends Error {
 let paymentToastShown = false;
 
 export async function storefrontApiRequest(query: string, variables: Record<string, unknown> = {}) {
+  if (!SHOPIFY_STOREFRONT_TOKEN) throw new Error("Shopify Storefront tidak dikonfigurasi.");
   const response = await fetch(SHOPIFY_STOREFRONT_URL, {
     method: "POST",
     headers: {

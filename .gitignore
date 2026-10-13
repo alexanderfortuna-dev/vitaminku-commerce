@@ -36,3 +36,6 @@ dist-ssr
 .env.*
 !.env.example
 .vercel
+
+# data seed berisi HPP (rahasia) — jangan pernah di-commit
+data/seed/
