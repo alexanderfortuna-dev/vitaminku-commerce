@@ -3,7 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { CheckCircle2, Clock, XCircle } from "lucide-react";
 import { formatIDR } from "@/lib/format";
-import { getOrderByToken } from "@/lib/checkout.functions";
+import { getOrderByToken, getOrderContacts } from "@/lib/checkout.functions";
 import { whatsappOrderUrl } from "@/lib/whatsapp-order";
 import { WHATSAPP_NUMBER } from "@/components/WhatsAppButton";
 
@@ -41,6 +41,15 @@ function OrderPage() {
     retry: false,
   });
 
+  const fetchContacts = useServerFn(getOrderContacts);
+  const contacts = useQuery({
+    queryKey: ["order-contacts", token],
+    queryFn: () => fetchContacts({ data: { token } }),
+    enabled: !!order,
+    retry: false,
+    staleTime: 60_000,
+  });
+
   if (isPending) return <p className="p-4 text-sm text-muted-foreground">Memuat pesanan…</p>;
   if (isError || !order) {
     return (
@@ -56,9 +65,13 @@ function OrderPage() {
   const s = STATUS[order.status] ?? STATUS.pending;
   const awaitingWa = order.status === "menunggu_konfirmasi";
   const waNumber = order.branch_whatsapp || WHATSAPP_NUMBER;
-  const wa = awaitingWa
-    ? whatsappOrderUrl(waNumber, { ...order, note: order.customer_note ?? null })
-    : `https://wa.me/${waNumber}?text=${encodeURIComponent(`Halo VitaminKu, saya ingin menanyakan pesanan ${order.order_number}.`)}`;
+  const waLink = (number: string) =>
+    awaitingWa
+      ? whatsappOrderUrl(number, { ...order, note: order.customer_note ?? null })
+      : `https://wa.me/${number}?text=${encodeURIComponent(`Halo VitaminKu, saya ingin menanyakan pesanan ${order.order_number}.`)}`;
+  const wa = waLink(waNumber);
+  const otherAdmins = contacts.data?.others ?? [];
+  const canSave = contacts.data?.canSave === true;
   const manual = order.shipping_mode === "manual";
 
   return (
@@ -112,6 +125,30 @@ function OrderPage() {
       >
         {awaitingWa ? "Kirim Pesanan via WhatsApp" : "Tanya via WhatsApp"}
       </a>
+      {otherAdmins.length > 0 && (
+        <p className="text-center text-xs text-muted-foreground">
+          Belum dibalas?{" "}
+          {otherAdmins.map((a, i) => (
+            <span key={a.whatsapp}>
+              {i > 0 && " · "}
+              <a href={waLink(a.whatsapp)} target="_blank" rel="noopener noreferrer" className="font-bold text-primary underline">
+                Admin lain{otherAdmins.length > 1 ? ` ${i + 1}` : ""}
+              </a>
+            </span>
+          ))}
+        </p>
+      )}
+      {canSave && (
+        <div className="rounded-2xl border border-border bg-card p-4 text-center">
+          <p className="text-xs text-muted-foreground">Pesan berikutnya lebih cepat: nama dan alamat terisi otomatis, dan riwayat pesananmu tersimpan.</p>
+          <a
+            href={`/masuk?next=/pesanan/${token}`}
+            className="mt-3 flex min-h-11 items-center justify-center rounded-full bg-secondary px-4 text-sm font-bold text-navy"
+          >
+            Simpan data saya
+          </a>
+        </div>
+      )}
       <p className="text-center text-[11px] text-muted-foreground">Simpan link halaman ini untuk cek status pesanan.</p>
     </div>
   );
