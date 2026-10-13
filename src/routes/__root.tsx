@@ -20,7 +20,7 @@ import { StoreStatusBanner } from "../components/StoreStatusBanner";
 import { InstallPrompt } from "../components/InstallPrompt";
 import { Toaster } from "../components/ui/sonner";
 import { useCartSync } from "../hooks/useCartSync";
-import { captureReferral } from "../lib/referral";
+import { captureLinkParams } from "../lib/referral";
 
 function NotFoundComponent() {
   return (
@@ -151,7 +151,7 @@ function RootComponent() {
 
 function AppShell() {
   useCartSync();
-  useEffect(() => captureReferral(window.location.search), []);
+  useEffect(() => captureLinkParams(window.location.search), []);
   return (
     <div className="min-h-screen bg-background">
       <Header />

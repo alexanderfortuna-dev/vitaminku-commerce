@@ -88,3 +88,90 @@ export function makeOrderNumber(now: Date, random: string): string {
   const d = String(now.getUTCDate()).padStart(2, "0");
   return `VK-${y}${m}${d}-${random.toUpperCase()}`;
 }
+
+// ---- Tujuan WhatsApp pesanan ----
+export const FALLBACK_WHATSAPP = "6281339950000";
+
+export interface BranchContact {
+  branch_id: string;
+  role: string;
+  whatsapp: string;
+}
+
+const ADMIN_WA = /^62\d{8,13}$/;
+
+export interface WhatsappDestination {
+  whatsapp: string;
+  source: "ref_admin" | "branch_utama" | "branch" | "fallback";
+  /** Admin aktif lain di cabang yang sama (utama dulu, lalu cadangan), tanpa nomor tujuan. */
+  others: Array<{ role: string; whatsapp: string }>;
+}
+
+/** Admin aktif lain di cabang (utama dulu, lalu cadangan), selain nomor yang sudah dipakai. */
+export function otherAdmins(
+  contacts: BranchContact[],
+  branchId: string | null,
+  currentWhatsapp: string | null,
+): Array<{ role: string; whatsapp: string }> {
+  if (!branchId) return [];
+  const seen = new Set<string>(currentWhatsapp ? [currentWhatsapp] : []);
+  const out: Array<{ role: string; whatsapp: string }> = [];
+  for (const c of [...contacts].sort((a, b) => Number(b.role === "utama") - Number(a.role === "utama"))) {
+    if (c.branch_id !== branchId || !ADMIN_WA.test(c.whatsapp) || seen.has(c.whatsapp)) continue;
+    seen.add(c.whatsapp);
+    out.push({ role: c.role, whatsapp: c.whatsapp });
+  }
+  return out;
+}
+
+/**
+ * Memilih nomor WhatsApp tujuan pesanan.
+ * 1) admin pemilik kode ?ref bila aktif di cabang pilihan; 2) admin 'utama' aktif cabang;
+ * 3) nomor cabang (store_branches.whatsapp); 4) nomor utama toko. Nomor tidak pernah dikarang.
+ */
+export function pickWhatsappDestination(input: {
+  branchId: string | null;
+  branchWhatsapp: string | null;
+  contacts: BranchContact[];
+  refAdmin?: { branch_id: string; whatsapp: string } | null;
+  fallback?: string;
+}): WhatsappDestination {
+  const fallback = input.fallback ?? FALLBACK_WHATSAPP;
+  if (!input.branchId) return { whatsapp: fallback, source: "fallback", others: [] };
+  const contacts = input.contacts.filter((c) => c.branch_id === input.branchId && ADMIN_WA.test(c.whatsapp));
+  const base = input.branchWhatsapp || fallback;
+  const rest = (without: string) => otherAdmins(contacts, input.branchId, without);
+  const ref = input.refAdmin;
+  if (ref && ref.branch_id === input.branchId && contacts.some((c) => c.whatsapp === ref.whatsapp)) {
+    return { whatsapp: ref.whatsapp, source: "ref_admin", others: rest(ref.whatsapp) };
+  }
+  const utama = contacts.find((c) => c.role === "utama");
+  if (utama) return { whatsapp: utama.whatsapp, source: "branch_utama", others: rest(utama.whatsapp) };
+  return { whatsapp: base, source: "branch", others: rest(base) };
+}
+
+// ---- Batas laju pembuatan pesanan ----
+export const ORDER_RATE_LIMIT = 20;
+export const ORDER_RATE_WINDOW_MINUTES = 60;
+
+export interface HeaderReader {
+  get(name: string): string | null;
+}
+
+/** IP klien dari header proxy; null bila tidak diketahui (jangan membatasi semua orang sekaligus). */
+export function clientIpFrom(h: HeaderReader): string | null {
+  for (const name of ["cf-connecting-ip", "x-vercel-forwarded-for", "x-forwarded-for", "x-real-ip"]) {
+    const v = h.get(name)?.split(",")[0]?.trim();
+    if (v) return v;
+  }
+  return null;
+}
+
+/** Hash 64 hex (SHA-256) dari IP + user-agent, cocok untuk RPC chat_rate_hit. */
+export async function orderVisitorHash(ip: string, userAgent: string): Promise<string> {
+  const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(`order:${ip}:${userAgent}`));
+  return Array.from(new Uint8Array(buf), (b) => b.toString(16).padStart(2, "0")).join("");
+}
+
+export const ORDER_RATE_LIMIT_MESSAGE =
+  "Terlalu banyak pesanan dari perangkat ini dalam 1 jam terakhir. Coba lagi nanti, atau hubungi admin lewat WhatsApp.";

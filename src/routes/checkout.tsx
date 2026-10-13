@@ -16,7 +16,8 @@ import { useCartStore } from "@/stores/cartStore";
 import { rememberOrder } from "@/lib/recent-orders";
 import { getPublicStore } from "@/lib/store.functions";
 import { nearestBranch, haversineKm } from "@/lib/geo";
-import { readReferral } from "@/lib/referral";
+import { readReferral, readBranchCode, clearBranchCode, matchBranchByCode } from "@/lib/referral";
+import { getMyCustomer } from "@/lib/customer.functions";
 import { MANUAL_SHIPPING_LABEL } from "@/lib/whatsapp-order";
 
 const SAVED_KEY = "vitaminku-checkout-details";
@@ -40,7 +41,7 @@ export const Route = createFileRoute("/checkout")({
   head: () => ({
     meta: [
       { title: "Checkout — VitaminKu" },
-      { name: "description", content: "Isi alamat, pilih pengiriman, lalu bayar dengan QRIS, e-wallet, atau VA." },
+      { name: "description", content: "Pesan lewat WhatsApp: isi nama, nomor, dan alamat. Tanpa akun." },
       { property: "og:title", content: "Checkout — VitaminKu" },
       { property: "og:description", content: "Checkout cepat tanpa akun di VitaminKu." },
       { property: "og:type", content: "website" },
@@ -91,6 +92,7 @@ function CheckoutPage() {
   const activeBranchId = (branchId && branches.some((b) => b.id === branchId) ? branchId : null) ?? branches[0]?.id ?? null;
   const [here, setHere] = useState<{ lat: number; lng: number } | null>(null);
   const [locating, setLocating] = useState(false);
+  const [optIn, setOptIn] = useState(false);
   const [promoInput, setPromoInput] = useState("");
   const [promoCode, setPromoCode] = useState<string | null>(null);
   const [note, setNote] = useState("");
@@ -100,6 +102,12 @@ function CheckoutPage() {
     queryFn: () => fetchQuote({ data: { lines, promoCode } }),
     enabled: lines.length > 0,
   });
+  const fetchMine = useServerFn(getMyCustomer);
+  const mine = useQuery({ queryKey: ["my-customer"], queryFn: () => fetchMine(), staleTime: 60_000, retry: false });
+  function pickBranch(id: string) {
+    clearBranchCode(); // pilihan eksplisit pelanggan menang atas tautan ?cabang
+    setBranchId(id);
+  }
   function useMyLocation() {
     if (!("geolocation" in navigator)) { toast.error("Browser tidak mendukung lokasi. Pilih cabang manual."); return; }
     setLocating(true);
@@ -109,7 +117,7 @@ function CheckoutPage() {
         const p = { lat: pos.coords.latitude, lng: pos.coords.longitude };
         setHere(p);
         const n = nearestBranch(branches, p);
-        if (n) setBranchId(n.branch.id);
+        if (n) pickBranch(n.branch.id);
         else toast("Belum ada cabang dengan titik lokasi. Pilih cabang manual.");
       },
       () => {
@@ -138,6 +146,26 @@ function CheckoutPage() {
     if (d.address) setAddress(d.address);
     if (d.branchId) setBranchId(d.branchId);
   }, []);
+
+  // Tautan ?cabang=KODE: pilih-awal cabang (sekali, setelah daftar cabang termuat). Tidak memakai lokasi.
+  const linkApplied = useRef(false);
+  useEffect(() => {
+    if (linkApplied.current || branches.length === 0) return;
+    linkApplied.current = true;
+    const b = matchBranchByCode(branches, readBranchCode());
+    if (b) setBranchId(b.id);
+  }, [branches]);
+
+  // Pembeli login yang sudah punya data: isi otomatis hanya kolom yang masih kosong.
+  const prefilled = useRef(false);
+  useEffect(() => {
+    const m = mine.data;
+    if (!m || prefilled.current) return;
+    prefilled.current = true;
+    setName((v) => v || m.name);
+    setWhatsapp((v) => v || m.whatsapp);
+    setAddress((v) => v || (m.address ?? ""));
+  }, [mine.data]);
 
   useEffect(() => {
     const t = setTimeout(() => setDebounced(areaQuery.trim()), 350);
@@ -208,6 +236,7 @@ function CheckoutPage() {
           courier: { company: rate.company, service: rate.service },
           method,
           branchId: activeBranchId,
+          marketingOptIn: optIn,
         },
       });
       saveDetails({ name, whatsapp, address, branchId: activeBranchId });
@@ -224,6 +253,23 @@ function CheckoutPage() {
       submitRef.current = false;
       setSubmitting(false);
     }
+  }
+
+  function renderConsent() {
+    return (
+      <div className="space-y-2 text-xs text-muted-foreground">
+        <label className="flex min-h-11 cursor-pointer items-center gap-3">
+          <input type="checkbox" checked={optIn} onChange={(e) => setOptIn(e.target.checked)} className="h-5 w-5 shrink-0 accent-primary" />
+          <span>Kirimi saya info promo lewat WhatsApp (opsional)</span>
+        </label>
+        <p>
+          Dengan memesan, Anda menyetujui{" "}
+          <a href="/syarat" target="_blank" rel="noopener noreferrer" className="font-semibold text-primary underline">Syarat &amp; Ketentuan</a>{" "}
+          dan{" "}
+          <a href="/privasi" target="_blank" rel="noopener noreferrer" className="font-semibold text-primary underline">Kebijakan Privasi</a>.
+        </p>
+      </div>
+    );
   }
 
   function renderSummary() {
@@ -343,7 +389,7 @@ function CheckoutPage() {
               <select
                 className={`${input} font-normal`}
                 value={activeBranchId ?? ""}
-                onChange={(e) => setBranchId(e.target.value)}
+                onChange={(e) => pickBranch(e.target.value)}
               >
                 {branches.map((b) => (
                   <option key={b.id} value={b.id}>
@@ -367,6 +413,7 @@ function CheckoutPage() {
             <input className={`${input} font-normal`} value={note} maxLength={300} onChange={(e) => setNote(e.target.value)} placeholder="mis. kirim sore, titip satpam" />
           </label>
           {isManual && renderSummary()}
+          {isManual && renderConsent()}
           {!isManual && <div className="text-sm font-semibold text-navy">
             Kecamatan / Kota / Kode pos
             {area ? (
@@ -445,6 +492,7 @@ function CheckoutPage() {
       {step === 2 && (
         <section className="space-y-3 px-4 pt-4">
           {renderSummary()}
+          {renderConsent()}
           <div className="rounded-xl border border-border bg-card p-3 text-xs text-muted-foreground">
             <p className="text-sm font-bold text-navy">Metode pembayaran</p>
             {hasMidtrans ? (
