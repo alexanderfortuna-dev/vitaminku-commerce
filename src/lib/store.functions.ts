@@ -18,6 +18,9 @@ export interface Branch {
   lat: number | null;
   lng: number | null;
   maps_url: string | null;
+  code: string | null;
+  address: string | null;
+  opening_hours: string | null;
 }
 export interface StoreSettings {
   store_name: string;
@@ -37,7 +40,7 @@ function publicClient() {
 export const getPublicStore = createServerFn({ method: "GET" }).handler(async () => {
   const c = publicClient();
   const [b, s] = await Promise.all([
-    c.from("store_branches").select("id,name,area,whatsapp,is_active,display_order,lat,lng,maps_url").eq("is_active", true).order("display_order").order("name"),
+    c.from("store_branches").select("id,name,area,whatsapp,is_active,display_order,lat,lng,maps_url,code,address,opening_hours").eq("is_active", true).order("display_order").order("name"),
     c.from("store_settings").select("store_name,logo_url,hero_title,hero_subtitle,free_shipping_note,operating_hours").eq("id", 1).maybeSingle(),
   ]);
   return { branches: (b.data ?? []) as Branch[], settings: (s.data ?? null) as StoreSettings | null };
@@ -51,7 +54,7 @@ export const getAdminStore = createServerFn({ method: "GET" })
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const db = ctx.supabase as any;
     const [b, s] = await Promise.all([
-      db.from("store_branches").select("id,name,area,whatsapp,is_active,display_order,lat,lng,maps_url").order("display_order").order("name"),
+      db.from("store_branches").select("id,name,area,whatsapp,is_active,display_order,lat,lng,maps_url,code,address,opening_hours").order("display_order").order("name"),
       db.from("store_settings").select("store_name,logo_url,hero_title,hero_subtitle,free_shipping_note,operating_hours").eq("id", 1).maybeSingle(),
     ]);
     if (b.error) throw new Error(b.error.message);
