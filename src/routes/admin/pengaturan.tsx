@@ -129,7 +129,7 @@ function PengaturanPage() {
             </div>
           </div>
         ))}
-        <button type="button" onClick={() => setDrafts([...drafts, { name: "", area: "", whatsapp: "", is_active: true, display_order: drafts.length, lat: null, lng: null, maps_url: null }])}
+        <button type="button" onClick={() => setDrafts([...drafts, { name: "", area: "", whatsapp: "", is_active: true, display_order: drafts.length, lat: null, lng: null, maps_url: null, code: null, address: null, opening_hours: null }])}
           className="flex min-h-11 w-full items-center justify-center gap-1 rounded-full bg-secondary text-xs font-bold text-navy">
           <Plus className="h-4 w-4" /> Tambah cabang
         </button>
