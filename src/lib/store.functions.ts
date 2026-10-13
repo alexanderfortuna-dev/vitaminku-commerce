@@ -71,6 +71,9 @@ const branchSchema = z.object({
   maps_url: z.string().trim().max(1000).nullable().optional(),
   lat: z.number().min(-90).max(90).nullable().optional(),
   lng: z.number().min(-180).max(180).nullable().optional(),
+  code: z.string().trim().toUpperCase().regex(/^([A-Z0-9_-]{2,24})?$/, "Kode cabang: 2-24 huruf/angka (boleh - dan _), tanpa spasi").nullable().optional(),
+  address: z.string().trim().max(300).nullable().optional(),
+  opening_hours: z.string().trim().max(120).nullable().optional(),
 });
 
 export const saveBranch = createServerFn({ method: "POST" })
@@ -93,11 +96,14 @@ export const saveBranch = createServerFn({ method: "POST" })
       ({ lat, lng } = p);
     }
     if ((lat == null) !== (lng == null)) throw new Error("Isi lat dan lng keduanya, atau kosongkan keduanya.");
-    const row = { lat, lng, maps_url, name: data.name, area: data.area, whatsapp, is_active: data.is_active, display_order: data.display_order, updated_at: new Date().toISOString() };
+    const row = { lat, lng, maps_url, code: data.code || null, address: data.address || null, opening_hours: data.opening_hours || null, name: data.name, area: data.area, whatsapp, is_active: data.is_active, display_order: data.display_order, updated_at: new Date().toISOString() };
     const res = data.id
       ? await db.from("store_branches").update(row).eq("id", data.id).select("id").single()
       : await db.from("store_branches").insert(row).select("id").single();
-    if (res.error) throw new Error(`Gagal menyimpan cabang: ${res.error.message}`);
+    if (res.error) {
+      if (res.error.message.includes("store_branches_code_key")) throw new Error("Kode cabang sudah dipakai cabang lain.");
+      throw new Error(`Gagal menyimpan cabang: ${res.error.message}`);
+    }
     return { id: res.data.id };
   });
 
