@@ -3,6 +3,7 @@ import { readdirSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
 
 // HPP (harga pokok) tidak boleh dibaca kode aplikasi mana pun: pelanggan hanya melihat harga jual.
+// Pengecualian tunggal: backup.functions.ts (khusus Owner, izin hpp_view diperiksa di server + RPC database).
 // Satu-satunya tempat yang boleh menyebut `hpp` adalah tipe database hasil generate, komentar, dan tes ini.
 function walk(dir: string, out: string[] = []) {
   for (const f of readdirSync(dir)) {
@@ -16,7 +17,7 @@ function walk(dir: string, out: string[] = []) {
 describe("HPP tidak terjangkau dari kode aplikasi", () => {
   it("tidak ada pemakaian `hpp` selain tipe generate, komentar, dan tes", () => {
     const offenders = walk("src")
-      .filter((f) => !f.endsWith("integrations/supabase/types.ts") && !f.includes("__tests__"))
+      .filter((f) => !f.endsWith("integrations/supabase/types.ts") && !f.endsWith("lib/backup.functions.ts") && !f.includes("__tests__"))
       .filter((f) =>
         readFileSync(f, "utf8")
           .split("\n")

@@ -191,7 +191,7 @@ function AdminUsersPage() {
                       updateMutation.mutate({ userId: user.userId, canViewHpp: e.target.checked })
                     }
                   />
-                  Boleh melihat HPP / margin (hanya lihat, tidak bisa ubah)
+                  Boleh melihat harga pokok & margin (hanya lihat, tidak bisa ubah)
                 </label>
               )}
               {user.role !== "owner" && branches.length > 0 && (

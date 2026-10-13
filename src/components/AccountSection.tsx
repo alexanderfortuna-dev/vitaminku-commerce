@@ -35,6 +35,7 @@ export function AccountSection() {
         </p>
         <Link
           to="/masuk"
+          search={{ next: undefined, token: undefined }}
           className="mt-3 inline-flex min-h-11 items-center rounded-full bg-primary px-5 text-sm font-bold text-primary-foreground"
         >
           Masuk
