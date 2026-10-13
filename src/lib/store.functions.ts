@@ -5,7 +5,7 @@ import { createClient } from "@supabase/supabase-js";
 import { z } from "zod";
 import type { Database } from "@/integrations/supabase/types";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
-import { requireRole, type Ctx } from "./admin.functions";
+import { requirePermission, requireRole, type Ctx } from "./admin.functions";
 import { normalizeBranchWhatsapp } from "./store-core";
 
 export interface Branch {
@@ -103,11 +103,15 @@ export const deleteBranch = createServerFn({ method: "POST" })
   .inputValidator((d: unknown) => z.object({ id: z.string().uuid() }).parse(d))
   .handler(async ({ data, context }) => {
     const ctx = context as unknown as Ctx;
-    await requireRole(ctx, "admin");
+    await requirePermission(ctx, "branches_manage");
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const db = ctx.supabase as any;
-    const { error } = await db.from("store_branches").delete().eq("id", data.id);
-    if (error) throw new Error(`Gagal menghapus cabang: ${error.message}`);
+    // Tidak ada hapus permanen: cabang diarsipkan (nonaktif) agar riwayat pesanan tetap utuh.
+    const { error } = await db
+      .from("store_branches")
+      .update({ is_active: false, updated_at: new Date().toISOString() })
+      .eq("id", data.id);
+    if (error) throw new Error(`Gagal mengarsipkan cabang: ${error.message}`);
     return { ok: true };
   });
 

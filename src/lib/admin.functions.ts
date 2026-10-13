@@ -10,6 +10,8 @@ import {
   type UserError,
 } from "./shopify-admin.server";
 import { ROLE_LEVEL, type AdminRole } from "./admin-roles";
+import { hasPermission, type Permission } from "./permissions";
+import type { TablesUpdate } from "@/integrations/supabase/types";
 
 type SupabaseAuthedClient = {
   from: (table: string) => {
@@ -25,27 +27,52 @@ export type Ctx = {
   claims: Record<string, unknown>;
 };
 
-export async function resolveRole(context: Ctx): Promise<AdminRole | null> {
+export type RoleSubject = { role: AdminRole | null; canViewHpp: boolean };
+
+export async function resolveSubject(context: Ctx): Promise<RoleSubject> {
   const { data } = (await context.supabase
     .from("user_roles")
-    .select("role, is_active")
+    .select("role, is_active, can_view_hpp")
     .eq("user_id", context.userId)
-    .maybeSingle()) as { data: { role: AdminRole; is_active: boolean } | null };
+    .maybeSingle()) as {
+    data: { role: AdminRole; is_active: boolean; can_view_hpp: boolean | null } | null;
+  };
 
-  if (data?.is_active) return data.role;
-  if (data) return null;
+  if (data?.is_active) return { role: data.role, canViewHpp: !!data.can_view_hpp };
+  if (data) return { role: null, canViewHpp: false };
 
-  // Bootstrap: the configured owner email gets the owner role on first sign-in.
+  // Bootstrap: email owner yang dikonfigurasi mendapat peran owner saat login pertama,
+  // HANYA bila emailnya sudah terverifikasi di Supabase Auth (bukan sekadar klaim).
   const bootstrap = process.env["ADMIN_BOOTSTRAP_EMAIL"]?.toLowerCase();
   const email = String((context.claims as { email?: string }).email ?? "").toLowerCase();
   if (bootstrap && email && bootstrap === email) {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    await supabaseAdmin
-      .from("user_roles")
-      .upsert({ user_id: context.userId, role: "owner", is_active: true });
-    return "owner";
+    const { data: au } = await supabaseAdmin.auth.admin.getUserById(context.userId);
+    const verified = !!au?.user?.email_confirmed_at && au.user.email?.toLowerCase() === bootstrap;
+    if (verified) {
+      await supabaseAdmin
+        .from("user_roles")
+        .upsert({ user_id: context.userId, role: "owner", is_active: true });
+      return { role: "owner", canViewHpp: false };
+    }
   }
-  return null;
+  return { role: null, canViewHpp: false };
+}
+
+export async function resolveRole(context: Ctx): Promise<AdminRole | null> {
+  return (await resolveSubject(context)).role;
+}
+
+/** Penegakan di server: 403 bila peran tidak punya izin. Database tetap menolak sendiri (RLS / has_permission). */
+export async function requirePermission(context: Ctx, perm: Permission): Promise<AdminRole> {
+  const subject = await resolveSubject(context);
+  if (!subject.role) {
+    throw new ShopifyAdminError("403 — akun ini tidak punya akses panel admin.", 403);
+  }
+  if (!hasPermission(subject, perm)) {
+    throw new ShopifyAdminError("403 — akses ditolak. Fitur ini khusus Owner.", 403);
+  }
+  return subject.role;
 }
 
 export async function requireRole(context: Ctx, minimum: AdminRole): Promise<AdminRole> {
@@ -523,10 +550,12 @@ export const listAdminUsers = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
     const ctx = context as unknown as Ctx;
-    await requireRole(ctx, "owner");
+    await requirePermission(ctx, "users_manage");
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const [{ data: roles }, { data: authUsers }] = await Promise.all([
-      supabaseAdmin.from("user_roles").select("user_id, role, is_active, created_at"),
+      supabaseAdmin
+        .from("user_roles")
+        .select("user_id, role, is_active, created_at, title, display_name, can_view_hpp, branch_id"),
       supabaseAdmin.auth.admin.listUsers({ page: 1, perPage: 200 }),
     ]);
     const emails = new Map(authUsers.users.map((u) => [u.id, u.email ?? ""]));
@@ -536,12 +565,16 @@ export const listAdminUsers = createServerFn({ method: "GET" })
       role: r.role as AdminRole,
       isActive: r.is_active,
       createdAt: r.created_at,
+      title: (r.title as string | null) ?? null,
+      displayName: (r.display_name as string | null) ?? null,
+      canViewHpp: !!r.can_view_hpp,
+      branchId: (r.branch_id as string | null) ?? null,
     }));
   });
 
 export const inviteAdminUser = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: { email: string; role: AdminRole }) => {
+  .inputValidator((input: { email: string; role: AdminRole; title?: string | null }) => {
     if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(input.email ?? ""))
       throw new Error("Email tidak valid.");
     if (!["owner", "admin", "seller"].includes(input.role)) throw new Error("Peran tidak valid.");
@@ -549,7 +582,7 @@ export const inviteAdminUser = createServerFn({ method: "POST" })
   })
   .handler(async ({ data, context }) => {
     const ctx = context as unknown as Ctx;
-    await requireRole(ctx, "owner");
+    await requirePermission(ctx, "users_manage");
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { data: invited, error } = await supabaseAdmin.auth.admin.inviteUserByEmail(data.email);
     if (error || !invited?.user) {
@@ -557,7 +590,12 @@ export const inviteAdminUser = createServerFn({ method: "POST" })
     }
     const { error: roleError } = await supabaseAdmin
       .from("user_roles")
-      .upsert({ user_id: invited.user.id, role: data.role, is_active: true });
+      .upsert({
+        user_id: invited.user.id,
+        role: data.role,
+        is_active: true,
+        title: data.role === "admin" ? (data.title ?? "admin") : null,
+      });
     if (roleError) throw new Error(`Gagal menyimpan peran: ${roleError.message}`);
     await audit(ctx, "user_invite", null, { email: data.email, role: data.role });
     return { ok: true };
@@ -565,23 +603,34 @@ export const inviteAdminUser = createServerFn({ method: "POST" })
 
 export const setAdminUserRole = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: { userId: string; role?: AdminRole; isActive?: boolean }) => input)
+  .inputValidator(
+    (input: {
+      userId: string;
+      role?: AdminRole;
+      isActive?: boolean;
+      title?: "general_manager" | "admin" | null;
+      canViewHpp?: boolean;
+      branchId?: string | null;
+      displayName?: string | null;
+    }) => input,
+  )
   .handler(async ({ data, context }) => {
     const ctx = context as unknown as Ctx;
-    await requireRole(ctx, "owner");
-    if (data.userId === ctx.userId && data.isActive === false) {
-      throw new Error("Tidak bisa menonaktifkan akun sendiri.");
+    await requirePermission(ctx, "users_manage");
+    const touchesRole = data.role !== undefined || data.isActive !== undefined;
+    if (data.userId === ctx.userId && touchesRole) {
+      throw new Error("Tidak bisa mengubah peran atau status akun sendiri.");
     }
-    const patch: { updated_at: string; role?: AdminRole; is_active?: boolean } = {
-      updated_at: new Date().toISOString(),
-    };
+    const patch: TablesUpdate<"user_roles"> = { updated_at: new Date().toISOString() };
     if (data.role) patch.role = data.role;
     if (data.isActive !== undefined) patch.is_active = data.isActive;
+    if (data.title !== undefined) patch.title = data.title;
+    if (data.canViewHpp !== undefined) patch.can_view_hpp = data.canViewHpp;
+    if (data.branchId !== undefined) patch.branch_id = data.branchId;
+    if (data.displayName !== undefined) patch.display_name = data.displayName?.trim().slice(0, 80) || null;
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { error } = await supabaseAdmin
-      .from("user_roles")
-      .update(patch)
-      .eq("user_id", data.userId);
+    // Penjaga owner terakhir ada di database (trigger user_roles_protect); pesan galatnya diteruskan apa adanya.
+    const { error } = await supabaseAdmin.from("user_roles").update(patch).eq("user_id", data.userId);
     if (error) throw new Error(error.message);
     await audit(ctx, "user_role_update", null, { targetUser: data.userId, ...patch });
     return { ok: true };

@@ -2,7 +2,7 @@
 // RLS and the products_guard trigger (blocklist + publish rule) stay in force.
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
-import { audit, requireRole, type Ctx } from "./admin.functions";
+import { audit, requirePermission, requireRole, type Ctx } from "./admin.functions";
 import {
   MAX_PHOTOS,
   planFullImport,
@@ -662,7 +662,7 @@ export const addBlock = createServerFn({ method: "POST" })
   }))
   .handler(async ({ data, context }) => {
     const ctx = asCtx(context);
-    await requireRole(ctx, "owner");
+    await requirePermission(ctx, "blocklist_edit");
     const { data: n, error } = await db(ctx).rpc("owner_add_block", { _kind: data.kind, _value: data.value, _reason: data.reason });
     if (error) throw new Error(error.message);
     return { productsBlocked: Number(n) || 0 };
@@ -676,7 +676,7 @@ export const removeBlock = createServerFn({ method: "POST" })
   }))
   .handler(async ({ data, context }) => {
     const ctx = asCtx(context);
-    await requireRole(ctx, "owner");
+    await requirePermission(ctx, "blocklist_edit");
     const { error } = await db(ctx).rpc("owner_remove_block", { _kind: data.kind, _value: data.value });
     if (error) throw new Error(error.message);
     return { ok: true };
@@ -690,7 +690,7 @@ export const listActivity = createServerFn({ method: "GET" })
   }))
   .handler(async ({ data, context }) => {
     const ctx = asCtx(context);
-    await requireRole(ctx, "owner");
+    await requirePermission(ctx, "audit_view");
     let q = db(ctx).from("admin_audit_log").select("id,user_id,action,product_id,payload,created_at");
     if (data.onlyProducts) q = q.eq("action", "product_change");
     const { data: rows, error } = await q.order("created_at", { ascending: false }).range(data.offset, data.offset + 49);
