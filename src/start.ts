@@ -11,6 +11,9 @@ const errorMiddleware = createMiddleware().server(async ({ next }) => {
       throw error;
     }
     console.error(error);
+    void import("./lib/error-report.server")
+      .then((m) => m.reportServerError(error, "middleware"))
+      .catch(() => undefined);
     return new Response(renderErrorPage(), {
       status: 500,
       headers: { "content-type": "text/html; charset=utf-8" },

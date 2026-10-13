@@ -1,7 +1,7 @@
 import { createFileRoute, Outlet, redirect, Link, useRouter } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { BellRing, Link2, ListChecks, PlusCircle, Store, History, Images, LogOut, Package, Receipt,
+import { Archive, BellRing, Link2, ListChecks, PlusCircle, Store, History, Images, LogOut, Package, Receipt,
   Tag, Settings, Sheet, ShieldBan, Upload, Users } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { getMyAdminRole } from "@/lib/admin.functions";
@@ -136,4 +136,5 @@ const NAV = [
   { to: "/admin/pengaturan", label: "Pengaturan", icon: Settings, show: canEditCommerce },
   { to: "/admin/aktivitas", label: "Log Aktivitas", icon: History, show: canManageUsers },
   { to: "/admin/pengguna", label: "Pengguna", icon: Users, show: canManageUsers },
+  { to: "/admin/cadangan", label: "Cadangan & Galat", icon: Archive, show: canManageUsers },
 ] as const;

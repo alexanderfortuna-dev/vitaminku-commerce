@@ -15,6 +15,7 @@ import { useRunningPromos } from "@/hooks/useRunningPromos";
 import { promoForBrand } from "@/lib/promo";
 import { ProductBuyBar } from "@/components/AddToCartButton";
 import { brandSlug } from "@/lib/catalog";
+import { buildProductJsonLd, serializeJsonLd } from "@/lib/seo";
 
 export const Route = createFileRoute("/produk/$handle")({
   loader: async ({ context, params }) => {
@@ -25,6 +26,11 @@ export const Route = createFileRoute("/produk/$handle")({
       description: product.description ?? "",
       brand: product.brand,
       subcategory: product.subcategory,
+      // JSON-LD hanya bila produk punya harga > 0; tanpa rating/ulasan. Set VITE_SITE_URL agar url penawaran ikut.
+      jsonLd: (() => {
+        const ld = buildProductJsonLd(product, import.meta.env["VITE_SITE_URL"] as string | undefined);
+        return ld ? serializeJsonLd(ld) : null;
+      })(),
     };
   },
   head: ({ loaderData, params }) => {
@@ -51,6 +57,7 @@ export const Route = createFileRoute("/produk/$handle")({
         { name: "twitter:card", content: "summary" },
       ],
       links: [{ rel: "canonical", href: `/produk/${params.handle}` }],
+      ...(loaderData.jsonLd ? { scripts: [{ type: "application/ld+json", children: loaderData.jsonLd }] } : {}),
     };
   },
   errorComponent: ({ error }) => (
