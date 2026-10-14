@@ -122,6 +122,9 @@ BEGIN
   INSERT INTO r VALUES ('klaim dengan token pesanan benar → berhasil', x = cid::text, coalesce(x,'NULL'));
   x := pg_temp.val_as(c,'authenticated','SELECT count(*) FROM public.orders');
   INSERT INTO r VALUES ('pelanggan yang diklaim bisa membaca pesanannya (RLS)', x='1', x);
+  x := pg_temp.val_as(m,'authenticated',$q$WITH d AS (DELETE FROM public.orders RETURNING 1) SELECT count(*) FROM d$q$);
+  INSERT INTO r VALUES ('manajer tidak bisa menghapus pesanan (0 baris terhapus)', x='0' OR x LIKE 'ERR%', x);
+  INSERT INTO r VALUES ('pesanan tetap utuh setelah percobaan hapus', (SELECT count(*) FROM public.orders WHERE order_number='VK-QA-1')=1, '');
   x := pg_temp.val_as(s,'authenticated','SELECT count(*) FROM public.orders');
   INSERT INTO r VALUES ('seller tidak membaca pesanan', x='0', x);
 
