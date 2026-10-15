@@ -1,10 +1,10 @@
 -- BOOTSTRAP OWNER — JANGAN dijalankan otomatis. Hanya untuk proyek Supabase vmhoohfwjtsojgcvopaf, dijalankan SEKALI oleh Kings.
 -- Prasyarat: (1) PASTE_SEKALI.sql sudah dijalankan; (2) Kings DAN Livita sudah login sekali lewat /masuk dengan email terverifikasi.
--- WAJIB ganti baris "ISI EMAIL LIVITA" di bawah dengan email Livita yang asli sebelum Run. Jangan menaruh sandi/kunci di sini.
+-- Email Co-Owner (Livita) sudah terisi. Email General Manager masih placeholder "ISI EMAIL ADMIN" — isi sebelum Run bila perlu (atau hapus blok GM).
 INSERT INTO public.user_roles (user_id, role, is_active)
 SELECT u.id, 'owner'::public.app_role, true
 FROM auth.users u
-WHERE lower(u.email) IN (lower('alexander.fortuna@vitafortunajaya.com'), lower('ISI EMAIL LIVITA'))
+WHERE lower(u.email) IN (lower('alexander.fortuna@vitafortunajaya.com'), lower('livita.gunardi@gmail.com'))
   AND u.email_confirmed_at IS NOT NULL
 ON CONFLICT (user_id) DO UPDATE SET role = 'owner', is_active = true, updated_at = now();
 
