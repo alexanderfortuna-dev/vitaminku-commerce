@@ -1,0 +1,145 @@
+# VitaminKu DB — operator satu-tombol. HANYA dijalankan manual oleh Kings (Run workflow).
+# Tidak ada pemicu push/cron. Semua kunci dari GitHub Secrets; tidak ada yang dicetak.
+name: VitaminKu DB
+
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: "verify = cek saja · migrate = pasang SQL · invite = kirim undangan · bootstrap = aktifkan peran"
+        type: choice
+        options: [verify, migrate, invite, bootstrap]
+        default: verify
+      confirm:
+        description: 'Ketik JALANKAN untuk migrate / invite / bootstrap (verify tidak perlu)'
+        type: string
+        default: ""
+      kings_email:
+        description: "Email Owner"
+        type: string
+        default: alexander.fortuna@vitafortunajaya.com
+      livita_email:
+        description: "Email Co-Owner (boleh kosong)"
+        type: string
+        default: livita.gunardi@gmail.com
+      admin_email:
+        description: "Email General Manager (boleh kosong)"
+        type: string
+        default: ""
+
+permissions:
+  contents: read
+
+concurrency:
+  group: vitaminku-db
+  cancel-in-progress: false
+
+jobs:
+  db:
+    name: ${{ inputs.mode }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      MODE: ${{ inputs.mode }}
+      CONFIRM: ${{ inputs.confirm }}
+      KINGS_EMAIL: ${{ inputs.kings_email }}
+      LIVITA_EMAIL: ${{ inputs.livita_email }}
+      ADMIN_EMAIL: ${{ inputs.admin_email }}
+      SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+      PGCONNECT_TIMEOUT: "15"
+    steps:
+      - name: Penjaga (branch & konfirmasi)
+        id: guard
+        run: |
+          if [ "$GITHUB_REF" != "refs/heads/feat/launch-ready-v3" ]; then
+            echo "### ❌ Ditolak: pilih branch feat/launch-ready-v3" >> "$GITHUB_STEP_SUMMARY"; exit 1
+          fi
+          if [ "$MODE" != "verify" ] && [ "$CONFIRM" != "JALANKAN" ]; then
+            echo "### ❌ Ditolak: untuk mode $MODE ketik JALANKAN di kolom confirm" >> "$GITHUB_STEP_SUMMARY"; exit 1
+          fi
+          if [ -z "$SUPABASE_DB_URL" ]; then
+            echo "### ❌ Secret SUPABASE_DB_URL belum dipasang (lihat docs/TOMBOL_HP.md)" >> "$GITHUB_STEP_SUMMARY"; exit 1
+          fi
+          for e in "$KINGS_EMAIL" "$LIVITA_EMAIL" "$ADMIN_EMAIL"; do
+            if [ -n "$e" ] && ! printf '%s' "$e" | grep -Eq '^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$'; then
+              echo "### ❌ Format email tidak valid" >> "$GITHUB_STEP_SUMMARY"; exit 1
+            fi
+          done
+
+      - uses: actions/checkout@v4
+        with:
+          ref: feat/launch-ready-v3
+          persist-credentials: false
+
+      - name: Pasang psql
+        id: psql
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq postgresql-client >/dev/null && psql --version
+
+      - name: Migrate (satu transaksi)
+        if: inputs.mode == 'migrate'
+        run: |
+          if psql "$SUPABASE_DB_URL" -v ON_ERROR_STOP=1 --single-transaction -q -f supabase/PASTE_SEKALI.sql > /tmp/migrate.log 2>&1; then
+            echo "### ✅ SQL terpasang (satu transaksi)" >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "### ❌ SQL GAGAL — tidak ada yang berubah (transaksi dibatalkan)" >> "$GITHUB_STEP_SUMMARY"
+            grep -E "ERROR|psql:" /tmp/migrate.log | head -5 | sed 's/^/    /' >> "$GITHUB_STEP_SUMMARY"
+            exit 1
+          fi
+
+      - name: Invite (undangan email)
+        if: inputs.mode == 'invite'
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          SITE_URL: ${{ secrets.SITE_URL }}
+        run: |
+          if [ -z "$SUPABASE_URL" ] || [ -z "$SERVICE_KEY" ]; then
+            echo "### ❌ Secret SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY belum dipasang" >> "$GITHUB_STEP_SUMMARY"; exit 1
+          fi
+          mask() { printf '%s***@%s' "${1:0:1}" "${1#*@}"; }
+          q=""; [ -n "$SITE_URL" ] && q="?redirect_to=$(printf '%s' "${SITE_URL%/}/masuk" | jq -sRr @uri)"
+          echo "### Undangan" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Email | Hasil |" >> "$GITHUB_STEP_SUMMARY"; echo "|---|---|" >> "$GITHUB_STEP_SUMMARY"
+          fail=0
+          for e in "$KINGS_EMAIL" "$LIVITA_EMAIL" "$ADMIN_EMAIL"; do
+            [ -z "$e" ] && continue
+            m=$(mask "$e")
+            ada=$(echo "select count(*) from auth.users where lower(email)=lower(:'e');" | psql "$SUPABASE_DB_URL" -tAq -v e="$e" 2>/dev/null || echo "?")
+            if [ "$ada" = "1" ]; then echo "| $m | sudah terdaftar — dilewati |" >> "$GITHUB_STEP_SUMMARY"; continue; fi
+            code=$(curl -sS -o /dev/null -w '%{http_code}' -X POST "${SUPABASE_URL%/}/auth/v1/invite${q}" \
+              -H "apikey: $SERVICE_KEY" -H "Authorization: Bearer $SERVICE_KEY" -H "Content-Type: application/json" \
+              --data "$(jq -cn --arg e "$e" '{email:$e}')")
+            if [ "$code" = "200" ]; then echo "| $m | ✅ terkirim |" >> "$GITHUB_STEP_SUMMARY"
+            else echo "| $m | ❌ gagal (kode $code) |" >> "$GITHUB_STEP_SUMMARY"; fail=1; fi
+          done
+          exit $fail
+
+      - name: Bootstrap (aktifkan peran)
+        if: inputs.mode == 'bootstrap'
+        run: |
+          if ! psql "$SUPABASE_DB_URL" -v ON_ERROR_STOP=1 --single-transaction -q -P footer=off \
+              -v kings_email="$KINGS_EMAIL" -v livita_email="$LIVITA_EMAIL" -v admin_email="$ADMIN_EMAIL" \
+              -A -F ' | ' -f supabase/BOOTSTRAP_OWNER.sql > /tmp/boot.log 2>&1; then
+            echo "### ❌ Bootstrap GAGAL — tidak ada yang berubah" >> "$GITHUB_STEP_SUMMARY"
+            grep -E "ERROR" /tmp/boot.log | head -3 | sed 's/^/    /' >> "$GITHUB_STEP_SUMMARY"; exit 1
+          fi
+          echo "### Peran aktif" >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"; cat /tmp/boot.log >> "$GITHUB_STEP_SUMMARY"; echo '```' >> "$GITHUB_STEP_SUMMARY"
+          echo "Akun yang belum muncul = belum pernah klik email undangan / login sekali." >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Verifikasi (hanya baca)
+        if: ${{ !cancelled() && steps.guard.outcome == 'success' && steps.psql.outcome == 'success' }}
+        run: |
+          if ! psql "$SUPABASE_DB_URL" -v ON_ERROR_STOP=1 -tAq -F '|' -f supabase/VERIFY.sql > /tmp/verify.txt 2>/tmp/verify.err; then
+            echo "### ❌ Tidak bisa terhubung ke database (cek secret SUPABASE_DB_URL: pakai Session pooler)" >> "$GITHUB_STEP_SUMMARY"; exit 1
+          fi
+          {
+            echo "### Hasil pemeriksaan VitaminKu"
+            echo "| Cek | Hasil | Detail |"
+            echo "|---|---|---|"
+            while IFS='|' read -r cek hasil detail; do
+              ikon="⚪"; [ "$hasil" = "LULUS" ] && ikon="✅"; [ "$hasil" = "GAGAL" ] && ikon="❌"
+              echo "| $cek | $ikon $hasil | $detail |"
+            done < /tmp/verify.txt
+          } >> "$GITHUB_STEP_SUMMARY"
+          if [ "$MODE" = "migrate" ] && grep -q '|GAGAL|' /tmp/verify.txt; then exit 1; fi
