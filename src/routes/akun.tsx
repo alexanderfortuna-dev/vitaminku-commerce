@@ -9,6 +9,7 @@ import { ProductThumb } from "@/components/ProductThumb";
 import { formatIDR } from "@/lib/format";
 import { toast } from "sonner";
 import { AdminPanelLink } from "@/components/AdminPanelLink";
+import { AccountSection } from "@/components/AccountSection";
 
 export const Route = createFileRoute("/akun")({
   head: () => ({
@@ -111,10 +112,7 @@ function SavedPage() {
 
       <AdminPanelLink />
 
-      <p className="px-4 text-xs text-muted-foreground">
-        Beta: login pelanggan, riwayat pesanan, dan lacak pengiriman belum tersedia di aplikasi ini.
-        Detail pesanan dikirim lewat email konfirmasi dari halaman pembayaran.
-      </p>
+      <AccountSection />
 
       <section id="simpanan" className="scroll-mt-24 py-4">
         <h2 className="px-4 pb-3 text-base font-extrabold">Simpan untuk Nanti</h2>

@@ -96,7 +96,7 @@ export const toProductJson = (p: ProductRow) => ({
   in_stock: (p.stock ?? 0) > 0,
   bpom_number: p.bpom_number,
   slug: p.slug,
-  product_url: p.slug ? `https://vitaku-shop.lovable.app/produk/${p.slug}` : null,
+  product_url: p.slug && process.env["PUBLIC_SITE_URL"] ? `${process.env["PUBLIC_SITE_URL"].replace(/\/$/, "")}/produk/${p.slug}` : null,
 });
 
 /** Strips characters that would break a Postgres text-search / ILIKE pattern. */

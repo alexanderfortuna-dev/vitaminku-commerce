@@ -1,11 +1,11 @@
 import { createFileRoute, Outlet, redirect, Link, useRouter } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { History, Images, LogOut, Package, Receipt,
+import { Archive, BellRing, Link2, ListChecks, PlusCircle, Store, History, Images, LogOut, Package, Receipt,
   Tag, Settings, Sheet, ShieldBan, Upload, Users } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { getMyAdminRole } from "@/lib/admin.functions";
-import { ROLE_LABEL, canEditCommerce, canManageUsers, type AdminRole } from "@/lib/admin-roles";
+import { ROLE_LABEL, canEditCommerce, canEditContent, canManageUsers, type AdminRole } from "@/lib/admin-roles";
 
 export const Route = createFileRoute("/admin")({
   ssr: false,
@@ -121,6 +121,9 @@ function AdminLayout() {
 }
 
 const NAV = [
+  { to: "/admin/pesanan-masuk", label: "Pesanan Masuk", icon: BellRing, show: canEditCommerce },
+  { to: "/admin/produk-cepat", label: "Tambah Cepat", icon: PlusCircle, show: canEditContent },
+  { to: "/admin/antrian", label: "Antrian Kerja", icon: ListChecks, show: canEditContent },
   { to: "/admin", label: "Produk Saya", icon: Package, show: canEditCommerce },
   { to: "/admin/upload-massal", label: "Upload Massal", icon: Upload, show: canEditCommerce },
   { to: "/admin/harga-stok", label: "Ubah Massal", icon: Sheet, show: canEditCommerce },
@@ -128,7 +131,10 @@ const NAV = [
   { to: "/admin/pesanan", label: "Pesanan", icon: Receipt, show: canEditCommerce },
   { to: "/admin/promo", label: "Promo", icon: Tag, show: canEditCommerce },
   { to: "/admin/blokir", label: "Daftar Blokir", icon: ShieldBan, show: canEditCommerce },
+  { to: "/admin/cabang-admin", label: "Cabang & Admin", icon: Store, show: canEditCommerce },
+  { to: "/admin/tautan", label: "Tautan & QR", icon: Link2, show: canEditCommerce },
   { to: "/admin/pengaturan", label: "Pengaturan", icon: Settings, show: canEditCommerce },
   { to: "/admin/aktivitas", label: "Log Aktivitas", icon: History, show: canManageUsers },
   { to: "/admin/pengguna", label: "Pengguna", icon: Users, show: canManageUsers },
+  { to: "/admin/cadangan", label: "Cadangan & Galat", icon: Archive, show: canManageUsers },
 ] as const;

@@ -114,6 +114,9 @@ function PengaturanPage() {
               <label className="col-span-2 text-xs font-semibold text-navy">Link Google Maps (opsional)<input className={field} value={d.maps_url ?? ""} onChange={(e) => { const v = e.target.value; const p = parseMapsUrl(v); set(i, p ? { maps_url: v, lat: p.lat, lng: p.lng } : { maps_url: v }); }} placeholder="https://maps.google.com/…@-8.65,115.21" /></label>
               <label className="text-xs font-semibold text-navy">Lat<input className={field} inputMode="decimal" value={d.lat ?? ""} onChange={(e) => set(i, { lat: e.target.value === "" ? null : Number(e.target.value) })} placeholder="-8.65" /></label>
               <label className="text-xs font-semibold text-navy">Lng<input className={field} inputMode="decimal" value={d.lng ?? ""} onChange={(e) => set(i, { lng: e.target.value === "" ? null : Number(e.target.value) })} placeholder="115.21" /></label>
+              <label className="text-xs font-semibold text-navy">Kode cabang<input className={field} value={d.code ?? ""} onChange={(e) => set(i, { code: e.target.value.toUpperCase().replace(/[^A-Z0-9_-]/g, "") })} maxLength={24} placeholder="mis. SANUR" /></label>
+              <label className="col-span-2 text-xs font-semibold text-navy">Alamat lengkap (opsional)<input className={field} value={d.address ?? ""} onChange={(e) => set(i, { address: e.target.value })} /></label>
+              <label className="col-span-2 text-xs font-semibold text-navy">Jam buka (opsional)<input className={field} value={d.opening_hours ?? ""} onChange={(e) => set(i, { opening_hours: e.target.value })} placeholder="mis. Setiap hari 09.00-21.00" /></label>
               <label className="text-xs font-semibold text-navy">Urutan<input className={field} inputMode="numeric" value={d.display_order} onChange={(e) => set(i, { display_order: Number(e.target.value.replace(/\D/g, "")) || 0 })} /></label>
             </div>
             <div className="flex items-center gap-2">
@@ -129,7 +132,7 @@ function PengaturanPage() {
             </div>
           </div>
         ))}
-        <button type="button" onClick={() => setDrafts([...drafts, { name: "", area: "", whatsapp: "", is_active: true, display_order: drafts.length, lat: null, lng: null, maps_url: null }])}
+        <button type="button" onClick={() => setDrafts([...drafts, { name: "", area: "", whatsapp: "", is_active: true, display_order: drafts.length, lat: null, lng: null, maps_url: null, code: null, address: null, opening_hours: null }])}
           className="flex min-h-11 w-full items-center justify-center gap-1 rounded-full bg-secondary text-xs font-bold text-navy">
           <Plus className="h-4 w-4" /> Tambah cabang
         </button>

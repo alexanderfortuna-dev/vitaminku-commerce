@@ -84,7 +84,7 @@ describe("branch geo", () => {
 
 describe("hpp never reaches public code", () => {
   // Only staff-only server modules and generated types may mention the cost column.
-  const ALLOWED = [/^integrations\/supabase\/types\.ts$/, /^lib\/admin[^/]*\.functions\.ts$/, /^lib\/seller[^/]*\.ts$/, /^lib\/bulk-price-stock[^/]*\.ts$/, /^routes\/admin\//, /__tests__\//];
+  const ALLOWED = [/^integrations\/supabase\/types\.ts$/, /^lib\/admin[^/]*\.functions\.ts$/, /^lib\/seller[^/]*\.ts$/, /^lib\/bulk-price-stock[^/]*\.ts$/, /^lib\/backup\.functions\.ts$/, /^routes\/admin\//, /__tests__\//];
   const root = join(__dirname, "..", "..");
   const files: string[] = [];
   const walk = (d: string) => {

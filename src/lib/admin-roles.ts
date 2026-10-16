@@ -4,8 +4,8 @@ export const ROLE_LEVEL: Record<AdminRole, number> = { seller: 1, admin: 2, owne
 
 export const ROLE_LABEL: Record<AdminRole, string> = {
   owner: "Owner",
-  admin: "Admin",
-  seller: "Seller",
+  admin: "Manajer",
+  seller: "Tim Produk",
 };
 
 export function canEditContent(role: AdminRole | null) {

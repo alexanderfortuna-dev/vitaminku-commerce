@@ -2,15 +2,17 @@
 // RLS and the products_guard trigger (blocklist + publish rule) stay in force.
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
-import { audit, requireRole, type Ctx } from "./admin.functions";
+import { audit, requirePermission, requireRole, type Ctx } from "./admin.functions";
 import {
   MAX_PHOTOS,
   planFullImport,
   type ExistingProduct,
   type FullRow,
   type ImportMode,
+  type PlannedRow,
 } from "./seller-import";
 import type { RawCell } from "./bulk-price-stock";
+import { SNAPSHOT_SELECT, buildSnapshotRows } from "./import-snapshot";
 
 export const SELLER_PAGE_SIZE = 50;
 export type SellerTab = "ALL" | "LIVE" | "DRAFT" | "INCOMPLETE" | "OUT" | "BLOCKED";
@@ -559,18 +561,138 @@ export const previewFullImport = createServerFn({ method: "POST" })
     };
   });
 
-/** Applies one chunk (≤100 rows). The browser sends chunks in order and can resume. */
-export const applyFullImportChunk = createServerFn({ method: "POST" })
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/** Satu catatan `product_imports` per impor (semua batch). Ditulis dengan service role setelah izin diperiksa. */
+async function ensureImportRecord(ctx: Ctx, input: FullInput, importId: string | null): Promise<string> {
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  if (importId) {
+    const { data: row } = await supabaseAdmin
+      .from("product_imports")
+      .select("id,created_by,undone_at")
+      .eq("id", importId)
+      .maybeSingle();
+    if (!row || row.created_by !== ctx.userId || row.undone_at) {
+      throw new Error("Catatan impor tidak valid. Mulai ulang unggahan dari awal.");
+    }
+    return row.id;
+  }
+  const { data: created, error } = await supabaseAdmin
+    .from("product_imports")
+    .insert({ created_by: ctx.userId, file_name: input.fileName || null, mode: input.mode, summary: { created: 0, updated: 0 } })
+    .select("id")
+    .single();
+  if (error || !created) throw new Error("Gagal menyiapkan cadangan impor. Tidak ada produk yang diubah.");
+  return created.id;
+}
+
+async function writeImportSnapshot(importId: string, ctx: Ctx, planned: PlannedRow[]) {
+  const ids = planned.filter((r) => r.kind === "update" && r.id).map((r) => r.id as string);
+  const beforeById = new Map<string, Record<string, unknown>>();
+  for (let i = 0; i < ids.length; i += 200) {
+    const { data, error } = await db(ctx).from("products").select(SNAPSHOT_SELECT).in("id", ids.slice(i, i + 200));
+    if (error) throw new Error("Gagal membuat cadangan sebelum impor. Tidak ada produk yang diubah.");
+    for (const p of (data ?? []) as Array<Record<string, unknown>>) beforeById.set(String(p["id"]), p);
+  }
+  const rows = buildSnapshotRows(importId, planned, beforeById);
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  // ignoreDuplicates: bila batch diulang, cadangan pertama (sebelum diubah) tidak ditimpa.
+  const { error } = await supabaseAdmin
+    .from("product_import_rows")
+    .upsert(rows as never, { onConflict: "import_id,sku", ignoreDuplicates: true });
+  if (error) throw new Error("Gagal menyimpan cadangan sebelum impor. Tidak ada produk yang diubah.");
+}
+
+/** Baris yang gagal tidak mengubah apa pun; buang dari cadangan agar pembatalan tidak menyentuh produk lain dengan SKU sama. */
+async function dropFailedSnapshots(importId: string, planned: PlannedRow[], failed: Array<{ sku: string }>) {
+  const failedSkus = new Set(failed.map((f) => f.sku));
+  const skus = planned.filter((r) => failedSkus.has(r.sku)).map((r) => r.sku);
+  if (!skus.length) return;
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  await supabaseAdmin.from("product_import_rows").delete().eq("import_id", importId).in("sku", skus).eq("existed", false);
+}
+
+async function addImportSummary(importId: string, add: { created: number; updated: number }) {
+  try {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: row } = await supabaseAdmin.from("product_imports").select("summary").eq("id", importId).maybeSingle();
+    const prev = (row?.summary ?? {}) as { created?: number; updated?: number };
+    await supabaseAdmin
+      .from("product_imports")
+      .update({ summary: { created: (prev.created ?? 0) + add.created, updated: (prev.updated ?? 0) + add.updated } })
+      .eq("id", importId);
+  } catch (e) {
+    console.warn("import summary not updated", e instanceof Error ? e.message : e);
+  }
+}
+
+export interface LastImport {
+  id: string;
+  createdAt: string;
+  fileName: string | null;
+  created: number;
+  updated: number;
+}
+
+/** Impor terakhir yang belum dibatalkan (untuk tombol "Batalkan impor terakhir"). */
+export const getLastImport = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((i: FullInput & { chunk: number; last: boolean }) => {
-    const v = validateFull(i);
-    if (v.rows.length > 100) throw new Error("Maks 100 baris per batch.");
-    return { ...v, chunk: Number(i.chunk) || 0, last: !!i.last };
+  .handler(async ({ context }): Promise<{ last: LastImport | null }> => {
+    const ctx = asCtx(context);
+    await requirePermission(ctx, "uploads_use");
+    const { data, error } = await db(ctx)
+      .from("product_imports")
+      .select("id,created_at,file_name,summary,undone_at")
+      .is("undone_at", null)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (error) throw new Error("Riwayat impor tidak bisa dibaca.");
+    if (!data) return { last: null };
+    const s = (data.summary ?? {}) as { created?: number; updated?: number };
+    return {
+      last: { id: data.id, createdAt: data.created_at, fileName: data.file_name, created: s.created ?? 0, updated: s.updated ?? 0 },
+    };
+  });
+
+/** Memulihkan impor terakhir lewat RPC undo_product_import (cek izin, urutan, dan audit ada di database). */
+export const undoLastImport = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((i: { importId: string }) => {
+    if (!i || typeof i.importId !== "string" || !UUID_RE.test(i.importId)) throw new Error("Impor tidak valid.");
+    return { importId: i.importId };
   })
   .handler(async ({ data, context }) => {
     const ctx = asCtx(context);
-    await requireRole(ctx, "admin");
+    await requirePermission(ctx, "uploads_use");
+    const { data: res, error } = await db(ctx).rpc("undo_product_import", { _import_id: data.importId });
+    if (error) {
+      if (/forbidden/i.test(error.message)) throw new Error("403 — akses ditolak.");
+      throw new Error(error.message || "Impor tidak bisa dibatalkan.");
+    }
+    const r = (res ?? {}) as { restored?: number; archived?: number };
+    return { restored: r.restored ?? 0, archived: r.archived ?? 0 };
+  });
+
+/** Applies one chunk (≤100 rows). The browser sends chunks in order and can resume. */
+export const applyFullImportChunk = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((i: FullInput & { chunk: number; last: boolean; importId?: string | null }) => {
+    const v = validateFull(i);
+    if (v.rows.length > 100) throw new Error("Maks 100 baris per batch.");
+    const importId = typeof i.importId === "string" && UUID_RE.test(i.importId) ? i.importId : null;
+    return { ...v, chunk: Number(i.chunk) || 0, last: !!i.last, importId };
+  })
+  .handler(async ({ data, context }) => {
+    const ctx = asCtx(context);
+    await requirePermission(ctx, "uploads_use");
     const plan = await planFor(ctx, data);
+    // Cadangan (snapshot) ditulis SEBELUM produk diubah. Bila gagal, tidak ada yang diubah.
+    let importId = data.importId;
+    if (plan.rows.length) {
+      importId = await ensureImportRecord(ctx, data, importId);
+      await writeImportSnapshot(importId, ctx, plan.rows);
+    }
     const failed: Array<{ row: number; sku: string; reason: string }> = [...plan.errors];
     const photoJobs: Array<{ id: string; sku: string; row: number; urls: string[]; replace: boolean; publish: boolean }> = [];
     let created = 0;
@@ -625,10 +747,14 @@ export const applyFullImportChunk = createServerFn({ method: "POST" })
         }
       }
     }
-    if (data.last || data.chunk === 0) {
-      await audit(ctx, "seller_bulk_upload", null, { fileName: data.fileName, chunk: data.chunk, mode: data.mode });
+    if (importId) {
+      await dropFailedSnapshots(importId, plan.rows, failed);
+      await addImportSummary(importId, { created, updated });
     }
-    return { created, updated, unchanged: plan.unchanged, failed, stayedDraft, photoJobs };
+    if (data.last || data.chunk === 0) {
+      await audit(ctx, "seller_bulk_upload", null, { fileName: data.fileName, chunk: data.chunk, mode: data.mode, importId });
+    }
+    return { created, updated, unchanged: plan.unchanged, failed, stayedDraft, photoJobs, importId };
   });
 
 // ---------- blocklist & activity ----------
@@ -662,7 +788,7 @@ export const addBlock = createServerFn({ method: "POST" })
   }))
   .handler(async ({ data, context }) => {
     const ctx = asCtx(context);
-    await requireRole(ctx, "owner");
+    await requirePermission(ctx, "blocklist_edit");
     const { data: n, error } = await db(ctx).rpc("owner_add_block", { _kind: data.kind, _value: data.value, _reason: data.reason });
     if (error) throw new Error(error.message);
     return { productsBlocked: Number(n) || 0 };
@@ -676,7 +802,7 @@ export const removeBlock = createServerFn({ method: "POST" })
   }))
   .handler(async ({ data, context }) => {
     const ctx = asCtx(context);
-    await requireRole(ctx, "owner");
+    await requirePermission(ctx, "blocklist_edit");
     const { error } = await db(ctx).rpc("owner_remove_block", { _kind: data.kind, _value: data.value });
     if (error) throw new Error(error.message);
     return { ok: true };
@@ -690,7 +816,7 @@ export const listActivity = createServerFn({ method: "GET" })
   }))
   .handler(async ({ data, context }) => {
     const ctx = asCtx(context);
-    await requireRole(ctx, "owner");
+    await requirePermission(ctx, "audit_view");
     let q = db(ctx).from("admin_audit_log").select("id,user_id,action,product_id,payload,created_at");
     if (data.onlyProducts) q = q.eq("action", "product_change");
     const { data: rows, error } = await q.order("created_at", { ascending: false }).range(data.offset, data.offset + 49);

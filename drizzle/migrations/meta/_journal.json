@@ -64,6 +64,41 @@
       "when": 1791739122345,
       "tag": "0008_promos_hero_branch_coords_referral",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1791790000000,
+      "tag": "0009_revoke_trigger_function_exec",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1791800000000,
+      "tag": "0010_permissions_and_customers",
+      "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1791800001000,
+      "tag": "0011_branch_admins",
+      "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1791800002000,
+      "tag": "0012_orders_stage",
+      "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1791800003000,
+      "tag": "0013_import_undo",
+      "breakpoints": true
     }
   ]
 }

@@ -5,7 +5,7 @@ import { createClient } from "@supabase/supabase-js";
 import { z } from "zod";
 import type { Database } from "@/integrations/supabase/types";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
-import { requireRole, type Ctx } from "./admin.functions";
+import { requirePermission, requireRole, type Ctx } from "./admin.functions";
 import { normalizeBranchWhatsapp } from "./store-core";
 
 export interface Branch {
@@ -18,6 +18,9 @@ export interface Branch {
   lat: number | null;
   lng: number | null;
   maps_url: string | null;
+  code: string | null;
+  address: string | null;
+  opening_hours: string | null;
 }
 export interface StoreSettings {
   store_name: string;
@@ -37,7 +40,7 @@ function publicClient() {
 export const getPublicStore = createServerFn({ method: "GET" }).handler(async () => {
   const c = publicClient();
   const [b, s] = await Promise.all([
-    c.from("store_branches").select("id,name,area,whatsapp,is_active,display_order,lat,lng,maps_url").eq("is_active", true).order("display_order").order("name"),
+    c.from("store_branches").select("id,name,area,whatsapp,is_active,display_order,lat,lng,maps_url,code,address,opening_hours").eq("is_active", true).order("display_order").order("name"),
     c.from("store_settings").select("store_name,logo_url,hero_title,hero_subtitle,free_shipping_note,operating_hours").eq("id", 1).maybeSingle(),
   ]);
   return { branches: (b.data ?? []) as Branch[], settings: (s.data ?? null) as StoreSettings | null };
@@ -51,7 +54,7 @@ export const getAdminStore = createServerFn({ method: "GET" })
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const db = ctx.supabase as any;
     const [b, s] = await Promise.all([
-      db.from("store_branches").select("id,name,area,whatsapp,is_active,display_order,lat,lng,maps_url").order("display_order").order("name"),
+      db.from("store_branches").select("id,name,area,whatsapp,is_active,display_order,lat,lng,maps_url,code,address,opening_hours").order("display_order").order("name"),
       db.from("store_settings").select("store_name,logo_url,hero_title,hero_subtitle,free_shipping_note,operating_hours").eq("id", 1).maybeSingle(),
     ]);
     if (b.error) throw new Error(b.error.message);
@@ -68,6 +71,9 @@ const branchSchema = z.object({
   maps_url: z.string().trim().max(1000).nullable().optional(),
   lat: z.number().min(-90).max(90).nullable().optional(),
   lng: z.number().min(-180).max(180).nullable().optional(),
+  code: z.string().trim().toUpperCase().regex(/^([A-Z0-9_-]{2,24})?$/, "Kode cabang: 2-24 huruf/angka (boleh - dan _), tanpa spasi").nullable().optional(),
+  address: z.string().trim().max(300).nullable().optional(),
+  opening_hours: z.string().trim().max(120).nullable().optional(),
 });
 
 export const saveBranch = createServerFn({ method: "POST" })
@@ -90,11 +96,14 @@ export const saveBranch = createServerFn({ method: "POST" })
       ({ lat, lng } = p);
     }
     if ((lat == null) !== (lng == null)) throw new Error("Isi lat dan lng keduanya, atau kosongkan keduanya.");
-    const row = { lat, lng, maps_url, name: data.name, area: data.area, whatsapp, is_active: data.is_active, display_order: data.display_order, updated_at: new Date().toISOString() };
+    const row = { lat, lng, maps_url, code: data.code || null, address: data.address || null, opening_hours: data.opening_hours || null, name: data.name, area: data.area, whatsapp, is_active: data.is_active, display_order: data.display_order, updated_at: new Date().toISOString() };
     const res = data.id
       ? await db.from("store_branches").update(row).eq("id", data.id).select("id").single()
       : await db.from("store_branches").insert(row).select("id").single();
-    if (res.error) throw new Error(`Gagal menyimpan cabang: ${res.error.message}`);
+    if (res.error) {
+      if (res.error.message.includes("store_branches_code_key")) throw new Error("Kode cabang sudah dipakai cabang lain.");
+      throw new Error(`Gagal menyimpan cabang: ${res.error.message}`);
+    }
     return { id: res.data.id };
   });
 
@@ -103,11 +112,15 @@ export const deleteBranch = createServerFn({ method: "POST" })
   .inputValidator((d: unknown) => z.object({ id: z.string().uuid() }).parse(d))
   .handler(async ({ data, context }) => {
     const ctx = context as unknown as Ctx;
-    await requireRole(ctx, "admin");
+    await requirePermission(ctx, "branches_manage");
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const db = ctx.supabase as any;
-    const { error } = await db.from("store_branches").delete().eq("id", data.id);
-    if (error) throw new Error(`Gagal menghapus cabang: ${error.message}`);
+    // Tidak ada hapus permanen: cabang diarsipkan (nonaktif) agar riwayat pesanan tetap utuh.
+    const { error } = await db
+      .from("store_branches")
+      .update({ is_active: false, updated_at: new Date().toISOString() })
+      .eq("id", data.id);
+    if (error) throw new Error(`Gagal mengarsipkan cabang: ${error.message}`);
     return { ok: true };
   });
 

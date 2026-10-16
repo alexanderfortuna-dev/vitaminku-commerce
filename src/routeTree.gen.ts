@@ -17,21 +17,33 @@ import { Route as CariRouteImport } from './routes/cari'
 import { Route as CheckoutRouteImport } from './routes/checkout'
 import { Route as KategoriRouteImport } from './routes/kategori'
 import { Route as KeranjangRouteImport } from './routes/keranjang'
+import { Route as MasukRouteImport } from './routes/masuk'
 import { Route as McpRouteImport } from './routes/mcp'
 import { Route as MerekRouteImport } from './routes/merek'
+import { Route as PengembalianRouteImport } from './routes/pengembalian'
+import { Route as PrivasiRouteImport } from './routes/privasi'
+import { Route as RobotsDottxtRouteImport } from './routes/robots[.]txt'
 import { Route as SellerRouteImport } from './routes/seller'
+import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
+import { Route as SyaratRouteImport } from './routes/syarat'
 import { Route as TujuanRouteImport } from './routes/tujuan'
 import { Route as Char91DotwellKnownChar93OauthProtectedResourceRouteImport } from './routes/[.well-known]/oauth-protected-resource'
 import { Route as AdminIndexRouteImport } from './routes/admin/index'
 import { Route as AdminAktivitasRouteImport } from './routes/admin/aktivitas'
+import { Route as AdminAntrianRouteImport } from './routes/admin/antrian'
 import { Route as AdminBlokirRouteImport } from './routes/admin/blokir'
+import { Route as AdminCabangAdminRouteImport } from './routes/admin/cabang-admin'
+import { Route as AdminCadanganRouteImport } from './routes/admin/cadangan'
 import { Route as AdminFotoMassalRouteImport } from './routes/admin/foto-massal'
 import { Route as AdminHargaStokRouteImport } from './routes/admin/harga-stok'
 import { Route as AdminLoginRouteImport } from './routes/admin/login'
 import { Route as AdminPengaturanRouteImport } from './routes/admin/pengaturan'
 import { Route as AdminPenggunaRouteImport } from './routes/admin/pengguna'
 import { Route as AdminPesananRouteImport } from './routes/admin/pesanan'
+import { Route as AdminPesananMasukRouteImport } from './routes/admin/pesanan-masuk'
+import { Route as AdminProdukCepatRouteImport } from './routes/admin/produk-cepat'
 import { Route as AdminPromoRouteImport } from './routes/admin/promo'
+import { Route as AdminTautanRouteImport } from './routes/admin/tautan'
 import { Route as AdminUploadMassalRouteImport } from './routes/admin/upload-massal'
 import { Route as ApiVitaChatRouteImport } from './routes/api/vita-chat'
 import { Route as KategoriIndexRouteImport } from './routes/kategori.index'
@@ -45,6 +57,7 @@ import { Route as TujuanIndexRouteImport } from './routes/tujuan.index'
 import { Route as TujuanSlugRouteImport } from './routes/tujuan.$slug'
 import { Route as AdminProdukIdRouteImport } from './routes/admin/produk.$id'
 import { Route as AdminProdukBaruRouteImport } from './routes/admin/produk.baru'
+import { Route as ApiPublicClientErrorRouteImport } from './routes/api/public/client-error'
 import { Route as ApiPublicMidtransNotificationRouteImport } from './routes/api/public/midtrans/notification'
 
 const IndexRoute = IndexRouteImport.update({
@@ -87,6 +100,11 @@ const KeranjangRoute = KeranjangRouteImport.update({
   path: '/keranjang',
   getParentRoute: () => rootRouteImport,
 } as any)
+const MasukRoute = MasukRouteImport.update({
+  id: '/masuk',
+  path: '/masuk',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const McpRoute = McpRouteImport.update({
   id: '/mcp',
   path: '/mcp',
@@ -97,9 +115,34 @@ const MerekRoute = MerekRouteImport.update({
   path: '/merek',
   getParentRoute: () => rootRouteImport,
 } as any)
+const PengembalianRoute = PengembalianRouteImport.update({
+  id: '/pengembalian',
+  path: '/pengembalian',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PrivasiRoute = PrivasiRouteImport.update({
+  id: '/privasi',
+  path: '/privasi',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const RobotsDottxtRoute = RobotsDottxtRouteImport.update({
+  id: '/robots.txt',
+  path: '/robots.txt',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const SellerRoute = SellerRouteImport.update({
   id: '/seller',
   path: '/seller',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SitemapDotxmlRoute = SitemapDotxmlRouteImport.update({
+  id: '/sitemap.xml',
+  path: '/sitemap.xml',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SyaratRoute = SyaratRouteImport.update({
+  id: '/syarat',
+  path: '/syarat',
   getParentRoute: () => rootRouteImport,
 } as any)
 const TujuanRoute = TujuanRouteImport.update({
@@ -123,9 +166,24 @@ const AdminAktivitasRoute = AdminAktivitasRouteImport.update({
   path: '/aktivitas',
   getParentRoute: () => AdminRouteRoute,
 } as any)
+const AdminAntrianRoute = AdminAntrianRouteImport.update({
+  id: '/antrian',
+  path: '/antrian',
+  getParentRoute: () => AdminRouteRoute,
+} as any)
 const AdminBlokirRoute = AdminBlokirRouteImport.update({
   id: '/blokir',
   path: '/blokir',
+  getParentRoute: () => AdminRouteRoute,
+} as any)
+const AdminCabangAdminRoute = AdminCabangAdminRouteImport.update({
+  id: '/cabang-admin',
+  path: '/cabang-admin',
+  getParentRoute: () => AdminRouteRoute,
+} as any)
+const AdminCadanganRoute = AdminCadanganRouteImport.update({
+  id: '/cadangan',
+  path: '/cadangan',
   getParentRoute: () => AdminRouteRoute,
 } as any)
 const AdminFotoMassalRoute = AdminFotoMassalRouteImport.update({
@@ -158,9 +216,24 @@ const AdminPesananRoute = AdminPesananRouteImport.update({
   path: '/pesanan',
   getParentRoute: () => AdminRouteRoute,
 } as any)
+const AdminPesananMasukRoute = AdminPesananMasukRouteImport.update({
+  id: '/pesanan-masuk',
+  path: '/pesanan-masuk',
+  getParentRoute: () => AdminRouteRoute,
+} as any)
+const AdminProdukCepatRoute = AdminProdukCepatRouteImport.update({
+  id: '/produk-cepat',
+  path: '/produk-cepat',
+  getParentRoute: () => AdminRouteRoute,
+} as any)
 const AdminPromoRoute = AdminPromoRouteImport.update({
   id: '/promo',
   path: '/promo',
+  getParentRoute: () => AdminRouteRoute,
+} as any)
+const AdminTautanRoute = AdminTautanRouteImport.update({
+  id: '/tautan',
+  path: '/tautan',
   getParentRoute: () => AdminRouteRoute,
 } as any)
 const AdminUploadMassalRoute = AdminUploadMassalRouteImport.update({
@@ -228,6 +301,11 @@ const AdminProdukBaruRoute = AdminProdukBaruRouteImport.update({
   path: '/produk/baru',
   getParentRoute: () => AdminRouteRoute,
 } as any)
+const ApiPublicClientErrorRoute = ApiPublicClientErrorRouteImport.update({
+  id: '/api/public/client-error',
+  path: '/api/public/client-error',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiPublicMidtransNotificationRoute =
   ApiPublicMidtransNotificationRouteImport.update({
     id: '/api/public/midtrans/notification',
@@ -244,20 +322,32 @@ export interface FileRoutesByFullPath {
   '/checkout': typeof CheckoutRoute
   '/kategori': typeof KategoriRouteWithChildren
   '/keranjang': typeof KeranjangRoute
+  '/masuk': typeof MasukRoute
   '/mcp': typeof McpRoute
   '/merek': typeof MerekRouteWithChildren
+  '/pengembalian': typeof PengembalianRoute
+  '/privasi': typeof PrivasiRoute
+  '/robots.txt': typeof RobotsDottxtRoute
   '/seller': typeof SellerRouteWithChildren
+  '/sitemap.xml': typeof SitemapDotxmlRoute
+  '/syarat': typeof SyaratRoute
   '/tujuan': typeof TujuanRouteWithChildren
   '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   '/admin/aktivitas': typeof AdminAktivitasRoute
+  '/admin/antrian': typeof AdminAntrianRoute
   '/admin/blokir': typeof AdminBlokirRoute
+  '/admin/cabang-admin': typeof AdminCabangAdminRoute
+  '/admin/cadangan': typeof AdminCadanganRoute
   '/admin/foto-massal': typeof AdminFotoMassalRoute
   '/admin/harga-stok': typeof AdminHargaStokRoute
   '/admin/login': typeof AdminLoginRoute
   '/admin/pengaturan': typeof AdminPengaturanRoute
   '/admin/pengguna': typeof AdminPenggunaRoute
   '/admin/pesanan': typeof AdminPesananRoute
+  '/admin/pesanan-masuk': typeof AdminPesananMasukRoute
+  '/admin/produk-cepat': typeof AdminProdukCepatRoute
   '/admin/promo': typeof AdminPromoRoute
+  '/admin/tautan': typeof AdminTautanRoute
   '/admin/upload-massal': typeof AdminUploadMassalRoute
   '/api/vita-chat': typeof ApiVitaChatRoute
   '/kategori/$slug': typeof KategoriSlugRoute
@@ -272,6 +362,7 @@ export interface FileRoutesByFullPath {
   '/tujuan/': typeof TujuanIndexRoute
   '/admin/produk/$id': typeof AdminProdukIdRoute
   '/admin/produk/baru': typeof AdminProdukBaruRoute
+  '/api/public/client-error': typeof ApiPublicClientErrorRoute
   '/api/public/midtrans/notification': typeof ApiPublicMidtransNotificationRoute
 }
 export interface FileRoutesByTo {
@@ -281,18 +372,30 @@ export interface FileRoutesByTo {
   '/cari': typeof CariRoute
   '/checkout': typeof CheckoutRoute
   '/keranjang': typeof KeranjangRoute
+  '/masuk': typeof MasukRoute
   '/mcp': typeof McpRoute
+  '/pengembalian': typeof PengembalianRoute
+  '/privasi': typeof PrivasiRoute
+  '/robots.txt': typeof RobotsDottxtRoute
   '/seller': typeof SellerRouteWithChildren
+  '/sitemap.xml': typeof SitemapDotxmlRoute
+  '/syarat': typeof SyaratRoute
   '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   '/admin/aktivitas': typeof AdminAktivitasRoute
+  '/admin/antrian': typeof AdminAntrianRoute
   '/admin/blokir': typeof AdminBlokirRoute
+  '/admin/cabang-admin': typeof AdminCabangAdminRoute
+  '/admin/cadangan': typeof AdminCadanganRoute
   '/admin/foto-massal': typeof AdminFotoMassalRoute
   '/admin/harga-stok': typeof AdminHargaStokRoute
   '/admin/login': typeof AdminLoginRoute
   '/admin/pengaturan': typeof AdminPengaturanRoute
   '/admin/pengguna': typeof AdminPenggunaRoute
   '/admin/pesanan': typeof AdminPesananRoute
+  '/admin/pesanan-masuk': typeof AdminPesananMasukRoute
+  '/admin/produk-cepat': typeof AdminProdukCepatRoute
   '/admin/promo': typeof AdminPromoRoute
+  '/admin/tautan': typeof AdminTautanRoute
   '/admin/upload-massal': typeof AdminUploadMassalRoute
   '/api/vita-chat': typeof ApiVitaChatRoute
   '/kategori/$slug': typeof KategoriSlugRoute
@@ -307,6 +410,7 @@ export interface FileRoutesByTo {
   '/tujuan': typeof TujuanIndexRoute
   '/admin/produk/$id': typeof AdminProdukIdRoute
   '/admin/produk/baru': typeof AdminProdukBaruRoute
+  '/api/public/client-error': typeof ApiPublicClientErrorRoute
   '/api/public/midtrans/notification': typeof ApiPublicMidtransNotificationRoute
 }
 export interface FileRoutesById {
@@ -319,20 +423,32 @@ export interface FileRoutesById {
   '/checkout': typeof CheckoutRoute
   '/kategori': typeof KategoriRouteWithChildren
   '/keranjang': typeof KeranjangRoute
+  '/masuk': typeof MasukRoute
   '/mcp': typeof McpRoute
   '/merek': typeof MerekRouteWithChildren
+  '/pengembalian': typeof PengembalianRoute
+  '/privasi': typeof PrivasiRoute
+  '/robots.txt': typeof RobotsDottxtRoute
   '/seller': typeof SellerRouteWithChildren
+  '/sitemap.xml': typeof SitemapDotxmlRoute
+  '/syarat': typeof SyaratRoute
   '/tujuan': typeof TujuanRouteWithChildren
   '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   '/admin/aktivitas': typeof AdminAktivitasRoute
+  '/admin/antrian': typeof AdminAntrianRoute
   '/admin/blokir': typeof AdminBlokirRoute
+  '/admin/cabang-admin': typeof AdminCabangAdminRoute
+  '/admin/cadangan': typeof AdminCadanganRoute
   '/admin/foto-massal': typeof AdminFotoMassalRoute
   '/admin/harga-stok': typeof AdminHargaStokRoute
   '/admin/login': typeof AdminLoginRoute
   '/admin/pengaturan': typeof AdminPengaturanRoute
   '/admin/pengguna': typeof AdminPenggunaRoute
   '/admin/pesanan': typeof AdminPesananRoute
+  '/admin/pesanan-masuk': typeof AdminPesananMasukRoute
+  '/admin/produk-cepat': typeof AdminProdukCepatRoute
   '/admin/promo': typeof AdminPromoRoute
+  '/admin/tautan': typeof AdminTautanRoute
   '/admin/upload-massal': typeof AdminUploadMassalRoute
   '/api/vita-chat': typeof ApiVitaChatRoute
   '/kategori/$slug': typeof KategoriSlugRoute
@@ -347,6 +463,7 @@ export interface FileRoutesById {
   '/tujuan/': typeof TujuanIndexRoute
   '/admin/produk/$id': typeof AdminProdukIdRoute
   '/admin/produk/baru': typeof AdminProdukBaruRoute
+  '/api/public/client-error': typeof ApiPublicClientErrorRoute
   '/api/public/midtrans/notification': typeof ApiPublicMidtransNotificationRoute
 }
 export interface FileRouteTypes {
@@ -360,20 +477,32 @@ export interface FileRouteTypes {
     | '/checkout'
     | '/kategori'
     | '/keranjang'
+    | '/masuk'
     | '/mcp'
     | '/merek'
+    | '/pengembalian'
+    | '/privasi'
+    | '/robots.txt'
     | '/seller'
+    | '/sitemap.xml'
+    | '/syarat'
     | '/tujuan'
     | '/.well-known/oauth-protected-resource'
     | '/admin/aktivitas'
+    | '/admin/antrian'
     | '/admin/blokir'
+    | '/admin/cabang-admin'
+    | '/admin/cadangan'
     | '/admin/foto-massal'
     | '/admin/harga-stok'
     | '/admin/login'
     | '/admin/pengaturan'
     | '/admin/pengguna'
     | '/admin/pesanan'
+    | '/admin/pesanan-masuk'
+    | '/admin/produk-cepat'
     | '/admin/promo'
+    | '/admin/tautan'
     | '/admin/upload-massal'
     | '/api/vita-chat'
     | '/kategori/$slug'
@@ -388,6 +517,7 @@ export interface FileRouteTypes {
     | '/tujuan/'
     | '/admin/produk/$id'
     | '/admin/produk/baru'
+    | '/api/public/client-error'
     | '/api/public/midtrans/notification'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -397,18 +527,30 @@ export interface FileRouteTypes {
     | '/cari'
     | '/checkout'
     | '/keranjang'
+    | '/masuk'
     | '/mcp'
+    | '/pengembalian'
+    | '/privasi'
+    | '/robots.txt'
     | '/seller'
+    | '/sitemap.xml'
+    | '/syarat'
     | '/.well-known/oauth-protected-resource'
     | '/admin/aktivitas'
+    | '/admin/antrian'
     | '/admin/blokir'
+    | '/admin/cabang-admin'
+    | '/admin/cadangan'
     | '/admin/foto-massal'
     | '/admin/harga-stok'
     | '/admin/login'
     | '/admin/pengaturan'
     | '/admin/pengguna'
     | '/admin/pesanan'
+    | '/admin/pesanan-masuk'
+    | '/admin/produk-cepat'
     | '/admin/promo'
+    | '/admin/tautan'
     | '/admin/upload-massal'
     | '/api/vita-chat'
     | '/kategori/$slug'
@@ -423,6 +565,7 @@ export interface FileRouteTypes {
     | '/tujuan'
     | '/admin/produk/$id'
     | '/admin/produk/baru'
+    | '/api/public/client-error'
     | '/api/public/midtrans/notification'
   id:
     | '__root__'
@@ -434,20 +577,32 @@ export interface FileRouteTypes {
     | '/checkout'
     | '/kategori'
     | '/keranjang'
+    | '/masuk'
     | '/mcp'
     | '/merek'
+    | '/pengembalian'
+    | '/privasi'
+    | '/robots.txt'
     | '/seller'
+    | '/sitemap.xml'
+    | '/syarat'
     | '/tujuan'
     | '/.well-known/oauth-protected-resource'
     | '/admin/aktivitas'
+    | '/admin/antrian'
     | '/admin/blokir'
+    | '/admin/cabang-admin'
+    | '/admin/cadangan'
     | '/admin/foto-massal'
     | '/admin/harga-stok'
     | '/admin/login'
     | '/admin/pengaturan'
     | '/admin/pengguna'
     | '/admin/pesanan'
+    | '/admin/pesanan-masuk'
+    | '/admin/produk-cepat'
     | '/admin/promo'
+    | '/admin/tautan'
     | '/admin/upload-massal'
     | '/api/vita-chat'
     | '/kategori/$slug'
@@ -462,6 +617,7 @@ export interface FileRouteTypes {
     | '/tujuan/'
     | '/admin/produk/$id'
     | '/admin/produk/baru'
+    | '/api/public/client-error'
     | '/api/public/midtrans/notification'
   fileRoutesById: FileRoutesById
 }
@@ -474,14 +630,21 @@ export interface RootRouteChildren {
   CheckoutRoute: typeof CheckoutRoute
   KategoriRoute: typeof KategoriRouteWithChildren
   KeranjangRoute: typeof KeranjangRoute
+  MasukRoute: typeof MasukRoute
   McpRoute: typeof McpRoute
   MerekRoute: typeof MerekRouteWithChildren
+  PengembalianRoute: typeof PengembalianRoute
+  PrivasiRoute: typeof PrivasiRoute
+  RobotsDottxtRoute: typeof RobotsDottxtRoute
   SellerRoute: typeof SellerRouteWithChildren
+  SitemapDotxmlRoute: typeof SitemapDotxmlRoute
+  SyaratRoute: typeof SyaratRoute
   TujuanRoute: typeof TujuanRouteWithChildren
   Char91DotwellKnownChar93OauthProtectedResourceRoute: typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   ApiVitaChatRoute: typeof ApiVitaChatRoute
   PesananTokenRoute: typeof PesananTokenRoute
   ProdukHandleRoute: typeof ProdukHandleRoute
+  ApiPublicClientErrorRoute: typeof ApiPublicClientErrorRoute
   ApiPublicMidtransNotificationRoute: typeof ApiPublicMidtransNotificationRoute
 }
 
@@ -543,6 +706,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof KeranjangRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/masuk': {
+      id: '/masuk'
+      path: '/masuk'
+      fullPath: '/masuk'
+      preLoaderRoute: typeof MasukRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/mcp': {
       id: '/mcp'
       path: '/mcp'
@@ -557,11 +727,46 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof MerekRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/pengembalian': {
+      id: '/pengembalian'
+      path: '/pengembalian'
+      fullPath: '/pengembalian'
+      preLoaderRoute: typeof PengembalianRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/privasi': {
+      id: '/privasi'
+      path: '/privasi'
+      fullPath: '/privasi'
+      preLoaderRoute: typeof PrivasiRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/robots.txt': {
+      id: '/robots.txt'
+      path: '/robots.txt'
+      fullPath: '/robots.txt'
+      preLoaderRoute: typeof RobotsDottxtRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/seller': {
       id: '/seller'
       path: '/seller'
       fullPath: '/seller'
       preLoaderRoute: typeof SellerRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/sitemap.xml': {
+      id: '/sitemap.xml'
+      path: '/sitemap.xml'
+      fullPath: '/sitemap.xml'
+      preLoaderRoute: typeof SitemapDotxmlRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/syarat': {
+      id: '/syarat'
+      path: '/syarat'
+      fullPath: '/syarat'
+      preLoaderRoute: typeof SyaratRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/tujuan': {
@@ -592,11 +797,32 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminAktivitasRouteImport
       parentRoute: typeof AdminRouteRoute
     }
+    '/admin/antrian': {
+      id: '/admin/antrian'
+      path: '/antrian'
+      fullPath: '/admin/antrian'
+      preLoaderRoute: typeof AdminAntrianRouteImport
+      parentRoute: typeof AdminRouteRoute
+    }
     '/admin/blokir': {
       id: '/admin/blokir'
       path: '/blokir'
       fullPath: '/admin/blokir'
       preLoaderRoute: typeof AdminBlokirRouteImport
+      parentRoute: typeof AdminRouteRoute
+    }
+    '/admin/cabang-admin': {
+      id: '/admin/cabang-admin'
+      path: '/cabang-admin'
+      fullPath: '/admin/cabang-admin'
+      preLoaderRoute: typeof AdminCabangAdminRouteImport
+      parentRoute: typeof AdminRouteRoute
+    }
+    '/admin/cadangan': {
+      id: '/admin/cadangan'
+      path: '/cadangan'
+      fullPath: '/admin/cadangan'
+      preLoaderRoute: typeof AdminCadanganRouteImport
       parentRoute: typeof AdminRouteRoute
     }
     '/admin/foto-massal': {
@@ -641,11 +867,32 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminPesananRouteImport
       parentRoute: typeof AdminRouteRoute
     }
+    '/admin/pesanan-masuk': {
+      id: '/admin/pesanan-masuk'
+      path: '/pesanan-masuk'
+      fullPath: '/admin/pesanan-masuk'
+      preLoaderRoute: typeof AdminPesananMasukRouteImport
+      parentRoute: typeof AdminRouteRoute
+    }
+    '/admin/produk-cepat': {
+      id: '/admin/produk-cepat'
+      path: '/produk-cepat'
+      fullPath: '/admin/produk-cepat'
+      preLoaderRoute: typeof AdminProdukCepatRouteImport
+      parentRoute: typeof AdminRouteRoute
+    }
     '/admin/promo': {
       id: '/admin/promo'
       path: '/promo'
       fullPath: '/admin/promo'
       preLoaderRoute: typeof AdminPromoRouteImport
+      parentRoute: typeof AdminRouteRoute
+    }
+    '/admin/tautan': {
+      id: '/admin/tautan'
+      path: '/tautan'
+      fullPath: '/admin/tautan'
+      preLoaderRoute: typeof AdminTautanRouteImport
       parentRoute: typeof AdminRouteRoute
     }
     '/admin/upload-massal': {
@@ -739,6 +986,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminProdukBaruRouteImport
       parentRoute: typeof AdminRouteRoute
     }
+    '/api/public/client-error': {
+      id: '/api/public/client-error'
+      path: '/api/public/client-error'
+      fullPath: '/api/public/client-error'
+      preLoaderRoute: typeof ApiPublicClientErrorRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/midtrans/notification': {
       id: '/api/public/midtrans/notification'
       path: '/api/public/midtrans/notification'
@@ -751,14 +1005,20 @@ declare module '@tanstack/react-router' {
 
 interface AdminRouteRouteChildren {
   AdminAktivitasRoute: typeof AdminAktivitasRoute
+  AdminAntrianRoute: typeof AdminAntrianRoute
   AdminBlokirRoute: typeof AdminBlokirRoute
+  AdminCabangAdminRoute: typeof AdminCabangAdminRoute
+  AdminCadanganRoute: typeof AdminCadanganRoute
   AdminFotoMassalRoute: typeof AdminFotoMassalRoute
   AdminHargaStokRoute: typeof AdminHargaStokRoute
   AdminLoginRoute: typeof AdminLoginRoute
   AdminPengaturanRoute: typeof AdminPengaturanRoute
   AdminPenggunaRoute: typeof AdminPenggunaRoute
   AdminPesananRoute: typeof AdminPesananRoute
+  AdminPesananMasukRoute: typeof AdminPesananMasukRoute
+  AdminProdukCepatRoute: typeof AdminProdukCepatRoute
   AdminPromoRoute: typeof AdminPromoRoute
+  AdminTautanRoute: typeof AdminTautanRoute
   AdminUploadMassalRoute: typeof AdminUploadMassalRoute
   AdminIndexRoute: typeof AdminIndexRoute
   AdminProdukIdRoute: typeof AdminProdukIdRoute
@@ -767,14 +1027,20 @@ interface AdminRouteRouteChildren {
 
 const AdminRouteRouteChildren: AdminRouteRouteChildren = {
   AdminAktivitasRoute: AdminAktivitasRoute,
+  AdminAntrianRoute: AdminAntrianRoute,
   AdminBlokirRoute: AdminBlokirRoute,
+  AdminCabangAdminRoute: AdminCabangAdminRoute,
+  AdminCadanganRoute: AdminCadanganRoute,
   AdminFotoMassalRoute: AdminFotoMassalRoute,
   AdminHargaStokRoute: AdminHargaStokRoute,
   AdminLoginRoute: AdminLoginRoute,
   AdminPengaturanRoute: AdminPengaturanRoute,
   AdminPenggunaRoute: AdminPenggunaRoute,
   AdminPesananRoute: AdminPesananRoute,
+  AdminPesananMasukRoute: AdminPesananMasukRoute,
+  AdminProdukCepatRoute: AdminProdukCepatRoute,
   AdminPromoRoute: AdminPromoRoute,
+  AdminTautanRoute: AdminTautanRoute,
   AdminUploadMassalRoute: AdminUploadMassalRoute,
   AdminIndexRoute: AdminIndexRoute,
   AdminProdukIdRoute: AdminProdukIdRoute,
@@ -844,15 +1110,22 @@ const rootRouteChildren: RootRouteChildren = {
   CheckoutRoute: CheckoutRoute,
   KategoriRoute: KategoriRouteWithChildren,
   KeranjangRoute: KeranjangRoute,
+  MasukRoute: MasukRoute,
   McpRoute: McpRoute,
   MerekRoute: MerekRouteWithChildren,
+  PengembalianRoute: PengembalianRoute,
+  PrivasiRoute: PrivasiRoute,
+  RobotsDottxtRoute: RobotsDottxtRoute,
   SellerRoute: SellerRouteWithChildren,
+  SitemapDotxmlRoute: SitemapDotxmlRoute,
+  SyaratRoute: SyaratRoute,
   TujuanRoute: TujuanRouteWithChildren,
   Char91DotwellKnownChar93OauthProtectedResourceRoute:
     Char91DotwellKnownChar93OauthProtectedResourceRoute,
   ApiVitaChatRoute: ApiVitaChatRoute,
   PesananTokenRoute: PesananTokenRoute,
   ProdukHandleRoute: ProdukHandleRoute,
+  ApiPublicClientErrorRoute: ApiPublicClientErrorRoute,
   ApiPublicMidtransNotificationRoute: ApiPublicMidtransNotificationRoute,
 }
 export const routeTree = rootRouteImport

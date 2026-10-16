@@ -1,16 +1,20 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRef, useState } from "react";
-import { Download, FileUp } from "lucide-react";
+import { Download, FileSpreadsheet, FileUp, Undo2 } from "lucide-react";
 import { toast } from "sonner";
 import {
   applyFullImportChunk,
   exportFullTemplate,
+  getLastImport,
   importProductPhotos,
   previewFullImport,
+  undoLastImport,
 } from "@/lib/seller.functions";
+import { formatIssue } from "@/lib/import-messages";
 import { FULL_HEADERS, gridToFullRows, type FullRow, type ImportMode } from "@/lib/seller-import";
-import { csvBlob, downloadBlob, downloadXlsx, readGrid } from "@/lib/sheet-io";
+import { csvBlob, downloadBlob, downloadImportTemplateXlsx, downloadXlsx, readGrid } from "@/lib/sheet-io";
 import { canEditCommerce } from "@/lib/admin-roles";
 import { useAdminRole } from "./route";
 
@@ -37,6 +41,9 @@ function UploadMassalPage() {
   const runPreview = useServerFn(previewFullImport);
   const runChunk = useServerFn(applyFullImportChunk);
   const runPhotos = useServerFn(importProductPhotos);
+  const fetchLast = useServerFn(getLastImport);
+  const runUndo = useServerFn(undoLastImport);
+  const qc = useQueryClient();
   const inputRef = useRef<HTMLInputElement>(null);
   const [mode, setMode] = useState<ImportMode>("fill");
   const [busy, setBusy] = useState<string | null>(null);
@@ -45,6 +52,13 @@ function UploadMassalPage() {
   const [progress, setProgress] = useState<{ done: number; total: number; label: string } | null>(null);
   const [nextChunk, setNextChunk] = useState(0);
   const [result, setResult] = useState<{ created: number; updated: number; issues: Issue[]; photoFails: Issue[] } | null>(null);
+  const [importId, setImportId] = useState<string | null>(null);
+  const lastImport = useQuery({
+    queryKey: ["last-import"],
+    queryFn: () => fetchLast(),
+    enabled: canEditCommerce(role),
+    retry: false,
+  });
 
   if (!canEditCommerce(role)) return <p className="p-4 text-sm text-muted-foreground">Halaman ini hanya untuk admin/owner.</p>;
 
@@ -69,12 +83,51 @@ function UploadMassalPage() {
     }
   }
 
+  async function downloadBlankTemplate() {
+    setBusy("blank");
+    try {
+      await downloadImportTemplateXlsx("template-kosong-upload-massal.xlsx");
+      toast.success("Template kosong diunduh. Baca sheet Petunjuk, lalu hapus baris CONTOH sebelum mengunggah.");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Gagal mengunduh template");
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  async function undoLast() {
+    const last = lastImport.data?.last;
+    if (!last) return;
+    const when = new Date(last.createdAt).toLocaleString("id-ID", { dateStyle: "medium", timeStyle: "short" });
+    const ok = window.confirm(
+      `Batalkan impor terakhir (${last.fileName ?? "tanpa nama"}, ${when})?\n\n` +
+        `Produk yang diperbarui dikembalikan ke data sebelum impor. Produk baru dari impor ini diarsipkan (tidak dihapus).`,
+    );
+    if (!ok) return;
+    setBusy("undo");
+    try {
+      const r = await runUndo({ data: { importId: last.id } });
+      toast.success(`Impor dibatalkan: ${r.restored} produk dikembalikan, ${r.archived} produk baru diarsipkan.`);
+      setPreview(null);
+      setResult(null);
+      setFile(null);
+      setImportId(null);
+      setNextChunk(0);
+      await qc.invalidateQueries({ queryKey: ["last-import"] });
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Impor tidak bisa dibatalkan");
+    } finally {
+      setBusy(null);
+    }
+  }
+
   async function onFile(f: File | undefined, m = mode) {
     if (!f) return;
     setBusy("read");
     setPreview(null);
     setResult(null);
     setNextChunk(0);
+    setImportId(null);
     try {
       const rows = gridToFullRows(await readGrid(f));
       setFile({ name: f.name, rows });
@@ -92,11 +145,17 @@ function UploadMassalPage() {
     setBusy("save");
     const chunks = Math.ceil(file.rows.length / CHUNK);
     const acc = result && startChunk > 0 ? { ...result } : { created: 0, updated: 0, issues: [] as Issue[], photoFails: [] as Issue[] };
+    let currentImport = startChunk > 0 ? importId : null;
+    if (startChunk === 0) setImportId(null);
     try {
       for (let c = startChunk; c < chunks; c++) {
         setProgress({ done: c, total: chunks, label: `Menyimpan batch ${c + 1}/${chunks}` });
         const rows = file.rows.slice(c * CHUNK, (c + 1) * CHUNK);
-        const r = await runChunk({ data: { rows, mode, fileName: file.name, chunk: c, last: c === chunks - 1 } });
+        const r = await runChunk({ data: { rows, mode, fileName: file.name, chunk: c, last: c === chunks - 1, importId: currentImport } });
+        if (r.importId) {
+          currentImport = r.importId;
+          setImportId(r.importId);
+        }
         acc.created += r.created;
         acc.updated += r.updated;
         acc.issues.push(...r.failed, ...r.stayedDraft);
@@ -121,11 +180,12 @@ function UploadMassalPage() {
         setResult({ ...acc });
       }
       setProgress({ done: chunks, total: chunks, label: "Selesai" });
-      toast.success(`Selesai: ${acc.created} baru, ${acc.updated} diperbarui`);
+      toast.success(`Selesai: ${acc.created} baru, ${acc.updated} diperbarui. Salah unggah? Tekan "Batalkan impor terakhir".`);
     } catch (e) {
       toast.error(`${e instanceof Error ? e.message : "Gagal"} — tekan "Lanjutkan" untuk meneruskan dari batch terakhir.`, { duration: 10000 });
     } finally {
       setBusy(null);
+      void qc.invalidateQueries({ queryKey: ["last-import"] });
     }
   }
 
@@ -140,6 +200,7 @@ function UploadMassalPage() {
     downloadBlob("laporan-error-upload.csv", csvBlob([...FULL_HEADERS, "Baris", "Alasan"], rows));
   }
 
+  const lastInfo = lastImport.data?.last ?? null;
   const allIssues = preview ? [...preview.errors, ...preview.drafts].sort((a, b) => a.row - b.row) : [];
   const finalIssues = result ? [...result.issues, ...result.photoFails].sort((a, b) => a.row - b.row) : [];
   const chunks = file ? Math.ceil(file.rows.length / CHUNK) : 0;
@@ -165,6 +226,14 @@ function UploadMassalPage() {
             CSV
           </button>
         </div>
+        <button type="button" disabled={!!busy} onClick={() => void downloadBlankTemplate()}
+          className="mt-2 flex min-h-11 w-full items-center justify-center gap-1 rounded-full bg-secondary px-3 py-2.5 text-xs font-bold text-navy disabled:opacity-60">
+          <FileSpreadsheet className="h-4 w-4" /> {busy === "blank" ? "Menyiapkan…" : "Template kosong + contoh & petunjuk"}
+        </button>
+        <p className="mt-2 text-[11px] text-muted-foreground">
+          "Unduh Template" berisi produk yang sudah ada (untuk memperbarui). Template kosong berisi baris CONTOH, pilihan
+          Kategori/Status, dan sheet Petunjuk untuk pemula.
+        </p>
       </section>
 
       <section className="p-3 card-surface">
@@ -216,7 +285,7 @@ function UploadMassalPage() {
               <ul className="mt-3 max-h-60 space-y-1 overflow-y-auto text-xs">
                 {allIssues.slice(0, 100).map((i) => (
                   <li key={`${i.row}-${i.reason}`} className="rounded-lg bg-destructive/10 px-2 py-1 text-destructive">
-                    Baris {i.row} · {i.sku || "(tanpa SKU)"}: {i.reason}
+                    {formatIssue(i)}
                   </li>
                 ))}
               </ul>
@@ -243,6 +312,33 @@ function UploadMassalPage() {
           </div>
         </section>
       )}
+
+      <section className="p-3 card-surface">
+        <h2 className="text-sm font-bold text-navy">Salah unggah?</h2>
+        {lastImport.isPending ? (
+          <p className="mt-1 text-xs text-muted-foreground">Memeriksa riwayat impor…</p>
+        ) : lastImport.isError ? (
+          <p className="mt-1 text-xs text-muted-foreground">Riwayat impor belum bisa dibaca.</p>
+        ) : lastInfo ? (
+          <>
+            <p className="mt-1 text-xs text-navy">
+              Impor terakhir: <b>{lastInfo.fileName ?? "tanpa nama"}</b> ·{" "}
+              {new Date(lastInfo.createdAt).toLocaleString("id-ID", { dateStyle: "medium", timeStyle: "short" })} ·{" "}
+              {lastInfo.created} baru, {lastInfo.updated} diperbarui.
+            </p>
+            <button type="button" disabled={!!busy} onClick={() => void undoLast()}
+              className="mt-2 flex min-h-11 w-full items-center justify-center gap-1 rounded-full bg-destructive/10 px-3 py-2.5 text-xs font-bold text-destructive disabled:opacity-60">
+              <Undo2 className="h-4 w-4" /> {busy === "undo" ? "Membatalkan…" : "Batalkan impor terakhir"}
+            </button>
+            <p className="mt-2 text-[11px] text-muted-foreground">
+              Produk lama dikembalikan seperti sebelum impor. Produk baru diarsipkan (tidak dihapus). Foto yang sempat
+              diunggah tetap tersimpan di penyimpanan tetapi tidak dipakai lagi.
+            </p>
+          </>
+        ) : (
+          <p className="mt-1 text-xs text-muted-foreground">Belum ada impor yang bisa dibatalkan.</p>
+        )}
+      </section>
 
       {result && (
         <section className="p-3 card-surface">

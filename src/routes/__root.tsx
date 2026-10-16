@@ -20,7 +20,8 @@ import { StoreStatusBanner } from "../components/StoreStatusBanner";
 import { InstallPrompt } from "../components/InstallPrompt";
 import { Toaster } from "../components/ui/sonner";
 import { useCartSync } from "../hooks/useCartSync";
-import { captureReferral } from "../lib/referral";
+import { captureLinkParams } from "../lib/referral";
+import { installClientErrorReporting, reportClientError } from "../lib/client-error-report";
 
 function NotFoundComponent() {
   return (
@@ -49,6 +50,7 @@ function ErrorComponent({ error, reset }: { error: unknown; reset: () => void })
   const router = useRouter();
   useEffect(() => {
     reportLovableError(error, { boundary: "tanstack_root_error_component" });
+    reportClientError(error, "boundary");
   }, [error]);
 
   return (
@@ -151,7 +153,8 @@ function RootComponent() {
 
 function AppShell() {
   useCartSync();
-  useEffect(() => captureReferral(window.location.search), []);
+  useEffect(() => captureLinkParams(window.location.search), []);
+  useEffect(() => installClientErrorReporting(), []);
   return (
     <div className="min-h-screen bg-background">
       <Header />

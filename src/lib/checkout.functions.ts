@@ -110,6 +110,29 @@ async function optionalUserId(): Promise<string | null> {
   return data.user?.id ?? null;
 }
 
+/** Batas laju per IP+UA lewat RPC chat_rate_hit. Gagal-terbuka bila RPC/IP tidak tersedia (jangan kunci pelanggan sungguhan). */
+async function enforceOrderRateLimit(core: typeof import("./checkout-core")) {
+  try {
+    const req = getRequest();
+    const ip = req ? core.clientIpFrom(req.headers) : null;
+    if (!ip) return;
+    const visitor = await core.orderVisitorHash(ip, req!.headers.get("user-agent") ?? "");
+    const { data: allowed, error } = await publicClient().rpc("chat_rate_hit", {
+      _visitor: visitor,
+      _limit: core.ORDER_RATE_LIMIT,
+      _window_minutes: core.ORDER_RATE_WINDOW_MINUTES,
+    });
+    if (error) {
+      console.error("order rate limit", error.message);
+      return;
+    }
+    if (allowed === false) throw new Error(core.ORDER_RATE_LIMIT_MESSAGE);
+  } catch (e) {
+    if (e instanceof Error && e.message === core.ORDER_RATE_LIMIT_MESSAGE) throw e;
+    console.error("order rate limit failed", e instanceof Error ? e.message : "unknown");
+  }
+}
+
 function randomHex(bytes: number) {
   const a = new Uint8Array(bytes);
   crypto.getRandomValues(a);
@@ -134,12 +157,16 @@ export const createOrder = createServerFn({ method: "POST" })
         courier: z.object({ company: z.string().min(1).max(50), service: z.string().min(1).max(50) }),
         method: z.enum(["midtrans", "whatsapp"]).default("whatsapp"),
         branchId: z.string().uuid().nullable().optional(),
+        // Kotak centang opsional (default tidak tercentang): info promo lewat WhatsApp.
+        marketingOptIn: z.boolean().optional(),
       })
       .parse(d),
   )
   .handler(async ({ data }) => {
-    const { normalizeWhatsapp, makeOrderNumber } = await import("./checkout-core");
+    const core = await import("./checkout-core");
+    const { normalizeWhatsapp, makeOrderNumber } = core;
     const server = await import("./checkout.server");
+    await enforceOrderRateLimit(core);
     const m = server.modes();
     const whatsapp = normalizeWhatsapp(data.customer.whatsapp);
     if (!whatsapp) throw new Error("Nomor WhatsApp tidak valid.");
@@ -172,16 +199,41 @@ export const createOrder = createServerFn({ method: "POST" })
     const accessToken = randomHex(24);
     const userId = await optionalUserId();
 
-    // Branch routing: only an active branch from the database; else the main number.
-    let branch: { id: string | null; name: string | null; whatsapp: string } = { id: null, name: null, whatsapp: "6281339950000" };
+    // Branch routing: only an active branch from the database. Destination = ref admin (if active in this
+    // branch) > active "utama" admin > branch number > main number. branch_admins is read via the service role.
+    let branch: { id: string | null; name: string | null; whatsapp: string } = { id: null, name: null, whatsapp: core.FALLBACK_WHATSAPP };
     if (data.branchId) {
       const { data: b } = await publicClient().from("store_branches").select("id,name,whatsapp").eq("id", data.branchId).eq("is_active", true).maybeSingle();
       if (!b) throw new Error("Cabang tidak tersedia. Pilih cabang lain.");
       branch = b;
     }
 
-
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    if (branch.id) {
+      try {
+        const { data: contacts } = await publicClient().rpc("public_branch_contacts");
+        let refAdmin: { branch_id: string; whatsapp: string } | null = null;
+        if (referralCode) {
+          const { data: a } = await supabaseAdmin
+            .from("branch_admins")
+            .select("branch_id,whatsapp")
+            .eq("referral_code", referralCode)
+            .eq("is_active", true)
+            .maybeSingle();
+          refAdmin = a ?? null;
+        }
+        const dest = core.pickWhatsappDestination({
+          branchId: branch.id,
+          branchWhatsapp: branch.whatsapp,
+          contacts: contacts ?? [],
+          refAdmin,
+        });
+        branch = { ...branch, whatsapp: dest.whatsapp };
+      } catch (e) {
+        // Kontak admin gagal dibaca: pakai nomor cabang seperti sebelumnya.
+        console.error("branch admin routing failed", e instanceof Error ? e.message : "unknown");
+      }
+    }
     const { data: order, error } = await supabaseAdmin
       .from("orders")
       .insert({
@@ -237,6 +289,22 @@ export const createOrder = createServerFn({ method: "POST" })
     if (itemsError) {
       await supabaseAdmin.from("orders").delete().eq("id", order.id);
       throw new Error("Pesanan gagal dibuat. Coba lagi.");
+    }
+
+    // Pelanggan (tamu maupun login): satu panggilan per pesanan. Gagal di sini tidak boleh menggagalkan pesanan.
+    try {
+      const { data: customerId, error: custError } = await supabaseAdmin.rpc("upsert_customer_for_order", {
+        _whatsapp: whatsapp,
+        _name: data.customer.name,
+        _address: data.customer.address,
+        _opt_in: data.marketingOptIn === true,
+        ...(userId ? { _user_id: userId } : {}),
+        _total: total,
+      });
+      if (custError || !customerId) console.error("customer upsert failed", custError?.message);
+      else await supabaseAdmin.from("orders").update({ customer_id: customerId }).eq("id", order.id);
+    } catch (e) {
+      console.error("customer upsert failed", e instanceof Error ? e.message : "unknown");
     }
 
     let paymentUrl: string | null = null;
@@ -313,4 +381,37 @@ export const getOrderByToken = createServerFn({ method: "GET" })
     const { data: order, error } = await publicClient().rpc("get_order_by_token", { _token: data.token });
     if (error) throw new Error("Pesanan tidak bisa dibaca.");
     return (order ?? null) as unknown as PublicOrder | null;
+  });
+
+
+/** Kontak tambahan + status "Simpan data saya" untuk halaman pesanan. Hanya nomor admin aktif; tanpa nama/kode ref. */
+export const getOrderContacts = createServerFn({ method: "GET" })
+  .inputValidator((d: unknown) => z.object({ token: z.string().regex(/^[a-f0-9]{48}$/) }).parse(d))
+  .handler(async ({ data }) => {
+    const empty = { others: [] as Array<{ role: string; whatsapp: string }>, canSave: false };
+    try {
+      const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+      const { data: o } = await supabaseAdmin
+        .from("orders")
+        .select("branch_id,branch_whatsapp,customer_id")
+        .eq("access_token", data.token)
+        .maybeSingle();
+      if (!o) return empty;
+      let others: Array<{ role: string; whatsapp: string }> = [];
+      if (o.branch_id) {
+        const { otherAdmins } = await import("./checkout-core");
+        const { data: contacts } = await publicClient().rpc("public_branch_contacts");
+        // Nomor tujuan = yang tersimpan di pesanan (bisa admin ?ref); tampilkan admin aktif selain itu.
+        others = otherAdmins(contacts ?? [], o.branch_id, o.branch_whatsapp);
+      }
+      let canSave = false;
+      if (o.customer_id && !(await optionalUserId())) {
+        const { data: c } = await supabaseAdmin.from("customers").select("user_id").eq("id", o.customer_id).maybeSingle();
+        canSave = !!c && c.user_id == null;
+      }
+      return { others, canSave };
+    } catch (e) {
+      console.error("order contacts failed", e instanceof Error ? e.message : "unknown");
+      return empty;
+    }
   });

@@ -14,6 +14,129 @@ export type Database = {
   }
   public: {
     Tables: {
+      branch_admins: {
+        Row: {
+          branch_id: string
+          created_at: string
+          id: string
+          is_active: boolean
+          name: string
+          referral_code: string | null
+          role: string
+          updated_at: string
+          whatsapp: string
+        }
+        Insert: {
+          branch_id: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          name: string
+          referral_code?: string | null
+          role: string
+          updated_at?: string
+          whatsapp: string
+        }
+        Update: {
+          branch_id?: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          name?: string
+          referral_code?: string | null
+          role?: string
+          updated_at?: string
+          whatsapp?: string
+        }
+        Relationships: []
+      }
+      customers: {
+        Row: {
+          consent_at: string | null
+          created_at: string
+          default_address: string | null
+          email: string | null
+          first_order_at: string | null
+          id: string
+          last_order_at: string | null
+          marketing_opt_in: boolean
+          name: string
+          order_count: number
+          total_spent: number
+          updated_at: string
+          user_id: string | null
+          whatsapp_normalized: string
+        }
+        Insert: {
+          consent_at?: string | null
+          created_at?: string
+          default_address?: string | null
+          email?: string | null
+          first_order_at?: string | null
+          id?: string
+          last_order_at?: string | null
+          marketing_opt_in?: boolean
+          name: string
+          order_count?: number
+          total_spent?: number
+          updated_at?: string
+          user_id?: string | null
+          whatsapp_normalized: string
+        }
+        Update: {
+          consent_at?: string | null
+          created_at?: string
+          default_address?: string | null
+          email?: string | null
+          first_order_at?: string | null
+          id?: string
+          last_order_at?: string | null
+          marketing_opt_in?: boolean
+          name?: string
+          order_count?: number
+          total_spent?: number
+          updated_at?: string
+          user_id?: string | null
+          whatsapp_normalized?: string
+        }
+        Relationships: []
+      }
+      product_import_rows: {
+        Row: { before: Json | null; existed: boolean; import_id: string; sku: string }
+        Insert: { before?: Json | null; existed: boolean; import_id: string; sku: string }
+        Update: { before?: Json | null; existed?: boolean; import_id?: string; sku?: string }
+        Relationships: []
+      }
+      product_imports: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          file_name: string | null
+          id: string
+          mode: string | null
+          summary: Json | null
+          undone_at: string | null
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          file_name?: string | null
+          id?: string
+          mode?: string | null
+          summary?: Json | null
+          undone_at?: string | null
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          file_name?: string | null
+          id?: string
+          mode?: string | null
+          summary?: Json | null
+          undone_at?: string | null
+        }
+        Relationships: []
+      }
       admin_audit_log: {
         Row: {
           action: string
@@ -148,6 +271,9 @@ export type Database = {
           updated_at: string
           user_id: string | null
           whatsapp: string
+          customer_id: string | null
+          stage: string
+          stage_updated_at: string | null
         }
         Insert: {
           access_token: string
@@ -186,6 +312,9 @@ export type Database = {
           updated_at?: string
           user_id?: string | null
           whatsapp: string
+          customer_id?: string | null
+          stage?: string
+          stage_updated_at?: string | null
         }
         Update: {
           access_token?: string
@@ -224,6 +353,9 @@ export type Database = {
           updated_at?: string
           user_id?: string | null
           whatsapp?: string
+          customer_id?: string | null
+          stage?: string
+          stage_updated_at?: string | null
         }
         Relationships: [
           {
@@ -521,6 +653,9 @@ export type Database = {
           name: string
           updated_at: string
           whatsapp: string
+          address: string | null
+          code: string | null
+          opening_hours: string | null
         }
         Insert: {
           area?: string
@@ -534,6 +669,9 @@ export type Database = {
           name: string
           updated_at?: string
           whatsapp: string
+          address?: string | null
+          code?: string | null
+          opening_hours?: string | null
         }
         Update: {
           area?: string
@@ -547,6 +685,9 @@ export type Database = {
           name?: string
           updated_at?: string
           whatsapp?: string
+          address?: string | null
+          code?: string | null
+          opening_hours?: string | null
         }
         Relationships: []
       }
@@ -590,6 +731,10 @@ export type Database = {
           role: Database["public"]["Enums"]["app_role"]
           updated_at: string
           user_id: string
+          branch_id: string | null
+          can_view_hpp: boolean
+          display_name: string | null
+          title: string | null
         }
         Insert: {
           created_at?: string
@@ -597,6 +742,10 @@ export type Database = {
           role?: Database["public"]["Enums"]["app_role"]
           updated_at?: string
           user_id: string
+          branch_id?: string | null
+          can_view_hpp?: boolean
+          display_name?: string | null
+          title?: string | null
         }
         Update: {
           created_at?: string
@@ -604,6 +753,10 @@ export type Database = {
           role?: Database["public"]["Enums"]["app_role"]
           updated_at?: string
           user_id?: string
+          branch_id?: string | null
+          can_view_hpp?: boolean
+          display_name?: string | null
+          title?: string | null
         }
         Relationships: []
       }
@@ -612,6 +765,44 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      claim_customer_for_user: {
+        Args: { _order_token?: string; _user_id: string; _verified_email?: string }
+        Returns: string
+      }
+      has_permission: { Args: { _perm: string; _uid: string }; Returns: boolean }
+      public_branch_contacts: {
+        Args: Record<PropertyKey, never>
+        Returns: { branch_id: string; role: string; whatsapp: string }[]
+      }
+      staff_find_customer: {
+        Args: { _q: string }
+        Returns: {
+          email: string | null
+          id: string
+          last_order_at: string | null
+          name: string
+          order_count: number
+          total_spent: number
+          whatsapp_normalized: string
+        }[]
+      }
+      staff_set_order_stage: { Args: { _order_id: string; _stage: string }; Returns: string }
+      undo_product_import: { Args: { _import_id: string }; Returns: Json }
+      update_my_customer: {
+        Args: { _address?: string; _name?: string; _opt_in?: boolean }
+        Returns: undefined
+      }
+      upsert_customer_for_order: {
+        Args: {
+          _address?: string
+          _name: string
+          _opt_in?: boolean
+          _total?: number
+          _user_id?: string
+          _whatsapp: string
+        }
+        Returns: string
+      }
       admin_get_product_hpp: {
         Args: { _ids: string[] }
         Returns: {
