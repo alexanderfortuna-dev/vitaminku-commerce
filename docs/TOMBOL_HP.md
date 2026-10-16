@@ -12,3 +12,9 @@
 7. Mode **bootstrap** (confirm JALANKAN) → akun Owner, Co-Owner, Admin aktif. Yang belum klik undangan akan terlewat; ulangi bootstrap setelah mereka klik.
 
 Catatan: mode **verify** hanya membaca (aman kapan saja). Migrate berjalan dalam satu transaksi: bila gagal, tidak ada yang berubah. Kunci tidak pernah tampil di log.
+
+**TAYANG DI VERCEL (akun Vercel yang sama dengan NoLimit System, proyek terpisah "vitaminku")**
+8. vercel.com → avatar → **Account Settings → Tokens → Create** (nama: vitaminku-github, scope: akun/tim tempat NoLimit System, masa berlaku 90 hari) → salin token.
+9. GitHub repo → **Settings → Secrets and variables → Actions → New repository secret**: `VERCEL_TOKEN` (token tadi), `SUPABASE_PUBLISHABLE_KEY` (Supabase → Project Settings → API → publishable/anon key), `ANTHROPIC_API_KEY` (untuk Vita). Bila NoLimit System ada di **tim** Vercel, tambah `VERCEL_SCOPE` = nama tim (slug) agar proyek dibuat di tim yang sama.
+10. **Actions → "VitaminKu DB" → Run workflow** → branch **feat/launch-ready-v3** → mode **deploy** → confirm **JALANKAN** → Run. Hasil: alamat situs tayang di ringkasan. Proyek NoLimit System tidak disentuh.
+11. Tambah secret `SITE_URL` = alamat tadi, lalu jalankan **deploy** sekali lagi (agar sitemap & tautan undangan memakai alamat benar).

@@ -6,12 +6,12 @@ on:
   workflow_dispatch:
     inputs:
       mode:
-        description: "verify = cek saja · migrate = pasang SQL · invite = kirim undangan · bootstrap = aktifkan peran"
+        description: "verify = cek saja · migrate = pasang SQL · invite = kirim undangan · bootstrap = aktifkan peran · deploy = tayangkan ke Vercel"
         type: choice
-        options: [verify, migrate, invite, bootstrap]
+        options: [verify, migrate, invite, bootstrap, deploy]
         default: verify
       confirm:
-        description: 'Ketik JALANKAN untuk migrate / invite / bootstrap (verify tidak perlu)'
+        description: 'Ketik JALANKAN untuk migrate / invite / bootstrap / deploy (verify tidak perlu)'
         type: string
         default: ""
       kings_email:
@@ -37,6 +37,7 @@ concurrency:
 jobs:
   db:
     name: ${{ inputs.mode }}
+    if: inputs.mode != 'deploy'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     env:
@@ -143,3 +144,64 @@ jobs:
             done < /tmp/verify.txt
           } >> "$GITHUB_STEP_SUMMARY"
           if [ "$MODE" = "migrate" ] && grep -q '|GAGAL|' /tmp/verify.txt; then exit 1; fi
+
+  deploy:
+    name: deploy ke Vercel
+    if: inputs.mode == 'deploy'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      CONFIRM: ${{ inputs.confirm }}
+      VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+      VERCEL_SCOPE: ${{ secrets.VERCEL_SCOPE }}
+      V_SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      V_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.SUPABASE_PUBLISHABLE_KEY }}
+      V_SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+      V_ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+      V_SITE_URL: ${{ secrets.SITE_URL }}
+    steps:
+      - name: Penjaga
+        run: |
+          if [ "$GITHUB_REF" != "refs/heads/feat/launch-ready-v3" ]; then
+            echo "### ❌ Ditolak: pilih branch feat/launch-ready-v3" >> "$GITHUB_STEP_SUMMARY"; exit 1; fi
+          if [ "$CONFIRM" != "JALANKAN" ]; then
+            echo "### ❌ Ditolak: ketik JALANKAN di kolom confirm" >> "$GITHUB_STEP_SUMMARY"; exit 1; fi
+          miss=""
+          for n in VERCEL_TOKEN V_SUPABASE_URL V_SUPABASE_PUBLISHABLE_KEY V_SUPABASE_SERVICE_ROLE_KEY; do
+            [ -z "${!n}" ] && miss="$miss ${n#V_}"
+          done
+          if [ -n "$miss" ]; then echo "### ❌ Secret belum dipasang:$miss" >> "$GITHUB_STEP_SUMMARY"; exit 1; fi
+
+      - uses: actions/checkout@v4
+        with:
+          ref: feat/launch-ready-v3
+          persist-credentials: false
+
+      - name: Buat/sambungkan proyek "vitaminku" (terpisah dari NoLimit System)
+        run: |
+          scope=""; [ -n "$VERCEL_SCOPE" ] && scope="--scope $VERCEL_SCOPE"
+          npx --yes vercel@latest link --yes --project vitaminku --token "$VERCEL_TOKEN" $scope > /tmp/link.log 2>&1 || { tail -5 /tmp/link.log; exit 1; }
+          echo "### ✅ Proyek Vercel: vitaminku (NoLimit System tidak disentuh)" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Isi variabel lingkungan (nilai tidak dicetak)
+        run: |
+          scope=""; [ -n "$VERCEL_SCOPE" ] && scope="--scope $VERCEL_SCOPE"
+          put() { [ -z "$2" ] && return 0
+            printf '%s' "$2" | npx --yes vercel@latest env add "$1" production --force --token "$VERCEL_TOKEN" $scope >/dev/null 2>&1 \
+              && echo "| $1 | ✅ |" >> "$GITHUB_STEP_SUMMARY" || { echo "| $1 | ❌ |" >> "$GITHUB_STEP_SUMMARY"; return 1; }; }
+          echo "| Variabel | Status |" >> "$GITHUB_STEP_SUMMARY"; echo "|---|---|" >> "$GITHUB_STEP_SUMMARY"
+          put SUPABASE_URL "$V_SUPABASE_URL"
+          put VITE_SUPABASE_URL "$V_SUPABASE_URL"
+          put SUPABASE_PUBLISHABLE_KEY "$V_SUPABASE_PUBLISHABLE_KEY"
+          put VITE_SUPABASE_PUBLISHABLE_KEY "$V_SUPABASE_PUBLISHABLE_KEY"
+          put SUPABASE_SERVICE_ROLE_KEY "$V_SUPABASE_SERVICE_ROLE_KEY"
+          put ANTHROPIC_API_KEY "$V_ANTHROPIC_API_KEY"
+          put SITE_URL "$V_SITE_URL"
+          put VITE_SITE_URL "$V_SITE_URL"
+
+      - name: Deploy produksi
+        run: |
+          scope=""; [ -n "$VERCEL_SCOPE" ] && scope="--scope $VERCEL_SCOPE"
+          url=$(npx --yes vercel@latest deploy --prod --yes --token "$VERCEL_TOKEN" $scope 2>/tmp/deploy.err | tail -1)
+          if [ -z "$url" ]; then echo "### ❌ Deploy gagal" >> "$GITHUB_STEP_SUMMARY"; grep -iE "error" /tmp/deploy.err | head -5; exit 1; fi
+          echo "### ✅ Situs tayang: $url" >> "$GITHUB_STEP_SUMMARY"
