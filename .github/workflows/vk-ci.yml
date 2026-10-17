@@ -1,0 +1,25 @@
+# CI VitaminKu: berjalan otomatis untuk setiap PR ke develop/main (hanya membangun & menguji; tanpa rahasia).
+name: vk-ci
+on:
+  pull_request:
+    branches: [develop, main]
+permissions:
+  contents: read
+concurrency:
+  group: vk-ci-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: "1.3.x"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - run: bash scripts/verify.sh
