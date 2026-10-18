@@ -71,3 +71,20 @@ describe("csv", () => {
     expect(rows[0]).toMatchObject({ row: 2, sku: "A1", harga_jual: "Rp 125.000", stok: "3" });
   });
 });
+
+describe("impor harga: contoh 20 baris dengan 2 rusak", () => {
+  it("18 baris diterapkan, 2 dilaporkan (SKU tak dikenal + harga bukan angka)", () => {
+    const catalog: CurrentProduct[] = Array.from({ length: 20 }, (_, i) => ({
+      id: `id${i + 1}`, sku: `P${i + 1}`, name: `Produk ${i + 1}`, price: i % 2 ? 90000 : null, compare_at_price: null, stock: 3,
+    }));
+    const rows = catalog.map((p, i) => ({ row: i + 2, sku: p.sku, harga_jual: String(100000 + i * 1000), harga_coret: "", stok: "" }));
+    rows[4] = { row: 6, sku: "TIDAK-ADA", harga_jual: "100000", harga_coret: "", stok: "" };
+    rows[9] = { row: 11, sku: "P10", harga_jual: "gratis", harga_coret: "", stok: "" };
+    const plan = planImport(rows, catalog);
+    expect(plan.totalRows).toBe(20);
+    expect(plan.updates).toHaveLength(18);
+    expect(plan.unknownSku.map((e) => e.sku)).toEqual(["TIDAK-ADA"]);
+    expect(plan.invalid.map((e) => e.sku)).toEqual(["P10"]);
+    expect(plan.unknownSku.length + plan.invalid.length).toBe(2);
+  });
+});
