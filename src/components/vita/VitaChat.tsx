@@ -9,7 +9,29 @@ import type { DbProduct } from "@/lib/catalog-db";
 import { formatIDR } from "@/lib/format";
 import { recentOrders } from "@/lib/recent-orders";
 import { VITA_MAX_CHARS, vitaWhatsappUrl } from "@/lib/vita-safety";
+import {
+  askFinder,
+  getFinderSessionId,
+  resolveFinderUrl,
+  type FinderCard,
+} from "@/lib/vitamin-finder-client";
+import { FinderCards } from "./FinderCards";
 import { VitaMascot } from "./VitaMascot";
+
+// Jalur baru: Edge Function vitamin-finder (aktif bila URL tersedia). Jalur lama /api/vita-chat tetap ada.
+const FINDER_URL = resolveFinderUrl({
+  finderUrl: import.meta.env["VITE_VITAMIN_FINDER_URL"] as string | undefined,
+  supabaseUrl: import.meta.env["VITE_SUPABASE_URL"] as string | undefined,
+});
+const FINDER_KEY = (import.meta.env["VITE_SUPABASE_PUBLISHABLE_KEY"] as string | undefined) ?? "";
+
+interface FinderMsg {
+  id: number;
+  role: "user" | "assistant";
+  text: string;
+  products?: FinderCard[];
+  needsHuman?: boolean;
+}
 
 const CHIPS = ["Cari protein", "Vitamin daya tahan", "Rekomendasi untuk tidur", "Cek pesanan saya"];
 
@@ -100,7 +122,7 @@ function WaButton({ url }: { url: string }) {
       href={url}
       target="_blank"
       rel="noopener noreferrer"
-      className="mt-2 inline-flex items-center gap-2 rounded-full bg-primary px-4 py-2 text-xs font-bold text-primary-foreground"
+      className="mt-2 inline-flex min-h-11 items-center gap-2 rounded-full bg-primary px-4 py-2 text-xs font-bold text-primary-foreground"
     >
       <MessageCircle className="h-4 w-4" /> Chat admin via WhatsApp
     </a>
@@ -159,6 +181,8 @@ function MessageView({ m, onNavigate }: { m: UIMessage; onNavigate: () => void }
 export default function VitaChat({ open, onClose }: { open: boolean; onClose: () => void }) {
   const [input, setInput] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [finderMsgs, setFinderMsgs] = useState<FinderMsg[]>([]);
+  const [finderBusy, setFinderBusy] = useState(false);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const endRef = useRef<HTMLDivElement>(null);
   const vv = useVisualViewport();
@@ -180,14 +204,14 @@ export default function VitaChat({ open, onClose }: { open: boolean; onClose: ()
       setError(msg);
     },
   });
-  const busy = status === "submitted" || status === "streaming";
+  const busy = status === "submitted" || status === "streaming" || finderBusy;
 
   useEffect(() => {
     if (open) inputRef.current?.focus();
   }, [open, status]);
   useEffect(() => {
     endRef.current?.scrollIntoView({ block: "end" });
-  }, [messages, status]);
+  }, [messages, status, finderMsgs, finderBusy]);
   useEffect(() => {
     if (!open || desktop) return;
     const prev = document.body.style.overflow;
@@ -202,13 +226,25 @@ export default function VitaChat({ open, onClose }: { open: boolean; onClose: ()
     if (!t || busy) return;
     setError(null);
     setInput("");
-    void sendMessage({ text: t });
+    if (!FINDER_URL) {
+      void sendMessage({ text: t });
+      return;
+    }
+    const history = finderMsgs.slice(-10).map((m) => ({ role: m.role, content: m.text }));
+    const id = Date.now();
+    setFinderMsgs((prev) => [...prev, { id, role: "user", text: t }]);
+    setFinderBusy(true);
+    void askFinder({ url: FINDER_URL, apiKey: FINDER_KEY, sessionId: getFinderSessionId(), message: t, history }).then((r) => {
+      setFinderMsgs((prev) => [...prev, { id: id + 1, role: "assistant", text: r.reply, products: r.products, needsHuman: r.needsHuman }]);
+      setFinderBusy(false);
+    });
   };
 
   const summary =
-    messages
-      .filter((m) => m.role === "user")
-      .map((m) => m.parts.map((p) => (p.type === "text" ? p.text : "")).join(""))
+    [
+      ...messages.filter((m) => m.role === "user").map((m) => m.parts.map((p) => (p.type === "text" ? p.text : "")).join("")),
+      ...finderMsgs.filter((m) => m.role === "user").map((m) => m.text),
+    ]
       .slice(-3)
       .join(" / ") || "Butuh bantuan memilih produk";
 
@@ -231,13 +267,14 @@ export default function VitaChat({ open, onClose }: { open: boolean; onClose: ()
           <p className="text-sm font-extrabold leading-tight">Vita · Asisten VitaminKu</p>
           <p className="text-[11px] opacity-80">Bantu cari suplemen yang pas</p>
         </div>
-        {messages.length > 0 && (
+        {(messages.length > 0 || finderMsgs.length > 0) && (
           <button
             type="button"
             aria-label="Mulai obrolan baru"
             onClick={() => {
               stop();
               setMessages([]);
+              setFinderMsgs([]);
               setError(null);
             }}
             className="grid h-9 w-9 place-items-center rounded-full hover:bg-vita-foreground/15"
@@ -265,14 +302,14 @@ export default function VitaChat({ open, onClose }: { open: boolean; onClose: ()
             Vita bukan pengganti dokter. Obrolan tidak disimpan setelah halaman ditutup.
           </p>
         </div>
-        {messages.length === 0 && (
+        {messages.length === 0 && finderMsgs.length === 0 && (
           <div className="flex flex-wrap gap-2">
-            {CHIPS.map((c) => (
+            {(FINDER_URL ? CHIPS.slice(0, 3) : CHIPS).map((c) => (
               <button
                 key={c}
                 type="button"
                 onClick={() => send(c)}
-                className="rounded-full border border-primary bg-primary-soft px-3 py-1.5 text-xs font-bold text-accent-foreground"
+                className="min-h-11 rounded-full border border-primary bg-primary-soft px-3 py-1.5 text-xs font-bold text-accent-foreground"
               >
                 {c}
               </button>
@@ -282,7 +319,20 @@ export default function VitaChat({ open, onClose }: { open: boolean; onClose: ()
         {messages.map((m) => (
           <MessageView key={m.id} m={m} onNavigate={onClose} />
         ))}
-        {status === "submitted" && (
+        {finderMsgs.map((m) =>
+          m.role === "user" ? (
+            <div key={m.id} className="ml-auto max-w-[85%] rounded-2xl rounded-br-md bg-navy px-3.5 py-2 text-sm text-navy-foreground">
+              <RichText text={m.text} />
+            </div>
+          ) : (
+            <div key={m.id} className="max-w-[95%] text-sm text-foreground">
+              <RichText text={m.text} />
+              <FinderCards products={m.products ?? []} onNavigate={onClose} />
+              {m.needsHuman && <WaButton url={vitaWhatsappUrl(summary)} />}
+            </div>
+          ),
+        )}
+        {(status === "submitted" || finderBusy) && (
           <div className="flex gap-1 py-1" aria-label="Vita sedang mengetik">
             {[0, 1, 2].map((i) => (
               <span

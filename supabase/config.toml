@@ -1,1 +1,4 @@
 project_id = "bbrccbxiblsbsnlzgskq"
+
+[functions.vitamin-finder]
+verify_jwt = false
