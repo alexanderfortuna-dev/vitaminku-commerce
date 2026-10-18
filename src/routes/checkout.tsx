@@ -18,7 +18,9 @@ import { getPublicStore } from "@/lib/store.functions";
 import { nearestBranch, haversineKm } from "@/lib/geo";
 import { readReferral, readBranchCode, clearBranchCode, matchBranchByCode } from "@/lib/referral";
 import { getMyCustomer } from "@/lib/customer.functions";
-import { MANUAL_SHIPPING_LABEL } from "@/lib/whatsapp-order";
+import { MANUAL_SHIPPING_LABEL, buildFallbackWhatsappUrl } from "@/lib/whatsapp-order";
+import { OFFICIAL_WHATSAPP_MAIN } from "@/lib/official-contacts";
+import { reportClientError } from "@/lib/client-error-report";
 
 const SAVED_KEY = "vitaminku-checkout-details";
 function loadSaved(): { name?: string; whatsapp?: string; address?: string; branchId?: string } {
@@ -83,6 +85,8 @@ function CheckoutPage() {
   const fetchAreas = useServerFn(searchShippingAreas);
   const fetchRates = useServerFn(getShippingRates);
   const submitOrder = useServerFn(createOrder);
+  // Satu kunci per isi pesanan: ketuk dua kali / kirim ulang setelah jaringan putus = tetap satu pesanan.
+  const idemRef = useRef<{ fp: string; key: string } | null>(null);
 
   const modes = useQuery({ queryKey: ["checkout-modes"], queryFn: () => fetchModes() });
   const fetchStore = useServerFn(getPublicStore);
@@ -225,9 +229,12 @@ function CheckoutPage() {
     setSubmitting(true);
     // Open the WhatsApp tab during the tap so pop-up blockers allow it.
     const waTab = method === "whatsapp" ? window.open("", "_blank") : null;
+    const fp = JSON.stringify([lines, name, whatsapp, address, activeBranchId, method, quote.data?.promoCode ?? null]);
+    if (idemRef.current?.fp !== fp) idemRef.current = { fp, key: `${crypto.randomUUID()}-${Date.now().toString(36)}` };
     try {
       const res = await submitOrder({
         data: {
+          idempotencyKey: idemRef.current.key,
           lines,
           customer: { name, whatsapp, address, note: note.trim() || null },
           area: area ? { id: area.id, province: area.province, city: area.city, district: area.district, postal_code: area.postal_code } : null,
@@ -248,8 +255,26 @@ function CheckoutPage() {
         void navigate({ to: "/pesanan/$token", params: { token: res.accessToken } });
       }
     } catch (e) {
-      waTab?.close();
-      toast.error(e instanceof Error ? e.message : "Pesanan gagal dibuat");
+      reportClientError(e, "error");
+      if (method === "whatsapp" && quote.data && quote.data.lines.length > 0) {
+        // Pencatatan gagal: jangan kehilangan pelanggan. Tetap buka WhatsApp cabang dengan pesan yang bisa dicatat staf.
+        const b = branches.find((x) => x.id === activeBranchId);
+        const url = buildFallbackWhatsappUrl(b?.whatsapp ?? OFFICIAL_WHATSAPP_MAIN, {
+          items: quote.data.lines.map((l) => ({ name: l.name, quantity: l.quantity, unit_price: l.unitPrice })),
+          subtotal: quote.data.subtotal - quote.data.discount,
+          customer_name: name,
+          whatsapp,
+          address,
+          branch_name: b?.name ?? null,
+          note: note.trim() || null,
+        });
+        if (waTab) waTab.location.href = url;
+        else window.open(url, "_blank");
+        toast.error("Pesanan belum tercatat otomatis. Kami buka WhatsApp agar admin mencatatnya.");
+      } else {
+        waTab?.close();
+        toast.error(e instanceof Error ? e.message : "Pesanan gagal dibuat");
+      }
       submitRef.current = false;
       setSubmitting(false);
     }

@@ -826,6 +826,7 @@ export type Database = {
         Args: { _limit?: number; _visitor: string; _window_minutes?: number }
         Returns: boolean
       }
+      create_order: { Args: { payload: Json; idempotency_key: string }; Returns: Json }
       get_order_by_token: { Args: { _token: string }; Returns: Json }
       has_role: {
         Args: {

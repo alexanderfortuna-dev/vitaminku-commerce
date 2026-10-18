@@ -50,3 +50,35 @@ export function whatsappOrderUrl(number: string, o: WhatsappOrderInput): string 
   return `https://wa.me/${number}?text=${encodeURIComponent(buildWhatsappOrderMessage(o))}`;
 }
 
+
+export interface FallbackOrderInput {
+  items: Array<{ name: string; quantity: number; unit_price: number }>;
+  subtotal: number;
+  customer_name: string;
+  whatsapp: string;
+  address: string;
+  branch_name?: string | null;
+  note?: string | null;
+}
+
+/**
+ * Pesan WhatsApp bila pencatatan pesanan di server gagal: pelanggan tetap bisa memesan, staf mencatat manual.
+ * Harga di sini hanya untuk dibaca staf; staf mengonfirmasi harga final dari katalog.
+ */
+export function buildFallbackWhatsappUrl(number: string, o: FallbackOrderInput): string {
+  const text = [
+    `Halo VitaminKu, saya ingin memesan.`,
+    `(Pesanan belum tercatat otomatis di sistem. Mohon dicatat dan dikonfirmasi manual.)`,
+    ``,
+    ...(o.branch_name ? [`Cabang: ${o.branch_name}`] : []),
+    ...o.items.map((i) => `- ${i.name} × ${i.quantity} × ${rp(i.unit_price)}`),
+    ``,
+    `Perkiraan subtotal: ${rp(o.subtotal)}`,
+    ``,
+    `Nama: ${o.customer_name}`,
+    `WhatsApp: ${o.whatsapp}`,
+    `Alamat: ${o.address}`,
+    ...(o.note ? [`Catatan: ${o.note}`] : []),
+  ].join("\n");
+  return `https://wa.me/${number}?text=${encodeURIComponent(text)}`;
+}

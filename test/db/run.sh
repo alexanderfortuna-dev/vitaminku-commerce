@@ -19,3 +19,4 @@ done
 echo "Migrasi diterapkan: $n file (urutan supabase/migrations lalu drizzle/migrations)"
 su postgres -c "$P -f $ROOT/test/db/20_launch_assertions.sql"
 su postgres -c "$P -f $ROOT/test/db/30_blocklist_assertions.sql"
+su postgres -c "$P -f $ROOT/test/db/40_orders_assertions.sql"

@@ -211,7 +211,9 @@ export async function handleVitaChat(request: Request): Promise<Response> {
       execute: async ({ order_number }) => {
         const wanted = normalizeOrderNumber(order_number);
         for (const token of orderTokens) {
-          const { data } = await supabase.rpc("get_order_by_token", { _token: token });
+          // Token dari perangkat ini; fungsi ini hanya untuk server (service_role), jadi lewat klien admin.
+          const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+          const { data } = await supabaseAdmin.rpc("get_order_by_token", { _token: token });
           const o = data as { order_number?: string; status?: string; total?: number; created_at?: string } | null;
           if (o?.order_number && normalizeOrderNumber(o.order_number) === wanted) {
             return {
