@@ -71,18 +71,20 @@ function applySort(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   query: any,
   sort: CatalogSort,
+  withImageRank = true,
 ) {
   // Purchasable (price > 0 and stock > 0) always first; "Harga menyusul" last.
   query = query.order("is_purchasable", { ascending: false });
   switch (sort) {
     case "newest":
-      return query.order("created_at", { ascending: false });
+      return (withImageRank ? query.order("has_image", { ascending: false }) : query).order("created_at", { ascending: false });
     case "price_asc":
       return query.order("price", { ascending: true, nullsFirst: false }).order("name");
     case "price_desc":
       return query.order("price", { ascending: false, nullsFirst: false }).order("name");
     default:
-      return query.order("name", { ascending: true });
+      // Produk berfoto lebih dulu; yang masih memakai gambar pengganti di bawahnya (urutan harga tidak diubah).
+      return (withImageRank ? query.order("has_image", { ascending: false }) : query).order("name", { ascending: true });
   }
 }
 
@@ -127,12 +129,15 @@ export const listProducts = createServerFn({ method: "GET" })
       }
     }
 
-    query = applySort(query, data.sort ?? (search ? "name" : "name")).range(
-      offset,
-      offset + limit - 1,
-    );
+    const sortKey = data.sort ?? "name";
+    const base = query;
+    query = applySort(base, sortKey).range(offset, offset + limit - 1);
 
-    const { data: rows, count, error } = await query;
+    let { data: rows, count, error } = await query;
+    if (error && /has_image/.test(error.message)) {
+      // Migrasi 0014 belum diterapkan: tampilkan katalog tanpa urutan foto, jangan gagal.
+      ({ data: rows, count, error } = await applySort(base, sortKey, false).range(offset, offset + limit - 1));
+    }
     if (error) throw new Error(error.message);
     const products = (rows ?? []) as unknown as DbProduct[];
     const nextOffset = products.length === limit ? offset + limit : null;
