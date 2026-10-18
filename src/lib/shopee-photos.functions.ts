@@ -179,7 +179,7 @@ function validateApply(i: { rows?: unknown; mode?: unknown; items?: unknown }): 
   return { ...base, items };
 }
 
-async function mapPool<T, R>(list: T[], size: number, fn: (x: T) => Promise<R>): Promise<R[]> {
+export async function mapPool<T, R>(list: T[], size: number, fn: (x: T) => Promise<R>): Promise<R[]> {
   const out: R[] = new Array(list.length);
   let next = 0;
   await Promise.all(
@@ -194,7 +194,7 @@ async function mapPool<T, R>(list: T[], size: number, fn: (x: T) => Promise<R>):
   return out;
 }
 
-async function applyOne(ctx: Ctx, job: ApplyJob, mode: PlanMode): Promise<ApplyItemResult> {
+export async function applyOne(ctx: Ctx, job: ApplyJob, mode: PlanMode): Promise<ApplyItemResult> {
   const base = { key: job.key, sku: job.sku, stored: 0, gagalFoto: [] as ApplyItemResult["gagalFoto"] };
   // Baca ulang produk sekarang (bisa berubah sejak pratinjau / panggilan sebelumnya).
   const { data: cur, error } = await db(ctx).from("products").select("id,sku,images,is_blocked").eq("id", job.productId).maybeSingle();
