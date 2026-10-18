@@ -39,5 +39,19 @@ After a verify failure, reviewer FAIL, blocked issue, wrong assumption or a comm
 .claude/state/LESSONS.md: `- [YYYY-MM-DD][#issue] WHEN <situation> DO <rule> BECAUSE <evidence>`. No duplicates, max 60 lines,
 no secrets, never weaken HARD RULES.
 
+## Konteks produk (dikunci pemilik, jangan dibuka ulang)
+VitaminKu = toko vitamin & sports nutrition Limitless Group (Bali, ~10 cabang, gudang pusat Sanur). Pemilik bukan programmer dan
+mengelola Seller Center sendiri. ~1.413 produk live; harga = harga jual toko dari ERP/Excel pemilik; stok online = buffer tampilan 3,
+tiap pesanan dikonfirmasi staf; checkout via WhatsApp sampai kunci Midtrans ada; pesanan HARUS ke WhatsApp CABANG pilihan;
+foto dari ekspor Shopee pemilik; obat keras, SARMs, modafinil, yohimbe, DHEA tidak pernah dijual; HPP tidak pernah ke permukaan pelanggan.
+
+## Batasan tambahan (launch-v2)
+- Repo publik: tanpa rahasia, .env, service_role, data HPP, atau email pribadi. Kunci AI/service_role hanya di server (Edge secret / env Vercel).
+- Pesanan hanya lewat RPC `create_order` (service_role, idempoten, harga dari DB). Browser tidak menulis ke `orders`.
+- Perubahan DB = file migrasi baru aditif di drizzle/migrations + uji di test/db; urutan produksi: migrasi dulu, baru deploy.
+- Grant owner dilakukan lewat SQL sekali jalan (docs/OWNER_AKSES.md), bukan migrasi.
+- Logika uang/stok deterministik (kode), bukan keputusan LLM. Vitamin Finder: Edge Function `vitamin-finder` (docs/VITAMIN_FINDER.md).
+- Jangan sentuh proyek Supabase `nolimit-system` / URL berawalan nvjlz.
+
 ## Lessons (auto-maintained)
 @.claude/state/LESSONS.md
