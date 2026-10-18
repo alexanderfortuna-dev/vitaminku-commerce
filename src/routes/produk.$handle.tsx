@@ -116,7 +116,7 @@ function ProductPage() {
 
       <div className="bg-secondary">
         <div className="mx-auto aspect-square w-full max-w-md overflow-hidden">
-          <ProductThumb product={product} textClassName="text-5xl" />
+          <ProductThumb product={product} textClassName="text-5xl" priority />
         </div>
       </div>
 

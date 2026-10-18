@@ -82,3 +82,20 @@ describe("photo ZIP names", () => {
     expect(skuFromPhotoName("notes.txt")).toBeNull();
   });
 });
+
+describe("Upload Massal: contoh 20 baris dengan 2 baris rusak", () => {
+  it("mengimpor 18 baris dan melaporkan 2 baris beserta alasannya", () => {
+    const grid: string[][] = [header];
+    for (let i = 1; i <= 20; i++) grid.push(row(`S-${i}`, `Produk ${i}`, String(50000 + i * 1000)));
+    grid[7] = row("S-7", "Produk 7", "gratis"); // harga bukan angka
+    grid[13] = row("S-13", "DHEA 50mg", "200000"); // kata terlarang (diisi dari hasil DB)
+    const rows = gridToFullRows(grid);
+    const blocked = rows.map((r) => (String(r.sku) === "S-13" ? "DHEA" : ""));
+    const plan = planFullImport(rows, existing, "fill", blocked);
+    expect(plan.totalRows).toBe(20);
+    expect(plan.rows).toHaveLength(18);
+    expect(plan.rows.every((r) => r.kind === "new")).toBe(true);
+    expect(plan.errors.map((e) => [e.row, e.sku])).toEqual([[8, "S-7"], [14, "S-13"]]);
+    expect(plan.errors.every((e) => e.reason.length > 0)).toBe(true);
+  });
+});

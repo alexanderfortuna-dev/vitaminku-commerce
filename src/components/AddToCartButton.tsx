@@ -18,7 +18,7 @@ export function AddToCartButton({ product, className = "" }: { product: DbProduc
   if (!isBuyable(product)) {
     return (
       <span
-        className={`inline-flex items-center justify-center rounded-full bg-secondary px-3 py-2 text-xs font-bold text-muted-foreground ${className}`}
+        className={`inline-flex items-center justify-center min-h-11 rounded-full bg-secondary px-3 py-2 text-xs font-bold text-muted-foreground ${className}`}
       >
         {hasPrice(product) && Number(product.price) > 0 ? "Stok habis" : "Harga menyusul"}
       </span>
@@ -28,7 +28,7 @@ export function AddToCartButton({ product, className = "" }: { product: DbProduc
     <button
       type="button"
       onClick={() => add(product) && toast.success("Ditambahkan ke keranjang", { description: product.name })}
-      className={`inline-flex items-center justify-center rounded-full bg-primary px-3 py-2 text-xs font-bold text-primary-foreground ${className}`}
+      className={`inline-flex items-center justify-center min-h-11 rounded-full bg-primary px-3 py-2 text-xs font-bold text-primary-foreground ${className}`}
     >
       + Keranjang
     </button>
@@ -43,7 +43,7 @@ export function ProductBuyBar({ product }: { product: DbProduct }) {
       <button
         type="button"
         disabled
-        className="flex-1 rounded-full bg-primary px-4 py-3 text-sm font-bold text-primary-foreground disabled:opacity-50"
+        className="min-h-11 flex-1 rounded-full bg-primary px-4 py-3 text-sm font-bold text-primary-foreground disabled:opacity-50"
       >
         {hasPrice(product) && Number(product.price) > 0 ? "Stok habis" : "Harga menyusul"}
       </button>
@@ -54,7 +54,7 @@ export function ProductBuyBar({ product }: { product: DbProduct }) {
       <button
         type="button"
         onClick={() => add(product) && toast.success("Ditambahkan ke keranjang", { description: product.name })}
-        className="flex-1 rounded-full border border-primary px-4 py-3 text-sm font-bold text-primary"
+        className="min-h-11 flex-1 rounded-full border border-primary px-4 py-3 text-sm font-bold text-primary"
       >
         + Keranjang
       </button>
@@ -64,7 +64,7 @@ export function ProductBuyBar({ product }: { product: DbProduct }) {
           const inCart = useCartStore.getState().items.some((i) => i.slug === (product.slug ?? product.id));
           if (inCart || add(product)) void navigate({ to: "/checkout" });
         }}
-        className="flex-1 rounded-full bg-primary px-4 py-3 text-sm font-bold text-primary-foreground"
+        className="min-h-11 flex-1 rounded-full bg-primary px-4 py-3 text-sm font-bold text-primary-foreground"
       >
         Beli Sekarang
       </button>

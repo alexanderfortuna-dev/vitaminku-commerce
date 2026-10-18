@@ -40,9 +40,9 @@ export function ProductCard({ product }: { product: DbProduct }) {
         type="button"
         aria-label={wishlisted ? "Hapus dari wishlist" : "Simpan ke wishlist"}
         onClick={() => toggleWishlist(slug)}
-        className="absolute right-2 top-2 grid h-8 w-8 place-items-center rounded-full bg-card/90 text-muted-foreground shadow-sm"
+        className="absolute right-0 top-0 grid h-11 w-11 place-items-center text-muted-foreground"
       >
-        <Heart className={`h-4 w-4 ${wishlisted ? "fill-destructive text-destructive" : ""}`} />
+        <Heart className={`h-8 w-8 rounded-full bg-card/90 p-2 shadow-sm ${wishlisted ? "fill-destructive text-destructive" : ""}`} />
       </button>
 
       <div className="flex min-w-0 flex-1 flex-col gap-1 p-3">

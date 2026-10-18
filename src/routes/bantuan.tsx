@@ -1,5 +1,6 @@
 import { Link, createFileRoute } from "@tanstack/react-router";
 import { CreditCard, PackageCheck, ShieldCheck, Truck } from "lucide-react";
+import { OFFICIAL_WHATSAPPS } from "@/lib/official-contacts";
 
 const FAQ = [
   {
@@ -100,9 +101,24 @@ function HelpPage() {
       <section className="mt-6 p-4 card-surface">
         <h2 className="text-sm font-extrabold text-navy">Hubungi kami</h2>
         <p className="mt-1 text-sm text-muted-foreground">
-          VitaminKu sedang dalam masa beta. Kanal bantuan resmi (nomor chat dan alamat email) akan
-          ditampilkan di halaman ini begitu dikonfigurasi oleh pemilik toko.
+          Nomor WhatsApp resmi VitaminKu. Hati-hati penipuan: kami tidak meminta kode OTP atau
+          pembayaran ke rekening pribadi di luar halaman pesanan.
         </p>
+        <ul className="mt-3 space-y-2">
+          {OFFICIAL_WHATSAPPS.map((w) => (
+            <li key={w.number}>
+              <a
+                href={`https://wa.me/${w.number}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex min-h-11 items-center justify-between rounded-xl border border-border px-4 text-sm font-semibold text-navy"
+              >
+                <span>{w.label}</span>
+                <span className="text-primary">{w.display}</span>
+              </a>
+            </li>
+          ))}
+        </ul>
       </section>
 
       <Link to="/" className="mt-6 block text-center text-sm font-semibold text-primary">

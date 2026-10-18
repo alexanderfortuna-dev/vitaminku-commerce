@@ -1,3 +1,4 @@
+import { OFFICIAL_WHATSAPP_MAIN } from "./official-contacts";
 // Pure checkout helpers (no I/O) shared by server code and tests.
 import { createHash } from "node:crypto";
 
@@ -90,7 +91,7 @@ export function makeOrderNumber(now: Date, random: string): string {
 }
 
 // ---- Tujuan WhatsApp pesanan ----
-export const FALLBACK_WHATSAPP = "6281339950000";
+export const FALLBACK_WHATSAPP = OFFICIAL_WHATSAPP_MAIN;
 
 export interface BranchContact {
   branch_id: string;

@@ -119,7 +119,10 @@ describe("sitemap", () => {
 describe("robots.txt", () => {
   it("tetap boleh diindeks dan memuat baris Sitemap bila origin diketahui", () => {
     const t = buildRobotsTxt("https://toko.example.com");
-    expect(t).toContain("User-agent: *\nAllow: /");
+    expect(t).toContain("User-agent: *\nDisallow: /admin");
+    expect(t).toContain("Disallow: /seller");
+    expect(t).toContain("Disallow: /pesanan/");
+    expect(t).toMatch(/Allow: \/$/m);
     expect(t).toContain("Sitemap: https://toko.example.com/sitemap.xml");
     expect(t).not.toMatch(/Disallow:\s*\/\s*$/m);
     expect(buildRobotsTxt("")).not.toContain("Sitemap:");

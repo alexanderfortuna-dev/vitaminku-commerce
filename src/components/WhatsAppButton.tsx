@@ -4,7 +4,9 @@ import { useEffect, useState } from "react";
 import { MessageCircle } from "lucide-react";
 import { productQueryOptions } from "@/lib/catalog-db";
 
-export const WHATSAPP_NUMBER = "6281339950000";
+import { OFFICIAL_WHATSAPP_MAIN } from "@/lib/official-contacts";
+
+export const WHATSAPP_NUMBER = OFFICIAL_WHATSAPP_MAIN;
 
 export function whatsappLink(productName?: string | null): string {
   const text = productName

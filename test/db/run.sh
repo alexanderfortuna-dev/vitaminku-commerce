@@ -18,3 +18,4 @@ for f in "$ROOT/test/db/baseline_products.sql" $(ls "$ROOT"/supabase/migrations/
 done
 echo "Migrasi diterapkan: $n file (urutan supabase/migrations lalu drizzle/migrations)"
 su postgres -c "$P -f $ROOT/test/db/20_launch_assertions.sql"
+su postgres -c "$P -f $ROOT/test/db/30_blocklist_assertions.sql"

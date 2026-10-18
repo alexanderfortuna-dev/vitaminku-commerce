@@ -1,3 +1,4 @@
+import { OFFICIAL_WHATSAPP_MAIN } from "./official-contacts";
 // Pure, browser-safe rules for the Vita assistant (also unit-tested).
 
 export const VITA_RATE_LIMIT = 20; // messages per visitor
@@ -44,5 +45,5 @@ export function normalizeOrderNumber(text: string): string {
 
 export function vitaWhatsappUrl(summary: string): string {
   const text = `Halo VitaminKu, saya baru chat dengan Vita dan ingin dibantu admin.\n\nRingkasan: ${summary.slice(0, 400)}`;
-  return `https://wa.me/6281339950000?text=${encodeURIComponent(text)}`;
+  return `https://wa.me/${OFFICIAL_WHATSAPP_MAIN}?text=${encodeURIComponent(text)}`;
 }

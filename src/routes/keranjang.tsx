@@ -89,7 +89,7 @@ function CartPage() {
                                             onClick={() =>
                         updateQuantity(item.slug, item.quantity - 1)
                       }
-                      className="grid h-6 w-6 place-items-center rounded-full bg-secondary"
+                      className="grid h-11 w-11 place-items-center rounded-full bg-secondary"
                     >
                       <Minus className="h-3 w-3" />
                     </button>
@@ -101,7 +101,7 @@ function CartPage() {
                       onClick={() =>
                         updateQuantity(item.slug, item.quantity + 1)
                       }
-                      className="grid h-6 w-6 place-items-center rounded-full bg-secondary"
+                      className="grid h-11 w-11 place-items-center rounded-full bg-secondary"
                     >
                       <Plus className="h-3 w-3" />
                     </button>
@@ -121,7 +121,7 @@ function CartPage() {
                       removeItem(item.slug)
                     }
                     aria-label="Hapus produk"
-                    className="ml-auto text-muted-foreground"
+                    className="ml-auto grid h-11 w-11 place-items-center text-muted-foreground"
                   >
                     <Trash2 className="h-4 w-4" />
                   </button>

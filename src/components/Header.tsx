@@ -16,7 +16,7 @@ export function Header() {
           </Link>
           <Link
             to="/keranjang"
-            className="relative grid h-10 w-10 shrink-0 place-items-center rounded-full bg-secondary text-navy"
+            className="relative grid h-11 w-11 shrink-0 place-items-center rounded-full bg-secondary text-navy"
             aria-label={`Keranjang, ${count} produk`}
           >
             <ShoppingCart className="h-5 w-5" />

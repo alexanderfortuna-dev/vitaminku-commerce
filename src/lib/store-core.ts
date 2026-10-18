@@ -1,5 +1,7 @@
 // Pure, browser-safe helpers for branches.
-export const DEFAULT_WHATSAPP = "6281339950000";
+import { OFFICIAL_WHATSAPP_MAIN } from "./official-contacts";
+
+export const DEFAULT_WHATSAPP = OFFICIAL_WHATSAPP_MAIN;
 
 /** "0813-3995-0000" / "+62 813..." / "813..." -> "62813..." ; null when invalid. */
 export function normalizeBranchWhatsapp(raw: string): string | null {

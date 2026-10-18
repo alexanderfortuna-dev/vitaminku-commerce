@@ -8,11 +8,14 @@ import { brandInitials, type DbProduct } from "@/lib/catalog-db";
 export function ProductThumb({
   product,
   className = "",
+  priority = false,
 }: {
   product: DbProduct;
   className?: string;
   /** Kept for existing callers; the placeholder now scales by container size. */
   textClassName?: string;
+  /** Foto utama di atas lipatan (halaman produk): dimuat segera, bukan lazy, agar LCP cepat. */
+  priority?: boolean;
 }) {
   const [failed, setFailed] = useState(false);
   if (product.image_url && !failed) {
@@ -21,7 +24,8 @@ export function ProductThumb({
         src={product.image_url}
         alt={product.name}
         className={`h-full w-full bg-card object-contain ${className}`}
-        loading="lazy"
+        loading={priority ? "eager" : "lazy"}
+        fetchPriority={priority ? "high" : "auto"}
         decoding="async"
         referrerPolicy="no-referrer"
         onError={() => setFailed(true)}

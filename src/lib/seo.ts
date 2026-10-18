@@ -119,10 +119,14 @@ export function buildSitemapXml(entries: SitemapEntry[]): string {
 
 // ---------------- robots ----------------
 
-/** Isi robots.txt: aturan lama (semua boleh diindeks) + baris Sitemap bila origin diketahui. */
+/** Halaman pribadi/staf yang tidak boleh dirayapi mesin pencari (tetap dilindungi login di server). */
+export const ROBOTS_PRIVATE_PATHS = ["/admin", "/seller", "/akun", "/checkout", "/pesanan/", "/masuk", "/api/"];
+
+/** Isi robots.txt: katalog boleh diindeks, halaman pribadi/staf tidak; baris Sitemap bila origin diketahui. */
 export function buildRobotsTxt(origin: string): string {
   const agents = ["Googlebot", "Bingbot", "Twitterbot", "facebookexternalhit", "*"];
-  const rules = agents.map((a) => `User-agent: ${a}\nAllow: /`).join("\n\n");
+  const disallow = ROBOTS_PRIVATE_PATHS.map((p) => `Disallow: ${p}`).join("\n");
+  const rules = agents.map((a) => `User-agent: ${a}\n${disallow}\nAllow: /`).join("\n\n");
   const base = cleanOrigin(origin);
   return `${rules}\n${base ? `\nSitemap: ${base}/sitemap.xml\n` : ""}`;
 }
