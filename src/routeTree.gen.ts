@@ -35,6 +35,7 @@ import { Route as AdminBlokirRouteImport } from './routes/admin/blokir'
 import { Route as AdminCabangAdminRouteImport } from './routes/admin/cabang-admin'
 import { Route as AdminCadanganRouteImport } from './routes/admin/cadangan'
 import { Route as AdminFotoMassalRouteImport } from './routes/admin/foto-massal'
+import { Route as AdminFotoShopeeRouteImport } from './routes/admin/foto-shopee'
 import { Route as AdminHargaStokRouteImport } from './routes/admin/harga-stok'
 import { Route as AdminLoginRouteImport } from './routes/admin/login'
 import { Route as AdminPengaturanRouteImport } from './routes/admin/pengaturan'
@@ -191,6 +192,11 @@ const AdminFotoMassalRoute = AdminFotoMassalRouteImport.update({
   path: '/foto-massal',
   getParentRoute: () => AdminRouteRoute,
 } as any)
+const AdminFotoShopeeRoute = AdminFotoShopeeRouteImport.update({
+  id: '/foto-shopee',
+  path: '/foto-shopee',
+  getParentRoute: () => AdminRouteRoute,
+} as any)
 const AdminHargaStokRoute = AdminHargaStokRouteImport.update({
   id: '/harga-stok',
   path: '/harga-stok',
@@ -339,6 +345,7 @@ export interface FileRoutesByFullPath {
   '/admin/cabang-admin': typeof AdminCabangAdminRoute
   '/admin/cadangan': typeof AdminCadanganRoute
   '/admin/foto-massal': typeof AdminFotoMassalRoute
+  '/admin/foto-shopee': typeof AdminFotoShopeeRoute
   '/admin/harga-stok': typeof AdminHargaStokRoute
   '/admin/login': typeof AdminLoginRoute
   '/admin/pengaturan': typeof AdminPengaturanRoute
@@ -387,6 +394,7 @@ export interface FileRoutesByTo {
   '/admin/cabang-admin': typeof AdminCabangAdminRoute
   '/admin/cadangan': typeof AdminCadanganRoute
   '/admin/foto-massal': typeof AdminFotoMassalRoute
+  '/admin/foto-shopee': typeof AdminFotoShopeeRoute
   '/admin/harga-stok': typeof AdminHargaStokRoute
   '/admin/login': typeof AdminLoginRoute
   '/admin/pengaturan': typeof AdminPengaturanRoute
@@ -440,6 +448,7 @@ export interface FileRoutesById {
   '/admin/cabang-admin': typeof AdminCabangAdminRoute
   '/admin/cadangan': typeof AdminCadanganRoute
   '/admin/foto-massal': typeof AdminFotoMassalRoute
+  '/admin/foto-shopee': typeof AdminFotoShopeeRoute
   '/admin/harga-stok': typeof AdminHargaStokRoute
   '/admin/login': typeof AdminLoginRoute
   '/admin/pengaturan': typeof AdminPengaturanRoute
@@ -494,6 +503,7 @@ export interface FileRouteTypes {
     | '/admin/cabang-admin'
     | '/admin/cadangan'
     | '/admin/foto-massal'
+    | '/admin/foto-shopee'
     | '/admin/harga-stok'
     | '/admin/login'
     | '/admin/pengaturan'
@@ -542,6 +552,7 @@ export interface FileRouteTypes {
     | '/admin/cabang-admin'
     | '/admin/cadangan'
     | '/admin/foto-massal'
+    | '/admin/foto-shopee'
     | '/admin/harga-stok'
     | '/admin/login'
     | '/admin/pengaturan'
@@ -594,6 +605,7 @@ export interface FileRouteTypes {
     | '/admin/cabang-admin'
     | '/admin/cadangan'
     | '/admin/foto-massal'
+    | '/admin/foto-shopee'
     | '/admin/harga-stok'
     | '/admin/login'
     | '/admin/pengaturan'
@@ -832,6 +844,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminFotoMassalRouteImport
       parentRoute: typeof AdminRouteRoute
     }
+    '/admin/foto-shopee': {
+      id: '/admin/foto-shopee'
+      path: '/foto-shopee'
+      fullPath: '/admin/foto-shopee'
+      preLoaderRoute: typeof AdminFotoShopeeRouteImport
+      parentRoute: typeof AdminRouteRoute
+    }
     '/admin/harga-stok': {
       id: '/admin/harga-stok'
       path: '/harga-stok'
@@ -1010,6 +1029,7 @@ interface AdminRouteRouteChildren {
   AdminCabangAdminRoute: typeof AdminCabangAdminRoute
   AdminCadanganRoute: typeof AdminCadanganRoute
   AdminFotoMassalRoute: typeof AdminFotoMassalRoute
+  AdminFotoShopeeRoute: typeof AdminFotoShopeeRoute
   AdminHargaStokRoute: typeof AdminHargaStokRoute
   AdminLoginRoute: typeof AdminLoginRoute
   AdminPengaturanRoute: typeof AdminPengaturanRoute
@@ -1032,6 +1052,7 @@ const AdminRouteRouteChildren: AdminRouteRouteChildren = {
   AdminCabangAdminRoute: AdminCabangAdminRoute,
   AdminCadanganRoute: AdminCadanganRoute,
   AdminFotoMassalRoute: AdminFotoMassalRoute,
+  AdminFotoShopeeRoute: AdminFotoShopeeRoute,
   AdminHargaStokRoute: AdminHargaStokRoute,
   AdminLoginRoute: AdminLoginRoute,
   AdminPengaturanRoute: AdminPengaturanRoute,

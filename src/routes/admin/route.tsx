@@ -128,6 +128,7 @@ const NAV = [
   { to: "/admin/upload-massal", label: "Upload Massal", icon: Upload, show: canEditCommerce },
   { to: "/admin/harga-stok", label: "Ubah Massal", icon: Sheet, show: canEditCommerce },
   { to: "/admin/foto-massal", label: "Foto Massal", icon: Images, show: canEditCommerce },
+  { to: "/admin/foto-shopee", label: "Foto Shopee", icon: Images, show: canEditCommerce },
   { to: "/admin/pesanan", label: "Pesanan", icon: Receipt, show: canEditCommerce },
   { to: "/admin/promo", label: "Promo", icon: Tag, show: canEditCommerce },
   { to: "/admin/blokir", label: "Daftar Blokir", icon: ShieldBan, show: canEditCommerce },
