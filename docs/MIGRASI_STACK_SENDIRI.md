@@ -8,18 +8,18 @@ Tidak ada kunci/sandi di dokumen ini; semua nilai rahasia diisi pemilik di dashb
   Kunci publik (aman dipakai di `VITE_SUPABASE_PUBLISHABLE_KEY` / `SUPABASE_PUBLISHABLE_KEY`): ambil dari Supabase → Project Settings → API (jangan salin service_role ke mana pun selain Vercel).
 - **Skema terpasang** (urutan sama dengan file gabungan) + pengerasan 0009. Terverifikasi: hpp ditolak untuk anon & authenticated (ERROR 42501), RLS aktif di semua tabel public, FITLIFE10 tepat.
 - **Data termuat & terverifikasi** terhadap Lovable (sidik jari md5 identik): 1.461 produk, 1.413 aktif + 48 draf, 553 HPP, total harga 526.262.700, total stok 3.579, 31 foto (CDN Shopee), 2 cabang, 1 promo, 21 kata blokir. Orders 0 (tidak dimuat).
-- **Belum**: (1) dua fungsi berisi perintah hapus — tempel `supabase/PENDING_functions_with_delete.sql` di SQL Editor (sekali); (2) Vercel + variabel lingkungan; (3) akun owner (SQL di bawah); (4) kunci AI untuk Vita; (5) izin jaringan agar Claude bisa menguji preview.
+- **Belum**: (1) dua fungsi berisi perintah hapus — tempel `supabase/arsip/PENDING_functions_with_delete.sql` di SQL Editor (sekali); (2) Vercel + variabel lingkungan; (3) akun owner (SQL di bawah); (4) kunci AI untuk Vita; (5) izin jaringan agar Claude bisa menguji preview.
 
 ## T1 — (SELESAI) Buat proyek Supabase (pemilik, ±5 menit)
 1. supabase.com → **New project** (organisasi Anda).
 2. Nama: `vitaminku`. Region: **Southeast Asia (Singapore)**. Buat sandi database → simpan di password manager (jangan ditempel ke chat).
 3. Tunggu status *Healthy*.
-4. **SQL Editor → New query** → buka file `supabase/ALL_MIGRATIONS_FOR_NEW_PROJECT.sql` di GitHub (tombol *Raw* → salin semua) → tempel → **Run**. Harus selesai tanpa error merah.
+4. **SQL Editor → New query** → buka file `supabase/arsip/ALL_MIGRATIONS_FOR_NEW_PROJECT.sql` di GitHub (tombol *Raw* → salin semua) → tempel → **Run**. Harus selesai tanpa error merah.
 5. **Project Settings → API**: catat *Project URL*, *anon/publishable key*, *service_role key* (tiga nilai ini hanya untuk Vercel, langkah T4).
 6. Beri tahu saya "Supabase siap" + hanya **Project URL** (bukan kunci). Saya lalu menjalankan pemeriksaan hpp.
 
 Catatan: migrasi 0000–0008 saja TIDAK cukup — tabel `products` tidak pernah dibuat oleh migrasi mana pun
-(dulu dibuat langsung di Lovable). Karena itu ada `supabase/migrations/20260908000000_baseline_products.sql`
+(dulu dibuat langsung di Lovable). Karena itu ada `supabase/arsip/migrasi-awal/20260908000000_baseline_products.sql`
 dan `…000001_storage_product_images.sql`. Hasil uji di Postgres 16 lokal: `bash test/db/run.sh` (14/14 lulus).
 
 ## Variabel lingkungan (isi di Vercel → Settings → Environment Variables; hanya NAMA di sini)

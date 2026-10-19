@@ -14,22 +14,22 @@ run() { su postgres -c "$P $*"; }
 run "-f $ROOT/test/db/00_supabase_stub.sql"
 run "-c \"ALTER TABLE auth.users ADD COLUMN IF NOT EXISTS email_confirmed_at timestamptz\""
 # Keadaan produksi: migrasi s/d 0009 sudah terpasang, 0010-0013 belum.
-for f in "$ROOT/test/db/baseline_products.sql" $(ls "$ROOT"/supabase/migrations/*.sql | sort) $(ls "$ROOT"/drizzle/migrations/000*.sql | sort); do
+for f in "$ROOT/test/db/baseline_products.sql" $(ls "$ROOT"/supabase/arsip/migrasi-awal/*.sql | sort) $(ls "$ROOT"/drizzle/migrations/000*.sql | sort); do
   run "-f '$f'" >/dev/null
 done
 echo "== VERIFY sebelum migrate (harus GAGAL di 1-4) =="
-run "-tA -F'|' -f $ROOT/supabase/VERIFY.sql"
+run "-tA -F'|' -f $ROOT/supabase/operasi/cek-database.sql"
 echo "== migrate (satu transaksi) =="
-run "--single-transaction -f $ROOT/supabase/PASTE_SEKALI.sql" >/dev/null && echo "migrate OK"
+run "--single-transaction -f $ROOT/supabase/arsip/PASTE_SEKALI.sql" >/dev/null && echo "migrate OK"
 echo "== migrate ulang (idempoten) =="
-run "--single-transaction -f $ROOT/supabase/PASTE_SEKALI.sql" >/dev/null && echo "migrate ulang OK"
+run "--single-transaction -f $ROOT/supabase/arsip/PASTE_SEKALI.sql" >/dev/null && echo "migrate ulang OK"
 run "-c \"INSERT INTO auth.users(id,email,email_confirmed_at) VALUES
  ('00000000-0000-0000-0000-0000000000a1','alexander.fortuna@vitafortunajaya.com',now()),
  ('00000000-0000-0000-0000-0000000000a2','livita.gunardi@gmail.com',now()),
  ('00000000-0000-0000-0000-0000000000a3','gm@contoh.id',NULL)\""
 echo "== bootstrap (admin_email belum verifikasi → dilewati) =="
-run "--single-transaction -A -F' | ' -v kings_email=alexander.fortuna@vitafortunajaya.com -v livita_email=livita.gunardi@gmail.com -v admin_email=gm@contoh.id -f $ROOT/supabase/BOOTSTRAP_OWNER.sql"
+run "--single-transaction -A -F' | ' -v kings_email=alexander.fortuna@vitafortunajaya.com -v livita_email=livita.gunardi@gmail.com -v admin_email=gm@contoh.id -f $ROOT/supabase/operasi/aktifkan-peran.sql"
 echo "== bootstrap dengan variabel kosong =="
-run "--single-transaction -A -v kings_email=alexander.fortuna@vitafortunajaya.com -v livita_email= -v admin_email= -f $ROOT/supabase/BOOTSTRAP_OWNER.sql" >/dev/null && echo "variabel kosong OK"
+run "--single-transaction -A -v kings_email=alexander.fortuna@vitafortunajaya.com -v livita_email= -v admin_email= -f $ROOT/supabase/operasi/aktifkan-peran.sql" >/dev/null && echo "variabel kosong OK"
 echo "== VERIFY sesudah =="
-run "-tA -F'|' -f $ROOT/supabase/VERIFY.sql"
+run "-tA -F'|' -f $ROOT/supabase/operasi/cek-database.sql"

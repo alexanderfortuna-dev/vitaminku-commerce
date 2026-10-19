@@ -12,11 +12,11 @@ trap 'su postgres -c "$PGBIN/pg_ctl -D $DATA -m immediate stop >/dev/null" || tr
 P="psql -h $SOCK -p $PORT -U postgres -d postgres -q -v ON_ERROR_STOP=1"
 su postgres -c "$P -f $ROOT/test/db/00_supabase_stub.sql"
 n=0
-for f in "$ROOT/test/db/baseline_products.sql" $(ls "$ROOT"/supabase/migrations/*.sql | sort) $(ls "$ROOT"/drizzle/migrations/*.sql | sort); do
+for f in "$ROOT/test/db/baseline_products.sql" $(ls "$ROOT"/supabase/arsip/migrasi-awal/*.sql | sort) $(ls "$ROOT"/drizzle/migrations/*.sql | sort); do
   su postgres -c "$P -f '$f'" >/dev/null || { echo "GAGAL migrasi: $f"; exit 1; }
   n=$((n+1))
 done
-echo "Migrasi diterapkan: $n file (urutan supabase/migrations lalu drizzle/migrations)"
+echo "Migrasi diterapkan: $n file (urutan supabase/arsip/migrasi-awal lalu drizzle/migrations)"
 su postgres -c "$P -f $ROOT/test/db/20_launch_assertions.sql"
 su postgres -c "$P -f $ROOT/test/db/30_blocklist_assertions.sql"
 su postgres -c "$P -f $ROOT/test/db/40_orders_assertions.sql"

@@ -79,7 +79,7 @@ jobs:
       - name: Migrate (satu transaksi)
         if: inputs.mode == 'migrate'
         run: |
-          if psql "$SUPABASE_DB_URL" -v ON_ERROR_STOP=1 --single-transaction -q -f supabase/PASTE_SEKALI.sql > /tmp/migrate.log 2>&1; then
+          if psql "$SUPABASE_DB_URL" -v ON_ERROR_STOP=1 --single-transaction -q -f supabase/arsip/PASTE_SEKALI.sql > /tmp/migrate.log 2>&1; then
             echo "### ✅ SQL terpasang (satu transaksi)" >> "$GITHUB_STEP_SUMMARY"
           else
             echo "### ❌ SQL GAGAL — tidak ada yang berubah (transaksi dibatalkan)" >> "$GITHUB_STEP_SUMMARY"
@@ -120,7 +120,7 @@ jobs:
         run: |
           if ! psql "$SUPABASE_DB_URL" -v ON_ERROR_STOP=1 --single-transaction -q -P footer=off \
               -v kings_email="$KINGS_EMAIL" -v livita_email="$LIVITA_EMAIL" -v admin_email="$ADMIN_EMAIL" \
-              -A -F ' | ' -f supabase/BOOTSTRAP_OWNER.sql > /tmp/boot.log 2>&1; then
+              -A -F ' | ' -f supabase/operasi/aktifkan-peran.sql > /tmp/boot.log 2>&1; then
             echo "### ❌ Bootstrap GAGAL — tidak ada yang berubah" >> "$GITHUB_STEP_SUMMARY"
             grep -E "ERROR" /tmp/boot.log | head -3 | sed 's/^/    /' >> "$GITHUB_STEP_SUMMARY"; exit 1
           fi
@@ -131,7 +131,7 @@ jobs:
       - name: Verifikasi (hanya baca)
         if: ${{ !cancelled() && steps.guard.outcome == 'success' && steps.psql.outcome == 'success' }}
         run: |
-          if ! psql "$SUPABASE_DB_URL" -v ON_ERROR_STOP=1 -tAq -F '|' -f supabase/VERIFY.sql > /tmp/verify.txt 2>/tmp/verify.err; then
+          if ! psql "$SUPABASE_DB_URL" -v ON_ERROR_STOP=1 -tAq -F '|' -f supabase/operasi/cek-database.sql > /tmp/verify.txt 2>/tmp/verify.err; then
             echo "### ❌ Tidak bisa terhubung ke database (cek secret SUPABASE_DB_URL: pakai Session pooler)" >> "$GITHUB_STEP_SUMMARY"; exit 1
           fi
           {

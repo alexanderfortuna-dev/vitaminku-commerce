@@ -33,6 +33,6 @@ Google (opsional): Providers → Google → Enable (isi kunci Google langsung di
 5. Deploy. Lalu jalankan `docs/UJI_ASAP.md`.
 
 ## Sesudahnya
-- Login pertama Anda dan Livita di `/masuk` (tautan email). Setelah keduanya masuk SEKALI, jalankan `supabase/BOOTSTRAP_OWNER.sql` (isi email Livita dulu).
+- Login pertama Anda dan Livita di `/masuk` (tautan email). Setelah keduanya masuk SEKALI, jalankan `supabase/operasi/aktifkan-peran.sql` (isi email Livita dulu).
 - Pengisi gambar: `/admin/pengguna` → undang email → peran **Tim Produk**.
 - Domain/DNS dan pembelian: tanya Kings dulu. Jangan hapus proyek Lovable selama 1–2 minggu (cadangan).

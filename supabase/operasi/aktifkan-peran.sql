@@ -1,6 +1,6 @@
 -- BOOTSTRAP OWNER — hanya proyek vmhoohfwjtsojgcvopaf. Dijalankan lewat GitHub Actions "VitaminKu DB" mode bootstrap
 -- (tombol oleh Kings), atau psql dengan variabel:
---   psql "$SUPABASE_DB_URL" -v kings_email=... -v livita_email=... -v admin_email=... --single-transaction -f supabase/BOOTSTRAP_OWNER.sql
+--   psql "$SUPABASE_DB_URL" -v kings_email=... -v livita_email=... -v admin_email=... --single-transaction -f supabase/operasi/aktifkan-peran.sql
 -- Variabel kosong ('') dilewati dengan aman. Hanya akun yang emailnya SUDAH terverifikasi (sudah login sekali) yang diberi peran.
 -- Label jabatan owner disimpan di display_name ("Owner"/"Co-Owner"); kolom title hanya untuk Manajer (general_manager/admin).
 -- Manajer TIDAK bisa: penarikan/pencairan uang, kunci pembayaran, ubah peran, ekspor HPP/pelanggan, hapus pesanan (dijaga database).
