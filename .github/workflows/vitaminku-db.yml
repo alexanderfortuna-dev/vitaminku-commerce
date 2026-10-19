@@ -156,7 +156,27 @@ jobs:
         if: ${{ !cancelled() && steps.guard.outcome == 'success' && steps.psql.outcome == 'success' }}
         run: |
           if ! psql "$SUPABASE_DB_URL" -v ON_ERROR_STOP=1 -tAq -F '|' -f supabase/operasi/cek-database.sql > /tmp/verify.txt 2>/tmp/verify.err; then
-            echo "### ❌ Tidak bisa terhubung ke database (cek secret SUPABASE_DB_URL: pakai Session pooler)" >> "$GITHUB_STEP_SUMMARY"; exit 1
+            e=$(cat /tmp/verify.err)
+            case "$e" in
+              *"password authentication failed"*) why="Password database salah. Reset password di Supabase lalu perbarui SUPABASE_DB_URL." ;;
+              *"Tenant or user not found"*) why="Nama pengguna salah. Bagian sebelum ':' harus postgres.vmhoohfwjtsojgcvopaf (salin dari Session pooler)." ;;
+              *"could not translate host name"*|*"Name or service not known"*) why="Alamat server salah ketik. Salin ulang Session pooler dari tombol Connect." ;;
+              *"Network is unreachable"*|*"No route to host"*) why="Memakai alamat Direct connection. Ganti dengan alamat Session pooler." ;;
+              *"invalid URI"*|*"invalid integer value"*|*"invalid connection option"*|*"missing"*"="*) why="Format alamat rusak (mungkin tanda [ ] masih ada atau password berisi simbol). Pakai password huruf+angka saja." ;;
+              *"timeout"*|*"timed out"*) why="Server tidak menjawab. Pastikan memakai Session pooler (port 5432)." ;;
+              *) why="Alasan lain (lihat baris di bawah)." ;;
+            esac
+            {
+              echo "### ❌ Tidak bisa terhubung ke database"
+              echo "**Penyebab:** $why"
+              echo '```'
+              # Baris galat psql, disaring: tanpa alamat, pengguna, atau password.
+              head -3 /tmp/verify.err | sed -E 's#[a-z]+://[^ ]+#<alamat disembunyikan>#g; s#"[^"]*@[^"]*"#"<disembunyikan>"#g; s#(user|host|server|database) "[^"]*"#\1 "<disembunyikan>"#g'
+              echo '```'
+            } >> "$GITHUB_STEP_SUMMARY"
+            echo "Penyebab: $why"
+            head -3 /tmp/verify.err | sed -E 's#[a-z]+://[^ ]+#<alamat disembunyikan>#g; s#"[^"]*@[^"]*"#"<disembunyikan>"#g; s#(user|host|server|database) "[^"]*"#\1 "<disembunyikan>"#g'
+            exit 1
           fi
           {
             echo "### Hasil pemeriksaan VitaminKu"
