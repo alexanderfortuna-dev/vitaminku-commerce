@@ -6,3 +6,6 @@
 - [2026-10-18][hardening-v1] WHEN a prompt assumes a different stack or base branch DO check git/package.json first and state the assumption BECAUSE this repo is TanStack Start and main is the old Lovable code.
 - [2026-10-19][launch-v2] WHEN code orders by a new DB column DO retry without it on "column does not exist" BECAUSE deploy can reach production before migration 0014 and would blank the catalogue.
 - [2026-10-19][shopee-csv] WHEN matching marketplace titles to clean product names DO compare "Derma Xp"/"DermaXp" as one token and keep dose/size/count/flavor as hard gates BECAUSE brand spacing differs and wrong-size/flavor matches look right at 0.9.
+- [2026-10-19][v4] WHEN something is within owner authorization DO execute and verify it instead of sending the owner a manual procedure BECAUSE owner rule v4: owner never receives a manual procedure for something the agent is authorized to do.
+- [2026-10-19][v4] WHEN writing anything the owner sees DO use human Indonesian labels and keep hashes/PR/run IDs/paths in "Lampiran teknis" BECAUSE owner rule v4: owner-facing names are human Indonesian labels.
+- [2026-10-19][v4] WHEN editing the operator workflow guard DO keep it to one pinned branch BECAUSE widening it to several branches was blocked as a security weakening.

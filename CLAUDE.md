@@ -53,5 +53,15 @@ foto dari ekspor Shopee pemilik; obat keras, SARMs, modafinil, yohimbe, DHEA tid
 - Logika uang/stok deterministik (kode), bukan keputusan LLM. Vitamin Finder: Edge Function `vitamin-finder` (docs/VITAMIN_FINDER.md).
 - Jangan sentuh proyek Supabase `nolimit-system` / URL berawalan nvjlz.
 
+## Aturan kerja permanen dari owner (v4)
+- Owner tidak pernah menerima langkah manual untuk hal yang boleh dan bisa dikerjakan agen. Yang kembali ke owner hanya:
+  data yang hanya ia punya (nomor WA cabang, harga, pilihan foto, kunci/secret) dan tindakan MERAH di luar izinnya.
+- Nama yang dilihat owner = label Indonesia yang manusiawi. Hash commit, nomor PR, ID run, UUID, path file hanya di bagian
+  "Lampiran teknis" laporan. Format rilis: "Rilis N — tanggal: judul".
+- Yang boleh diganti nama hanya yang dilihat owner (menu, judul halaman, workflow, dokumen). JANGAN ganti nama tabel,
+  kolom, fungsi, rute yang dipakai kode, atau SKU produk.
+- Satu folder migrasi: drizzle/migrations (dipasang workflow mode pasang-database). File SQL sekali-pakai di supabase/arsip,
+  skrip workflow di supabase/operasi.
+
 ## Lessons (auto-maintained)
 @.claude/state/LESSONS.md
