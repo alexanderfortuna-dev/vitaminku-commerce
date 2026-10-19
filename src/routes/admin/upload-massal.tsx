@@ -21,7 +21,7 @@ import { useAdminRole } from "./route";
 export const Route = createFileRoute("/admin/upload-massal")({
   head: () => ({
     meta: [
-      { title: "Upload Massal — Seller Center | VitaminKu" },
+      { title: "Unggah Produk Massal — Seller Center | VitaminKu" },
       { name: "description", content: "Unggah dan perbarui banyak produk VitaminKu sekaligus dari Excel/CSV." },
       { name: "robots", content: "noindex, nofollow" },
     ],
@@ -208,7 +208,7 @@ function UploadMassalPage() {
   return (
     <div className="space-y-4 px-4 py-4">
       <div>
-        <h1 className="text-base font-extrabold text-navy">Upload Massal</h1>
+        <h1 className="text-base font-extrabold text-navy">Unggah Produk Massal</h1>
         <p className="mt-1 text-xs text-muted-foreground">
           Cocokkan per SKU. SKU baru = produk baru. Foto dari URL diunduh & disimpan ulang di toko (tidak hotlink).
         </p>

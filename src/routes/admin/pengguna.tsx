@@ -11,7 +11,7 @@ import { TITLE_LABEL } from "@/lib/permissions";
 export const Route = createFileRoute("/admin/pengguna")({
   head: () => ({
     meta: [
-      { title: "Kelola Pengguna — Panel Admin | VitaminKu" },
+      { title: "Akun Staf — Seller Center | VitaminKu" },
       { name: "description", content: "Undang tim dan atur peran akses panel admin VitaminKu." },
       { name: "robots", content: "noindex, nofollow" },
     ],
@@ -91,7 +91,7 @@ function AdminUsersPage() {
 
   return (
     <div className="px-4 py-4">
-      <h1 className="text-base font-extrabold text-navy">Kelola Pengguna</h1>
+      <h1 className="text-base font-extrabold text-navy">Akun Staf</h1>
       <form
         onSubmit={(e) => {
           e.preventDefault();

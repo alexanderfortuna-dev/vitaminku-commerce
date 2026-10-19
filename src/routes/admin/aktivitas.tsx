@@ -9,7 +9,7 @@ import { useAdminRole } from "./route";
 export const Route = createFileRoute("/admin/aktivitas")({
   head: () => ({
     meta: [
-      { title: "Log Aktivitas — Seller Center | VitaminKu" },
+      { title: "Riwayat Perubahan — Seller Center | VitaminKu" },
       { name: "description", content: "Siapa mengubah harga, stok, atau status produk, dan kapan." },
       { name: "robots", content: "noindex, nofollow" },
     ],
@@ -43,7 +43,7 @@ function ActivityPage() {
 
   return (
     <div className="px-4 py-4">
-      <h1 className="text-base font-extrabold text-navy">Log Aktivitas</h1>
+      <h1 className="text-base font-extrabold text-navy">Riwayat Perubahan</h1>
       <label className="mt-2 flex items-center gap-2 text-xs text-navy">
         <input type="checkbox" checked={!onlyProducts} onChange={(e) => setOnlyProducts(!e.target.checked)} className="h-4 w-4" />
         Tampilkan juga aktivitas admin lain (impor, blokir, pesanan)

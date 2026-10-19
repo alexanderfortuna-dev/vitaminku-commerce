@@ -29,7 +29,7 @@ export function AdminPanelLink() {
   return (
     <Link to="/admin" className="mx-4 mb-2 flex items-center gap-2 p-3 card-surface">
       <ShieldCheck className="h-5 w-5 shrink-0 text-primary" />
-      <span className="min-w-0 flex-1 truncate text-sm font-semibold text-navy">Panel Admin</span>
+      <span className="min-w-0 flex-1 truncate text-sm font-semibold text-navy">Seller Center</span>
       <span className="shrink-0 text-xs text-muted-foreground">{ROLE_LABEL[data.role]}</span>
     </Link>
   );

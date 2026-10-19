@@ -7,7 +7,7 @@ import { activateBootstrapOwner } from "@/lib/admin.functions";
 export const Route = createFileRoute("/admin/login")({
   head: () => ({
     meta: [
-      { title: "Masuk Panel Admin | VitaminKu" },
+      { title: "Masuk Seller Center | VitaminKu" },
       { name: "description", content: "Halaman masuk internal tim VitaminKu." },
       { name: "robots", content: "noindex, nofollow" },
     ],
@@ -64,7 +64,7 @@ function AdminLoginPage() {
   return (
     <div className="px-4 py-10">
       <div className="mx-auto max-w-sm p-5 card-surface">
-        <h1 className="text-lg font-extrabold text-navy">Masuk Panel Admin</h1>
+        <h1 className="text-lg font-extrabold text-navy">Masuk Seller Center</h1>
         <p className="mt-1 text-sm text-muted-foreground">
           Khusus tim VitaminKu. Tidak ada pendaftaran publik — akun dibuat oleh owner.
         </p>

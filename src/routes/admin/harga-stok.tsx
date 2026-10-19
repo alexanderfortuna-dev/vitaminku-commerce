@@ -23,7 +23,7 @@ import { useAdminRole } from "./route";
 export const Route = createFileRoute("/admin/harga-stok")({
   head: () => ({
     meta: [
-      { title: "Harga & Stok Massal — Panel Admin | VitaminKu" },
+      { title: "Ubah Harga & Stok — Seller Center | VitaminKu" },
       { name: "description", content: "Unduh template dan impor harga serta stok produk VitaminKu." },
       { name: "robots", content: "noindex, nofollow" },
     ],
@@ -174,7 +174,7 @@ function BulkPriceStockPage() {
         <Link to="/admin" aria-label="Kembali" className="grid h-9 w-9 place-items-center rounded-full bg-secondary text-navy">
           <ArrowLeft className="h-4 w-4" />
         </Link>
-        <h1 className="text-lg font-extrabold text-navy">Harga & Stok Massal</h1>
+        <h1 className="text-lg font-extrabold text-navy">Ubah Harga & Stok</h1>
       </div>
 
       <section className="space-y-3 rounded-2xl border border-border bg-card p-4">

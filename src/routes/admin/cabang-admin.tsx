@@ -21,7 +21,7 @@ import { useAdminRole } from "./route";
 export const Route = createFileRoute("/admin/cabang-admin")({
   head: () => ({
     meta: [
-      { title: "Admin Cabang — Panel Admin | VitaminKu" },
+      { title: "Cabang & Admin — Seller Center | VitaminKu" },
       { name: "description", content: "Atur admin Utama dan Cadangan tiap cabang, termasuk impor massal." },
       { name: "robots", content: "noindex, nofollow" },
     ],
@@ -53,7 +53,7 @@ function CabangAdminPage() {
         <Link to="/admin" aria-label="Kembali" className="grid h-11 w-11 place-items-center rounded-full bg-secondary text-navy">
           <ArrowLeft className="h-4 w-4" />
         </Link>
-        <h1 className="text-lg font-extrabold text-navy">Admin Cabang</h1>
+        <h1 className="text-lg font-extrabold text-navy">Cabang & Admin</h1>
       </div>
       <div className="grid grid-cols-2 gap-2">
         {([["admin", "Daftar Admin"], ["impor", "Impor Massal"]] as const).map(([k, label]) => (

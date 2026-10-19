@@ -12,7 +12,7 @@ import { canEditCommerce } from "@/lib/admin-roles";
 export const Route = createFileRoute("/admin/produk/$id")({
   head: () => ({
     meta: [
-      { title: "Edit Produk — Panel Admin | VitaminKu" },
+      { title: "Edit Produk — Seller Center | VitaminKu" },
       { name: "description", content: "Edit produk, foto, harga, dan stok katalog VitaminKu." },
       { name: "robots", content: "noindex, nofollow" },
     ],
@@ -255,7 +255,7 @@ function AdminProductDetailPage() {
 
         {commerce && (
           <label className="flex min-h-11 items-center justify-between rounded-xl border border-border p-3 text-xs font-semibold text-navy">
-            <span>Hero — tampil di rail "Promo Pilihan" beranda</span>
+            <span>Produk unggulan — tampil di baris "Promo Pilihan" beranda</span>
             <input type="checkbox" className="h-5 w-5" checked={form.is_hero} onChange={(e) => setForm((f) => ({ ...f, is_hero: e.target.checked }))} />
           </label>
         )}

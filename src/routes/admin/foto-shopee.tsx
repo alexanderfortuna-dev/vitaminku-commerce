@@ -12,7 +12,7 @@ import { useAdminRole } from "./route";
 export const Route = createFileRoute("/admin/foto-shopee")({
   head: () => ({
     meta: [
-      { title: "Foto dari Shopee — Seller Center | VitaminKu" },
+      { title: "Foto Shopee per SKU (Excel) — Seller Center | VitaminKu" },
       { name: "description", content: "Pasang foto produk dari file ekspor Shopee, dicocokkan per SKU atau nama." },
       { name: "robots", content: "noindex, nofollow" },
     ],
@@ -188,7 +188,7 @@ function FotoShopeePage() {
   return (
     <div className="space-y-4 px-4 py-4">
       <div>
-        <h1 className="text-base font-extrabold text-navy">Foto dari Shopee</h1>
+        <h1 className="text-base font-extrabold text-navy">Foto Shopee per SKU (Excel)</h1>
         <p className="mt-1 text-xs text-muted-foreground">
           Unggah file ekspor produk Shopee (.xlsx/.csv). Foto dipasang ke produk yang cocok per SKU, atau per nama bila SKU kosong.
           Foto diunduh lalu disimpan di toko (WebP 800 px + thumbnail), tidak memakai link Shopee.

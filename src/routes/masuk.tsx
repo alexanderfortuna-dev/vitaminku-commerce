@@ -139,7 +139,7 @@ function MasukPage() {
           </p>
         )}
         <p className="mt-4 text-xs text-muted-foreground">
-          Tim VitaminKu juga bisa masuk di sini (akan diarahkan ke Panel Admin). Atau gunakan{" "}
+          Tim VitaminKu juga bisa masuk di sini (akan diarahkan ke Seller Center). Atau gunakan{" "}
           <a className="underline" href="/admin/login">
             halaman masuk admin
           </a>

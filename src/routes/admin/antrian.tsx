@@ -19,7 +19,7 @@ export const Route = createFileRoute("/admin/antrian")({
   head: () => ({
     meta: [
       { title: "Antrian Kerja — Seller Center | VitaminKu" },
-      { name: "description", content: "Produk aktif yang masih kurang foto, harga, atau berat. Produk Hero lebih dulu." },
+      { name: "description", content: "Produk aktif yang masih kurang foto, harga, atau berat. Produk unggulan lebih dulu." },
       { name: "robots", content: "noindex, nofollow" },
     ],
   }),
@@ -54,7 +54,7 @@ function Queue() {
     <div className="px-4 py-4">
       <h1 className="text-base font-extrabold text-navy">Antrian Kerja</h1>
       <p className="mt-1 text-xs text-muted-foreground">
-        Produk yang sedang tayang tetapi masih kurang data. Produk Hero di atas.
+        Produk yang sedang tayang tetapi masih kurang data. Produk unggulan di atas.
       </p>
 
       <div className="mt-3 grid grid-cols-2 gap-2" role="tablist" aria-label="Filter antrian">
@@ -149,7 +149,7 @@ function QueueItem({ row }: { row: QueueRow }) {
         <p className="flex items-center gap-1 text-sm font-semibold text-navy">
           {row.is_hero && (
             <span className="inline-flex shrink-0 items-center gap-0.5 rounded-full bg-amber-500/15 px-1.5 py-0.5 text-[10px] font-bold text-amber-700">
-              <Star className="h-3 w-3" aria-hidden /> Hero
+              <Star className="h-3 w-3" aria-hidden /> Unggulan
             </span>
           )}
           <span className="truncate">{row.name}</span>

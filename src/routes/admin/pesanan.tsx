@@ -11,7 +11,7 @@ import { useAdminRole } from "./route";
 export const Route = createFileRoute("/admin/pesanan")({
   head: () => ({
     meta: [
-      { title: "Pesanan — Panel Admin | VitaminKu" },
+      { title: "Semua Pesanan — Seller Center | VitaminKu" },
       { name: "description", content: "Daftar pesanan VitaminKu dengan filter status." },
       { name: "robots", content: "noindex, nofollow" },
     ],
@@ -63,7 +63,7 @@ function AdminOrdersPage() {
 
   return (
     <div className="space-y-3 p-4">
-      <h1 className="text-lg font-extrabold text-navy">Pesanan</h1>
+      <h1 className="text-lg font-extrabold text-navy">Semua Pesanan</h1>
       <div className="flex gap-2 overflow-x-auto pb-1">
         {FILTERS.map((f) => (
           <button

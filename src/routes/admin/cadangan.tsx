@@ -12,7 +12,7 @@ import { useAdminRole } from "./route";
 export const Route = createFileRoute("/admin/cadangan")({
   head: () => ({
     meta: [
-      { title: "Cadangan Data — Panel Admin | VitaminKu" },
+      { title: "Cadangan Data — Seller Center | VitaminKu" },
       { name: "description", content: "Unduh cadangan produk, pelanggan, dan pesanan VitaminKu (khusus owner)." },
       { name: "robots", content: "noindex, nofollow" },
     ],

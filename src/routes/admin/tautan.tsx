@@ -13,7 +13,7 @@ import { useAdminRole } from "./route";
 export const Route = createFileRoute("/admin/tautan")({
   head: () => ({
     meta: [
-      { title: "Tautan & QR — Panel Admin | VitaminKu" },
+      { title: "Tautan & Kode QR — Seller Center | VitaminKu" },
       { name: "description", content: "Salin tautan dan unduh QR untuk tiap cabang dan admin." },
       { name: "robots", content: "noindex, nofollow" },
     ],
@@ -67,7 +67,7 @@ function TautanPage() {
         <Link to="/admin" aria-label="Kembali" className="grid h-11 w-11 place-items-center rounded-full bg-secondary text-navy">
           <ArrowLeft className="h-4 w-4" />
         </Link>
-        <h1 className="text-lg font-extrabold text-navy">Tautan & QR</h1>
+        <h1 className="text-lg font-extrabold text-navy">Tautan & Kode QR</h1>
       </div>
       <p className="text-xs text-muted-foreground">
         Tautan cabang membuka toko dengan cabang itu terpilih. Tautan admin menambah kode referral admin. Alamat toko yang dipakai: <b>{origin || "…"}</b>

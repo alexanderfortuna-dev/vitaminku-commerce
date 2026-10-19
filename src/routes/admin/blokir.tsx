@@ -11,7 +11,7 @@ import { useAdminRole } from "./route";
 export const Route = createFileRoute("/admin/blokir")({
   head: () => ({
     meta: [
-      { title: "Daftar Blokir — Seller Center | VitaminKu" },
+      { title: "Produk Terlarang — Seller Center | VitaminKu" },
       { name: "description", content: "Kata kunci dan SKU yang tidak boleh dijual online di VitaminKu." },
       { name: "robots", content: "noindex, nofollow" },
     ],
@@ -62,7 +62,7 @@ function BlocklistPage() {
   return (
     <div className="space-y-4 px-4 py-4">
       <div>
-        <h1 className="text-base font-extrabold text-navy">Daftar Blokir</h1>
+        <h1 className="text-base font-extrabold text-navy">Produk Terlarang</h1>
         <p className="mt-1 text-xs text-muted-foreground">
           Produk yang nama/brand/kategori/deskripsinya cocok, atau SKU-nya ada di sini, otomatis berstatus Diblokir dan tidak bisa
           ditampilkan. {list.data ? `${list.data.blockedProducts} produk saat ini diblokir.` : ""}

@@ -21,7 +21,7 @@ import { useAdminRole } from "./route";
 export const Route = createFileRoute("/admin/foto-shopee-bersih")({
   head: () => ({
     meta: [
-      { title: "Foto Shopee (CSV bersih) — Seller Center | VitaminKu" },
+      { title: "Foto Produk dari Shopee — Seller Center | VitaminKu" },
       { name: "description", content: "Cek, pasang foto yang yakin cocok, dan pilih sendiri foto untuk yang ragu." },
       { name: "robots", content: "noindex, nofollow" },
     ],
@@ -146,7 +146,7 @@ function FotoBersihPage() {
   return (
     <div className="space-y-4 p-4">
       <header>
-        <h1 className="text-lg font-extrabold text-navy">Foto Shopee (CSV bersih)</h1>
+        <h1 className="text-lg font-extrabold text-navy">Foto Produk dari Shopee</h1>
         <p className="mt-1 text-sm text-muted-foreground">
           Nama, deskripsi, dan kategori produk Anda tidak pernah diubah. Foto diunduh lalu disimpan di toko (WebP 800 px + thumbnail 400 px), bukan memakai link Shopee.
         </p>
