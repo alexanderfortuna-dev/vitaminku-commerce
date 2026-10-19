@@ -39,6 +39,7 @@ import { Route as AdminFotoShopeeRouteImport } from './routes/admin/foto-shopee'
 import { Route as AdminFotoShopeeBersihRouteImport } from './routes/admin/foto-shopee-bersih'
 import { Route as AdminHargaStokRouteImport } from './routes/admin/harga-stok'
 import { Route as AdminLoginRouteImport } from './routes/admin/login'
+import { Route as AdminPanduanRouteImport } from './routes/admin/panduan'
 import { Route as AdminPengaturanRouteImport } from './routes/admin/pengaturan'
 import { Route as AdminPenggunaRouteImport } from './routes/admin/pengguna'
 import { Route as AdminPesananRouteImport } from './routes/admin/pesanan'
@@ -213,6 +214,11 @@ const AdminLoginRoute = AdminLoginRouteImport.update({
   path: '/login',
   getParentRoute: () => AdminRouteRoute,
 } as any)
+const AdminPanduanRoute = AdminPanduanRouteImport.update({
+  id: '/panduan',
+  path: '/panduan',
+  getParentRoute: () => AdminRouteRoute,
+} as any)
 const AdminPengaturanRoute = AdminPengaturanRouteImport.update({
   id: '/pengaturan',
   path: '/pengaturan',
@@ -355,6 +361,7 @@ export interface FileRoutesByFullPath {
   '/admin/foto-shopee-bersih': typeof AdminFotoShopeeBersihRoute
   '/admin/harga-stok': typeof AdminHargaStokRoute
   '/admin/login': typeof AdminLoginRoute
+  '/admin/panduan': typeof AdminPanduanRoute
   '/admin/pengaturan': typeof AdminPengaturanRoute
   '/admin/pengguna': typeof AdminPenggunaRoute
   '/admin/pesanan': typeof AdminPesananRoute
@@ -405,6 +412,7 @@ export interface FileRoutesByTo {
   '/admin/foto-shopee-bersih': typeof AdminFotoShopeeBersihRoute
   '/admin/harga-stok': typeof AdminHargaStokRoute
   '/admin/login': typeof AdminLoginRoute
+  '/admin/panduan': typeof AdminPanduanRoute
   '/admin/pengaturan': typeof AdminPengaturanRoute
   '/admin/pengguna': typeof AdminPenggunaRoute
   '/admin/pesanan': typeof AdminPesananRoute
@@ -460,6 +468,7 @@ export interface FileRoutesById {
   '/admin/foto-shopee-bersih': typeof AdminFotoShopeeBersihRoute
   '/admin/harga-stok': typeof AdminHargaStokRoute
   '/admin/login': typeof AdminLoginRoute
+  '/admin/panduan': typeof AdminPanduanRoute
   '/admin/pengaturan': typeof AdminPengaturanRoute
   '/admin/pengguna': typeof AdminPenggunaRoute
   '/admin/pesanan': typeof AdminPesananRoute
@@ -516,6 +525,7 @@ export interface FileRouteTypes {
     | '/admin/foto-shopee-bersih'
     | '/admin/harga-stok'
     | '/admin/login'
+    | '/admin/panduan'
     | '/admin/pengaturan'
     | '/admin/pengguna'
     | '/admin/pesanan'
@@ -566,6 +576,7 @@ export interface FileRouteTypes {
     | '/admin/foto-shopee-bersih'
     | '/admin/harga-stok'
     | '/admin/login'
+    | '/admin/panduan'
     | '/admin/pengaturan'
     | '/admin/pengguna'
     | '/admin/pesanan'
@@ -620,6 +631,7 @@ export interface FileRouteTypes {
     | '/admin/foto-shopee-bersih'
     | '/admin/harga-stok'
     | '/admin/login'
+    | '/admin/panduan'
     | '/admin/pengaturan'
     | '/admin/pengguna'
     | '/admin/pesanan'
@@ -884,6 +896,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminLoginRouteImport
       parentRoute: typeof AdminRouteRoute
     }
+    '/admin/panduan': {
+      id: '/admin/panduan'
+      path: '/panduan'
+      fullPath: '/admin/panduan'
+      preLoaderRoute: typeof AdminPanduanRouteImport
+      parentRoute: typeof AdminRouteRoute
+    }
     '/admin/pengaturan': {
       id: '/admin/pengaturan'
       path: '/pengaturan'
@@ -1052,6 +1071,7 @@ interface AdminRouteRouteChildren {
   AdminFotoShopeeBersihRoute: typeof AdminFotoShopeeBersihRoute
   AdminHargaStokRoute: typeof AdminHargaStokRoute
   AdminLoginRoute: typeof AdminLoginRoute
+  AdminPanduanRoute: typeof AdminPanduanRoute
   AdminPengaturanRoute: typeof AdminPengaturanRoute
   AdminPenggunaRoute: typeof AdminPenggunaRoute
   AdminPesananRoute: typeof AdminPesananRoute
@@ -1076,6 +1096,7 @@ const AdminRouteRouteChildren: AdminRouteRouteChildren = {
   AdminFotoShopeeBersihRoute: AdminFotoShopeeBersihRoute,
   AdminHargaStokRoute: AdminHargaStokRoute,
   AdminLoginRoute: AdminLoginRoute,
+  AdminPanduanRoute: AdminPanduanRoute,
   AdminPengaturanRoute: AdminPengaturanRoute,
   AdminPenggunaRoute: AdminPenggunaRoute,
   AdminPesananRoute: AdminPesananRoute,
