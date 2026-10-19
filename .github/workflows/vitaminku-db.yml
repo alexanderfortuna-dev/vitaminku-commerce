@@ -50,6 +50,26 @@ jobs:
       SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
       PGCONNECT_TIMEOUT: "15"
     steps:
+      - name: Cek kunci (hanya ada/kosong, nilai tidak dibaca)
+        env:
+          K_SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL != '' }}
+          K_SUPABASE_URL: ${{ secrets.SUPABASE_URL != '' }}
+          K_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.SUPABASE_PUBLISHABLE_KEY != '' }}
+          K_SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY != '' }}
+          K_VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN != '' }}
+          K_ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY != '' }}
+        run: |
+          {
+            echo "### Kunci di GitHub (Repository secrets)"
+            echo "| Nama | Status |"; echo "|---|---|"
+            for n in SUPABASE_DB_URL SUPABASE_URL SUPABASE_PUBLISHABLE_KEY SUPABASE_SERVICE_ROLE_KEY VERCEL_TOKEN ANTHROPIC_API_KEY; do
+              v="K_$n"; if [ "${!v}" = "true" ]; then echo "| $n | ✅ ada |"; else echo "| $n | ❌ kosong / tidak terbaca |"; fi
+            done
+          } >> "$GITHUB_STEP_SUMMARY"
+          for n in SUPABASE_DB_URL SUPABASE_URL SUPABASE_PUBLISHABLE_KEY SUPABASE_SERVICE_ROLE_KEY VERCEL_TOKEN ANTHROPIC_API_KEY; do
+            v="K_$n"; echo "$n=${!v}"
+          done
+
       - name: Penjaga (branch & konfirmasi)
         id: guard
         run: |
