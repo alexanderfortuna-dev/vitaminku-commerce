@@ -1,27 +1,28 @@
-# VitaminKu DB — operator satu-tombol. HANYA dijalankan manual oleh Kings (Run workflow).
-# Tidak ada pemicu push/cron. Semua kunci dari GitHub Secrets; tidak ada yang dicetak.
-name: VitaminKu DB
+# VitaminKu — Database & Rilis Website. Dijalankan manual (Run workflow); tidak ada pemicu push/cron.
+# Semua kunci dari GitHub Secrets; tidak ada yang dicetak. Nama mode lama (verify/migrate/deploy/invite/bootstrap)
+# masih diterima satu rilis lagi sebagai alias.
+name: VitaminKu — Database & Rilis Website
 
 on:
   workflow_dispatch:
     inputs:
       mode:
-        description: "verify = cek saja · migrate = pasang SQL · invite = kirim undangan · bootstrap = aktifkan peran · deploy = tayangkan ke Vercel"
+        description: "cek-saja = periksa database (aman) · pasang-database = pasang migrasi · rilis-website = tayangkan ke Vercel · undang-staf = kirim undangan email · aktifkan-peran = jadikan owner/manajer"
         type: choice
-        options: [verify, migrate, invite, bootstrap, deploy]
-        default: verify
+        options: [cek-saja, pasang-database, rilis-website, undang-staf, aktifkan-peran, verify, migrate, deploy, invite, bootstrap]
+        default: cek-saja
       confirm:
-        description: 'Ketik JALANKAN untuk migrate / invite / bootstrap / deploy (verify tidak perlu)'
+        description: 'Ketik JALANKAN untuk semua mode selain cek-saja'
         type: string
         default: ""
       kings_email:
-        description: "Email Owner"
+        description: "Email Owner (untuk undang-staf / aktifkan-peran)"
         type: string
-        default: alexander.fortuna@vitafortunajaya.com
+        default: ""
       livita_email:
         description: "Email Co-Owner (boleh kosong)"
         type: string
-        default: livita.gunardi@gmail.com
+        default: ""
       admin_email:
         description: "Email General Manager (boleh kosong)"
         type: string
@@ -37,7 +38,7 @@ concurrency:
 jobs:
   db:
     name: ${{ inputs.mode }}
-    if: inputs.mode != 'deploy'
+    if: ${{ !contains(fromJSON('["rilis-website","deploy"]'), inputs.mode) }}
     runs-on: ubuntu-latest
     timeout-minutes: 10
     env:
@@ -52,10 +53,10 @@ jobs:
       - name: Penjaga (branch & konfirmasi)
         id: guard
         run: |
-          if [ "$GITHUB_REF" != "refs/heads/feat/launch-ready-v3" ]; then
-            echo "### ❌ Ditolak: pilih branch feat/launch-ready-v3" >> "$GITHUB_STEP_SUMMARY"; exit 1
+          if [ "$GITHUB_REF" != "refs/heads/fix/vitaminku-launch-v2" ]; then
+            echo "### ❌ Ditolak: pilih branch fix/vitaminku-launch-v2" >> "$GITHUB_STEP_SUMMARY"; exit 1
           fi
-          if [ "$MODE" != "verify" ] && [ "$CONFIRM" != "JALANKAN" ]; then
+          if [ "$MODE" != "cek-saja" ] && [ "$MODE" != "verify" ] && [ "$CONFIRM" != "JALANKAN" ]; then
             echo "### ❌ Ditolak: untuk mode $MODE ketik JALANKAN di kolom confirm" >> "$GITHUB_STEP_SUMMARY"; exit 1
           fi
           if [ -z "$SUPABASE_DB_URL" ]; then
@@ -69,26 +70,29 @@ jobs:
 
       - uses: actions/checkout@v4
         with:
-          ref: feat/launch-ready-v3
+          ref: fix/vitaminku-launch-v2
           persist-credentials: false
 
       - name: Pasang psql
         id: psql
         run: sudo apt-get update -qq && sudo apt-get install -y -qq postgresql-client >/dev/null && psql --version
 
-      - name: Migrate (satu transaksi)
-        if: inputs.mode == 'migrate'
+      - name: Pasang database (satu transaksi, satu folder migrasi)
+        if: ${{ contains(fromJSON('["pasang-database","migrate"]'), inputs.mode) }}
         run: |
-          if psql "$SUPABASE_DB_URL" -v ON_ERROR_STOP=1 --single-transaction -q -f supabase/arsip/PASTE_SEKALI.sql > /tmp/migrate.log 2>&1; then
-            echo "### ✅ SQL terpasang (satu transaksi)" >> "$GITHUB_STEP_SUMMARY"
+          # Produksi sudah memuat migrasi s/d 0009. Semua file 0010+ idempoten, dipasang berurutan dalam SATU transaksi.
+          files=$(ls drizzle/migrations/[0-9][0-9][0-9][0-9]_*.sql | sort | awk -F/ '{ if (substr($NF,1,4)+0 >= 10) print }')
+          args=""; for f in $files; do args="$args -f $f"; done
+          if psql "$SUPABASE_DB_URL" -v ON_ERROR_STOP=1 --single-transaction -q $args > /tmp/migrate.log 2>&1; then
+            echo "### ✅ Database terpasang (satu transaksi): $(echo $files | wc -w) file migrasi" >> "$GITHUB_STEP_SUMMARY"
           else
-            echo "### ❌ SQL GAGAL — tidak ada yang berubah (transaksi dibatalkan)" >> "$GITHUB_STEP_SUMMARY"
+            echo "### ❌ Pemasangan GAGAL — tidak ada yang berubah (transaksi dibatalkan)" >> "$GITHUB_STEP_SUMMARY"
             grep -E "ERROR|psql:" /tmp/migrate.log | head -5 | sed 's/^/    /' >> "$GITHUB_STEP_SUMMARY"
             exit 1
           fi
 
-      - name: Invite (undangan email)
-        if: inputs.mode == 'invite'
+      - name: Undang staf (email undangan)
+        if: ${{ contains(fromJSON('["undang-staf","invite"]'), inputs.mode) }}
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
@@ -115,13 +119,13 @@ jobs:
           done
           exit $fail
 
-      - name: Bootstrap (aktifkan peran)
-        if: inputs.mode == 'bootstrap'
+      - name: Aktifkan peran
+        if: ${{ contains(fromJSON('["aktifkan-peran","bootstrap"]'), inputs.mode) }}
         run: |
           if ! psql "$SUPABASE_DB_URL" -v ON_ERROR_STOP=1 --single-transaction -q -P footer=off \
               -v kings_email="$KINGS_EMAIL" -v livita_email="$LIVITA_EMAIL" -v admin_email="$ADMIN_EMAIL" \
               -A -F ' | ' -f supabase/operasi/aktifkan-peran.sql > /tmp/boot.log 2>&1; then
-            echo "### ❌ Bootstrap GAGAL — tidak ada yang berubah" >> "$GITHUB_STEP_SUMMARY"
+            echo "### ❌ Aktifkan peran GAGAL — tidak ada yang berubah" >> "$GITHUB_STEP_SUMMARY"
             grep -E "ERROR" /tmp/boot.log | head -3 | sed 's/^/    /' >> "$GITHUB_STEP_SUMMARY"; exit 1
           fi
           echo "### Peran aktif" >> "$GITHUB_STEP_SUMMARY"
@@ -143,11 +147,11 @@ jobs:
               echo "| $cek | $ikon $hasil | $detail |"
             done < /tmp/verify.txt
           } >> "$GITHUB_STEP_SUMMARY"
-          if [ "$MODE" = "migrate" ] && grep -q '|GAGAL|' /tmp/verify.txt; then exit 1; fi
+          if { [ "$MODE" = "pasang-database" ] || [ "$MODE" = "migrate" ]; } && grep -q '|GAGAL|' /tmp/verify.txt; then exit 1; fi
 
   deploy:
-    name: deploy ke Vercel
-    if: inputs.mode == 'deploy'
+    name: rilis website ke Vercel
+    if: ${{ contains(fromJSON('["rilis-website","deploy"]'), inputs.mode) }}
     runs-on: ubuntu-latest
     timeout-minutes: 15
     env:
@@ -162,8 +166,8 @@ jobs:
     steps:
       - name: Penjaga
         run: |
-          if [ "$GITHUB_REF" != "refs/heads/feat/launch-ready-v3" ]; then
-            echo "### ❌ Ditolak: pilih branch feat/launch-ready-v3" >> "$GITHUB_STEP_SUMMARY"; exit 1; fi
+          if [ "$GITHUB_REF" != "refs/heads/fix/vitaminku-launch-v2" ]; then
+            echo "### ❌ Ditolak: pilih branch fix/vitaminku-launch-v2" >> "$GITHUB_STEP_SUMMARY"; exit 1; fi
           if [ "$CONFIRM" != "JALANKAN" ]; then
             echo "### ❌ Ditolak: ketik JALANKAN di kolom confirm" >> "$GITHUB_STEP_SUMMARY"; exit 1; fi
           miss=""
@@ -174,7 +178,7 @@ jobs:
 
       - uses: actions/checkout@v4
         with:
-          ref: feat/launch-ready-v3
+          ref: fix/vitaminku-launch-v2
           persist-credentials: false
 
       - name: Buat/sambungkan proyek "vitaminku" (terpisah dari NoLimit System)

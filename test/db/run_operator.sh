@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Uji lokal file operator GitHub Actions (PASTE_SEKALI, VERIFY, BOOTSTRAP) di Postgres 16 LOKAL — tidak pernah produksi.
+# Uji lokal langkah workflow "VitaminKu — Database & Rilis Website" (pasang-database, cek-database, aktifkan-peran) di Postgres 16 LOKAL — tidak pernah produksi.
 # Pakai: sudo/root -> bash test/db/run_operator.sh
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
@@ -20,16 +20,19 @@ done
 echo "== VERIFY sebelum migrate (harus GAGAL di 1-4) =="
 run "-tA -F'|' -f $ROOT/supabase/operasi/cek-database.sql"
 echo "== migrate (satu transaksi) =="
-run "--single-transaction -f $ROOT/supabase/arsip/PASTE_SEKALI.sql" >/dev/null && echo "migrate OK"
+MIG=$(ls "$ROOT"/drizzle/migrations/[0-9][0-9][0-9][0-9]_*.sql | sort | awk -F/ '{ if (substr($NF,1,4)+0 >= 10) print }')
+ARGS=""; for f in $MIG; do ARGS="$ARGS -f $f"; done
+echo "file dipasang: $(echo $MIG | wc -w) (0010+, sama seperti mode pasang-database)"
+run "--single-transaction $ARGS" >/dev/null && echo "migrate OK"
 echo "== migrate ulang (idempoten) =="
-run "--single-transaction -f $ROOT/supabase/arsip/PASTE_SEKALI.sql" >/dev/null && echo "migrate ulang OK"
+run "--single-transaction $ARGS" >/dev/null && echo "migrate ulang OK"
 run "-c \"INSERT INTO auth.users(id,email,email_confirmed_at) VALUES
- ('00000000-0000-0000-0000-0000000000a1','alexander.fortuna@vitafortunajaya.com',now()),
- ('00000000-0000-0000-0000-0000000000a2','livita.gunardi@gmail.com',now()),
+ ('00000000-0000-0000-0000-0000000000a1','owner@contoh.id',now()),
+ ('00000000-0000-0000-0000-0000000000a2','coowner@contoh.id',now()),
  ('00000000-0000-0000-0000-0000000000a3','gm@contoh.id',NULL)\""
 echo "== bootstrap (admin_email belum verifikasi → dilewati) =="
-run "--single-transaction -A -F' | ' -v kings_email=alexander.fortuna@vitafortunajaya.com -v livita_email=livita.gunardi@gmail.com -v admin_email=gm@contoh.id -f $ROOT/supabase/operasi/aktifkan-peran.sql"
+run "--single-transaction -A -F' | ' -v kings_email=owner@contoh.id -v livita_email=coowner@contoh.id -v admin_email=gm@contoh.id -f $ROOT/supabase/operasi/aktifkan-peran.sql"
 echo "== bootstrap dengan variabel kosong =="
-run "--single-transaction -A -v kings_email=alexander.fortuna@vitafortunajaya.com -v livita_email= -v admin_email= -f $ROOT/supabase/operasi/aktifkan-peran.sql" >/dev/null && echo "variabel kosong OK"
+run "--single-transaction -A -v kings_email=owner@contoh.id -v livita_email= -v admin_email= -f $ROOT/supabase/operasi/aktifkan-peran.sql" >/dev/null && echo "variabel kosong OK"
 echo "== VERIFY sesudah =="
 run "-tA -F'|' -f $ROOT/supabase/operasi/cek-database.sql"
