@@ -256,31 +256,48 @@ jobs:
           ref: fix/vitaminku-launch-v2
           persist-credentials: false
 
+      - name: Rapikan kunci & cek akun Vercel (nilai tidak dicetak)
+        run: |
+          clean() { printf '%s' "$1" | tr -d '\r\n' | sed -E "s/^[[:space:]\"']+//; s/[[:space:]\"']+$//"; }
+          for n in VERCEL_TOKEN VERCEL_SCOPE V_SUPABASE_URL V_SUPABASE_PUBLISHABLE_KEY V_SUPABASE_SERVICE_ROLE_KEY V_ANTHROPIC_API_KEY V_SITE_URL; do
+            v="$(clean "${!n}")"
+            [ -n "$v" ] && echo "::add-mask::$v"
+            echo "C_$n=$v" >> "$GITHUB_ENV"
+          done
+          tok="$(clean "$VERCEL_TOKEN")"; sc="$(clean "$VERCEL_SCOPE")"
+          if ! who=$(npx --yes vercel@latest whoami --token "$tok" 2>/tmp/who.err | tail -1); then
+            echo "### ❌ Token Vercel ditolak — buat token baru di vercel.com/account/settings/tokens lalu perbarui VERCEL_TOKEN" >> "$GITHUB_STEP_SUMMARY"
+            grep -iE "error" /tmp/who.err | head -2; exit 1
+          fi
+          echo "Token milik akun: $who"
+          arg=""
+          if [ -n "$sc" ] && npx --yes vercel@latest project ls --token "$tok" --scope "$sc" >/dev/null 2>&1; then arg="--scope $sc"; fi
+          [ -z "$arg" ] && [ -n "$sc" ] && echo "Nama tim '$sc' tidak dipakai (akun pribadi) — memakai akun pemilik token."
+          echo "VC_SCOPE=$arg" >> "$GITHUB_ENV"
+          echo "### ✅ Token Vercel milik akun **$who**" >> "$GITHUB_STEP_SUMMARY"
+
       - name: Buat/sambungkan proyek "vitaminku" (terpisah dari NoLimit System)
         run: |
-          scope=""; [ -n "$VERCEL_SCOPE" ] && scope="--scope $VERCEL_SCOPE"
-          npx --yes vercel@latest link --yes --project vitaminku --token "$VERCEL_TOKEN" $scope > /tmp/link.log 2>&1 || { tail -5 /tmp/link.log; exit 1; }
+          npx --yes vercel@latest link --yes --project vitaminku --token "$C_VERCEL_TOKEN" $VC_SCOPE > /tmp/link.log 2>&1 || { tail -5 /tmp/link.log; exit 1; }
           echo "### ✅ Proyek Vercel: vitaminku (NoLimit System tidak disentuh)" >> "$GITHUB_STEP_SUMMARY"
 
       - name: Isi variabel lingkungan (nilai tidak dicetak)
         run: |
-          scope=""; [ -n "$VERCEL_SCOPE" ] && scope="--scope $VERCEL_SCOPE"
           put() { [ -z "$2" ] && return 0
-            printf '%s' "$2" | npx --yes vercel@latest env add "$1" production --force --token "$VERCEL_TOKEN" $scope >/dev/null 2>&1 \
+            printf '%s' "$2" | npx --yes vercel@latest env add "$1" production --force --token "$C_VERCEL_TOKEN" $VC_SCOPE >/dev/null 2>&1 \
               && echo "| $1 | ✅ |" >> "$GITHUB_STEP_SUMMARY" || { echo "| $1 | ❌ |" >> "$GITHUB_STEP_SUMMARY"; return 1; }; }
           echo "| Variabel | Status |" >> "$GITHUB_STEP_SUMMARY"; echo "|---|---|" >> "$GITHUB_STEP_SUMMARY"
-          put SUPABASE_URL "$V_SUPABASE_URL"
-          put VITE_SUPABASE_URL "$V_SUPABASE_URL"
-          put SUPABASE_PUBLISHABLE_KEY "$V_SUPABASE_PUBLISHABLE_KEY"
-          put VITE_SUPABASE_PUBLISHABLE_KEY "$V_SUPABASE_PUBLISHABLE_KEY"
-          put SUPABASE_SERVICE_ROLE_KEY "$V_SUPABASE_SERVICE_ROLE_KEY"
-          put ANTHROPIC_API_KEY "$V_ANTHROPIC_API_KEY"
-          put SITE_URL "$V_SITE_URL"
-          put VITE_SITE_URL "$V_SITE_URL"
+          put SUPABASE_URL "$C_V_SUPABASE_URL"
+          put VITE_SUPABASE_URL "$C_V_SUPABASE_URL"
+          put SUPABASE_PUBLISHABLE_KEY "$C_V_SUPABASE_PUBLISHABLE_KEY"
+          put VITE_SUPABASE_PUBLISHABLE_KEY "$C_V_SUPABASE_PUBLISHABLE_KEY"
+          put SUPABASE_SERVICE_ROLE_KEY "$C_V_SUPABASE_SERVICE_ROLE_KEY"
+          put ANTHROPIC_API_KEY "$C_V_ANTHROPIC_API_KEY"
+          put SITE_URL "$C_V_SITE_URL"
+          put VITE_SITE_URL "$C_V_SITE_URL"
 
       - name: Deploy produksi
         run: |
-          scope=""; [ -n "$VERCEL_SCOPE" ] && scope="--scope $VERCEL_SCOPE"
-          url=$(npx --yes vercel@latest deploy --prod --yes --token "$VERCEL_TOKEN" $scope 2>/tmp/deploy.err | tail -1)
+          url=$(npx --yes vercel@latest deploy --prod --yes --token "$C_VERCEL_TOKEN" $VC_SCOPE 2>/tmp/deploy.err | tail -1)
           if [ -z "$url" ]; then echo "### ❌ Deploy gagal" >> "$GITHUB_STEP_SUMMARY"; grep -iE "error" /tmp/deploy.err | head -5; exit 1; fi
           echo "### ✅ Situs tayang: $url" >> "$GITHUB_STEP_SUMMARY"
