@@ -382,12 +382,14 @@ export async function runVitaAi(input: FinderInput, deps: AiDeps): Promise<VitaO
       // Katalog tidak punya yang cocok: jawaban jujur & deterministik dari mode kata kunci (mis. "belum ada di budget Rp X").
       if (st.profiles.length && st.byId.size === 0) return "no_results";
       const v = validateAiOutput(text, st, userProfile.budget);
-      if (v.ok) return finalize(key, v.value, st, userProfile, deps);
+      // Jawaban yang tiba setelah batas waktu tidak dicatat (cadangan sudah mencatat jawabannya sendiri).
+      if (v.ok) return finalize(key, v.value, st, userProfile, { ...deps, onEvent: (e) => !settled && deps.onEvent?.(e) });
       messages.push({ role: "user", content: `Jawaban sebelumnya ditolak pemeriksa: ${v.errors.slice(0, 5).join("; ")}. Perbaiki hanya bagian itu, jangan mengarang, kembalikan HANYA JSON.` });
     }
     return "validation_failed";
   };
   // Batas waktu mencakup SEMUA (model, tool, database), bukan hanya panggilan model.
+  let settled = false;
   let timer: ReturnType<typeof setTimeout> | undefined;
   const result = await Promise.race([
     attempt(),
@@ -396,6 +398,7 @@ export async function runVitaAi(input: FinderInput, deps: AiDeps): Promise<VitaO
     }),
   ]);
   clearTimeout(timer);
+  settled = true;
   return typeof result === "string" ? fallback(result) : result;
 }
 
