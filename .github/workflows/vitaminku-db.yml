@@ -225,6 +225,22 @@ jobs:
           echo "Hasil cek (juga di ringkasan):"; cat /tmp/verify.txt
           if { [ "$MODE" = "pasang-database" ] || [ "$MODE" = "migrate" ]; } && grep -q '|GAGAL|' /tmp/verify.txt; then exit 1; fi
 
+      - name: Uji asap keamanan & pesanan (satu transaksi, selalu dibatalkan)
+        if: ${{ contains(fromJSON('["cek-saja","verify"]'), inputs.mode) }}
+        run: |
+          psql -v ON_ERROR_STOP=1 -tAq -F '|' -f supabase/operasi/uji-asap.sql > /tmp/uji.txt
+          {
+            echo "### Uji asap (tidak ada data tersimpan)"
+            echo "| Uji | Hasil | Detail |"
+            echo "|---|---|---|"
+            while IFS='|' read -r cek hasil detail; do
+              ikon="✅"; [ "$hasil" = "GAGAL" ] && ikon="❌"
+              echo "| $cek | $ikon $hasil | $detail |"
+            done < /tmp/uji.txt
+          } >> "$GITHUB_STEP_SUMMARY"
+          echo "Hasil uji asap:"; cat /tmp/uji.txt
+          if grep -q '|GAGAL|' /tmp/uji.txt; then exit 1; fi
+
   deploy:
     name: rilis website ke Vercel
     if: ${{ contains(fromJSON('["rilis-website","deploy"]'), inputs.mode) }}
@@ -323,3 +339,33 @@ jobs:
           url=$(npx --yes vercel@latest deploy --prod --yes --token "$C_VERCEL_TOKEN" $VC_SCOPE 2>/tmp/deploy.err | tail -1)
           if [ -z "$url" ]; then echo "### ❌ Deploy gagal" >> "$GITHUB_STEP_SUMMARY"; grep -iE "error" /tmp/deploy.err | head -5; exit 1; fi
           echo "### ✅ Situs tayang: $url" >> "$GITHUB_STEP_SUMMARY"
+          npx --yes vercel@latest inspect "$url" --token "$C_VERCEL_TOKEN" $VC_SCOPE > /tmp/inspect.txt 2>&1 || true
+          site=$(grep -oE 'https://[a-z0-9-]+\.vercel\.app' /tmp/inspect.txt | grep -v -- "$(basename "$url")" | awk '{ print length, $0 }' | sort -n | head -1 | cut -d' ' -f2)
+          site="${site:-$url}"
+          echo "SITE=$site" >> "$GITHUB_ENV"
+          echo "Alamat deploy: $url"; echo "Alamat toko: $site"; echo "Commit: $(git rev-parse HEAD)"
+          echo "Alamat toko: $site · commit $(git rev-parse --short HEAD)" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Uji asap situs (hanya membaca halaman publik)
+        run: |
+          fail=0; out=/tmp/smoke.txt; : > $out
+          chk() { code=$(curl -s -o /tmp/page.html -w '%{http_code}' -L --max-time 30 "$SITE$1"); ok=GAGAL
+            [ "$code" = "200" ] && { [ -z "$2" ] || grep -qi -- "$2" /tmp/page.html; } && ok=LULUS
+            [ "$ok" = GAGAL ] && fail=1; echo "$1|$ok|HTTP $code" >> $out; }
+          chk / "VitaminKu"; cp /tmp/page.html /tmp/home.html
+          chk /kategori ""; chk "/cari?q=vitamin" ""; chk /masuk ""; chk /keranjang ""; chk /admin ""
+          chk /sitemap.xml "/produk/"
+          prod=$(grep -oE '<loc>[^<]*/produk/[^<]*</loc>' /tmp/page.html | head -1 | sed -E 's#<loc>https?://[^/]+##; s#</loc>##')
+          if [ -n "$prod" ]; then chk "$prod" "Rp"; grep -qiE '"hpp"|hpp:' /tmp/page.html && { echo "$prod (HPP)|GAGAL|kata hpp ada di halaman" >> $out; fail=1; }; else echo "halaman produk|GAGAL|tidak ada produk di sitemap" >> $out; fail=1; fi
+          # Kunci rahasia tidak boleh ada di file JavaScript browser.
+          leak=0
+          for js in $(grep -oE '/assets/[^"]+\.js' /tmp/home.html | sort -u | head -40); do
+            curl -s --max-time 30 "$SITE$js" > /tmp/a.js
+            [ -n "$C_V_SUPABASE_SERVICE_ROLE_KEY" ] && grep -qF -- "$C_V_SUPABASE_SERVICE_ROLE_KEY" /tmp/a.js && leak=1
+            [ -n "$C_V_ANTHROPIC_API_KEY" ] && grep -qF -- "$C_V_ANTHROPIC_API_KEY" /tmp/a.js && leak=1
+          done
+          [ $leak = 0 ] && echo "kunci rahasia di browser|LULUS|tidak ditemukan" >> $out || { echo "kunci rahasia di browser|GAGAL|ditemukan" >> $out; fail=1; }
+          echo "Hasil uji situs:"; cat $out
+          { echo "### Uji asap situs"; echo "| Halaman | Hasil | Detail |"; echo "|---|---|---|"
+            while IFS='|' read -r a b c; do echo "| $a | $b | $c |"; done < $out; } >> "$GITHUB_STEP_SUMMARY"
+          exit $fail
