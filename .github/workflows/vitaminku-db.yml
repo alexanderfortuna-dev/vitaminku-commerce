@@ -241,6 +241,22 @@ jobs:
           echo "Hasil uji asap:"; cat /tmp/uji.txt
           if grep -q '|GAGAL|' /tmp/uji.txt; then exit 1; fi
 
+      - name: Uji situs produksi & tampilan ponsel 375px (hanya membaca halaman publik)
+        if: ${{ !cancelled() && contains(fromJSON('["cek-saja","verify"]'), inputs.mode) }}
+        env:
+          SITE_SECRET: ${{ secrets.SITE_URL }}
+          SRK: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          AK: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: |
+          SITE="${SITE_SECRET:-https://vitaminku.vercel.app}"; SITE="$(printf '%s' "$SITE" | tr -d '\r\n "')"
+          echo "Situs diuji: $SITE"
+          SITE="$SITE" bash scripts/uji-situs.sh | tee /tmp/situs.txt; f1=${PIPESTATUS[0]}
+          mkdir -p /tmp/pw && (cd /tmp/pw && npm init -y >/dev/null && npm i -s playwright@1.48.2 >/dev/null && npx playwright install --with-deps chromium >/dev/null 2>&1)
+          cp scripts/uji-situs-ponsel.mjs /tmp/pw/ && (cd /tmp/pw && SITE="$SITE" node uji-situs-ponsel.mjs) | tee -a /tmp/situs.txt; f2=${PIPESTATUS[0]}
+          { echo "### Uji situs ($SITE)"; echo "| Uji | Hasil | Detail |"; echo "|---|---|---|"
+            while IFS='|' read -r a b c; do echo "| $a | $b | $c |"; done < /tmp/situs.txt; } >> "$GITHUB_STEP_SUMMARY"
+          [ "$f1" = 0 ] && [ "$f2" = 0 ]
+
   deploy:
     name: rilis website ke Vercel
     if: ${{ contains(fromJSON('["rilis-website","deploy"]'), inputs.mode) }}
@@ -381,24 +397,7 @@ jobs:
 
       - name: Uji asap situs (hanya membaca halaman publik)
         run: |
-          fail=0; out=/tmp/smoke.txt; : > $out
-          chk() { code=$(curl -s -o /tmp/page.html -w '%{http_code}' -L --max-time 30 "$SITE$1"); ok=GAGAL
-            [ "$code" = "200" ] && { [ -z "$2" ] || grep -qi -- "$2" /tmp/page.html; } && ok=LULUS
-            [ "$ok" = GAGAL ] && fail=1; echo "$1|$ok|HTTP $code" >> $out; }
-          chk / "VitaminKu"; cp /tmp/page.html /tmp/home.html
-          chk /kategori ""; chk "/cari?q=vitamin" ""; chk /masuk ""; chk /keranjang ""; chk /admin ""
-          chk /sitemap.xml "/produk/"
-          prod=$(grep -oE '<loc>[^<]*/produk/[^<]*</loc>' /tmp/page.html | head -1 | sed -E 's#<loc>https?://[^/]+##; s#</loc>##')
-          if [ -n "$prod" ]; then chk "$prod" "Rp"; grep -qiE '"hpp"|hpp:' /tmp/page.html && { echo "$prod (HPP)|GAGAL|kata hpp ada di halaman" >> $out; fail=1; }; else echo "halaman produk|GAGAL|tidak ada produk di sitemap" >> $out; fail=1; fi
-          # Kunci rahasia tidak boleh ada di file JavaScript browser.
-          leak=0
-          for js in $(grep -oE '/assets/[^"]+\.js' /tmp/home.html | sort -u | head -40); do
-            curl -s --max-time 30 "$SITE$js" > /tmp/a.js
-            [ -n "$C_V_SUPABASE_SERVICE_ROLE_KEY" ] && grep -qF -- "$C_V_SUPABASE_SERVICE_ROLE_KEY" /tmp/a.js && leak=1
-            [ -n "$C_V_ANTHROPIC_API_KEY" ] && grep -qF -- "$C_V_ANTHROPIC_API_KEY" /tmp/a.js && leak=1
-          done
-          [ $leak = 0 ] && echo "kunci rahasia di browser|LULUS|tidak ditemukan" >> $out || { echo "kunci rahasia di browser|GAGAL|ditemukan" >> $out; fail=1; }
-          echo "Hasil uji situs:"; cat $out
+          SITE="$SITE" SRK="$C_V_SUPABASE_SERVICE_ROLE_KEY" AK="$C_V_ANTHROPIC_API_KEY" bash scripts/uji-situs.sh | tee /tmp/smoke.txt; fail=${PIPESTATUS[0]}
           { echo "### Uji asap situs"; echo "| Halaman | Hasil | Detail |"; echo "|---|---|---|"
-            while IFS='|' read -r a b c; do echo "| $a | $b | $c |"; done < $out; } >> "$GITHUB_STEP_SUMMARY"
+            while IFS='|' read -r a b c; do echo "| $a | $b | $c |"; done < /tmp/smoke.txt; } >> "$GITHUB_STEP_SUMMARY"
           exit $fail
