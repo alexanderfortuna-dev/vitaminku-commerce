@@ -12,15 +12,17 @@ export const Route = createFileRoute("/admin/login")({
       { name: "robots", content: "noindex, nofollow" },
     ],
   }),
-  validateSearch: (search: Record<string, unknown>) => ({
+  validateSearch: (search: Record<string, unknown>): { next: string | undefined; aktivasi?: boolean } => ({
     next: typeof search["next"] === "string" ? search["next"] : undefined,
+    ...(search["aktivasi"] === "1" || search["aktivasi"] === 1 ? { aktivasi: true } : {}),
   }),
   component: AdminLoginPage,
 });
 
 function AdminLoginPage() {
   const navigate = useNavigate();
-  const { next } = Route.useSearch();
+  const { next, aktivasi } = Route.useSearch();
+  const showActivation = aktivasi === true;
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [code, setCode] = useState("");
@@ -116,17 +118,21 @@ function AdminLoginPage() {
           >
             {busy ? "Memproses…" : mode === "login" ? "Masuk" : "Aktifkan akun owner"}
           </button>
-          <button
-            type="button"
-            onClick={() => {
-              setMode(mode === "login" ? "activate" : "login");
-              setError(null);
-              setNotice(null);
-            }}
-            className="w-full text-xs font-semibold text-muted-foreground underline"
-          >
-            {mode === "login" ? "Aktivasi pertama akun owner" : "Kembali ke form masuk"}
-          </button>
+          {/* Aktivasi owner sekali pakai sudah dilakukan (21 Okt 2026); tautannya disembunyikan dari halaman masuk.
+              Bila suatu saat perlu lagi, buka /admin/login?aktivasi=1 (server tetap menolak bila owner sudah ada). */}
+          {showActivation && (
+            <button
+              type="button"
+              onClick={() => {
+                setMode(mode === "login" ? "activate" : "login");
+                setError(null);
+                setNotice(null);
+              }}
+              className="w-full text-xs font-semibold text-muted-foreground underline"
+            >
+              {mode === "login" ? "Aktivasi pertama akun owner" : "Kembali ke form masuk"}
+            </button>
+          )}
         </form>
       </div>
     </div>

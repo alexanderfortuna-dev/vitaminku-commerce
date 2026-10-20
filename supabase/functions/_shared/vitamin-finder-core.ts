@@ -545,7 +545,8 @@ export async function runFinder({ input, searchProducts, callModel, log = defaul
       text = await modelTurn();
     } catch (e) {
       log({ agent: AGENT_ID, event: "model_call_failed", attempt, error: e instanceof Error ? e.message.slice(0, 120) : "unknown" });
-      return fallbackOutput(key, "model_unavailable");
+      // Tanpa model (kunci hilang / API mati): tetap rekomendasikan produk lewat pencocokan kebutuhan → kata kunci.
+      return runKeywordFinder({ input, searchProducts, log });
     }
     const v = validateModelOutput(text, allowedPrices);
     if (v.ok) {
@@ -576,6 +577,125 @@ function finalize(key: string, m: ParsedModelOutput, fromTool: Map<string, Finde
   const needsHuman =
     m.needs_human || medical || m.confidence < CONFIDENCE_THRESHOLD || (products.length === 0 && status !== "needs_input");
   return envelope(key, status, reply, { products, confidence: m.confidence, needs_human: needsHuman, ...(reason ? { reason } : {}) });
+}
+
+// ---------- Mode tanpa AI: kebutuhan → kata kunci katalog (deterministik) ----------
+// Dipakai bila model tidak tersedia. Tidak mengarang: semua produk & harga berasal dari hasil pencarian katalog.
+export interface NeedRule {
+  re: RegExp;
+  label: string;
+  terms: string[];
+}
+export const NEED_RULES: NeedRule[] = [
+  { re: /\b(massa|bulking|gemuk|menggemukkan|naik\s*berat|berat\s*badan\s*naik|kurus|gainer)\b/i, label: "menambah massa & berat badan", terms: ["gainer", "mass", "whey"] },
+  { re: /\b(otot|muscle|bentuk\s*badan|six\s*pack|fitness|gym)\b/i, label: "membentuk otot", terms: ["whey", "creatine", "isolate"] },
+  { re: /\b(protein|whey|isolate|susu\s*protein)\b/i, label: "kebutuhan protein", terms: ["whey", "isolate", "protein"] },
+  { re: /\bvegan|nabati|plant\s*based\b/i, label: "protein nabati", terms: ["vegan", "plant protein", "pea protein"] },
+  { re: /\b(diet|langsing|kurangi\s*lemak|turun(in)?\s*berat|turunkan\s*berat|cutting|fat|lemak|pembakar)\b/i, label: "program diet", terms: ["carnitine", "cla", "fat burner"] },
+  { re: /\b(tidur|insomnia|susah\s*tidur|begadang)\b/i, label: "kualitas tidur", terms: ["melatonin", "magnesium", "ashwagandha"] },
+  { re: /\b(stres|stress|cemas|tenang|rileks|relax|mood)\b/i, label: "rileks & mengelola stres", terms: ["ashwagandha", "magnesium", "theanine"] },
+  { re: /\b(energi|stamina|capek|lelah|lemas|loyo)\b/i, label: "energi & stamina", terms: ["pre workout", "vitamin b", "electrolyte"] },
+  { re: /\b(pre[\s-]?workout|pump|sebelum\s*latihan|semangat\s*latihan)\b/i, label: "sebelum latihan", terms: ["pre workout", "citrulline", "creatine"] },
+  { re: /\b(creatine|kreatin|kekuatan|power|strength)\b/i, label: "kekuatan & performa", terms: ["creatine", "monohydrate"] },
+  { re: /\b(recovery|pemulihan|pegal|nyeri\s*otot|setelah\s*latihan)\b/i, label: "pemulihan setelah latihan", terms: ["bcaa", "eaa", "glutamine"] },
+  { re: /\b(imun|imunitas|daya\s*tahan|kekebalan|flu|pilek|batuk)\b/i, label: "daya tahan tubuh", terms: ["vitamin c", "zinc", "vitamin d"] },
+  { re: /\b(sendi|lutut|tulang|persendian)\b/i, label: "kesehatan sendi & tulang", terms: ["glucosamine", "collagen", "calcium"] },
+  { re: /\b(kulit|glowing|cerah|kolagen|collagen|awet\s*muda|keriput)\b/i, label: "kulit", terms: ["collagen", "glutathione", "vitamin e"] },
+  { re: /\b(rambut|kuku|rontok)\b/i, label: "rambut & kuku", terms: ["biotin", "collagen", "hair"] },
+  { re: /\b(fokus|konsentrasi|otak|belajar|daya\s*ingat|memori)\b/i, label: "fokus & konsentrasi", terms: ["omega", "ginkgo", "lion"] },
+  { re: /\b(omega|fish\s*oil|minyak\s*ikan)\b/i, label: "omega-3", terms: ["omega", "fish oil"] },
+  { re: /\b(pencernaan|usus|bab|sembelit|probiotik)\b/i, label: "pencernaan", terms: ["probiotic", "fiber", "enzyme"] },
+  { re: /\b(mata|penglihatan)\b/i, label: "kesehatan mata", terms: ["lutein", "bilberry", "vitamin a"] },
+  { re: /\b(elektrolit|dehidrasi|ion|lari|marathon|cairan\s*tubuh|keringat)\b/i, label: "hidrasi & elektrolit", terms: ["electrolyte", "isotonic", "hydration"] },
+  { re: /\b(multivitamin|vitamin\s*harian|vitamin\s*lengkap)\b/i, label: "multivitamin harian", terms: ["multivitamin", "multi vitamin"] },
+  { re: /\b(pria|laki|cowok|vitalitas)\b/i, label: "kebutuhan pria", terms: ["men", "tribulus", "maca"] },
+  { re: /\b(wanita|perempuan|cewek)\b/i, label: "kebutuhan wanita", terms: ["women", "iron", "collagen"] },
+];
+
+const STOPWORDS = new Set(
+  "mau ingin pengen pingin cari carikan butuh perlu yang untuk buat dan atau dengan saya aku gue gw kak min admin dong ya yah nih tuh apa ada bisa tolong rekomendasi rekomendasikan saran produk suplemen vitamin bagus terbaik paling murah mahal harga budget sekitar di ke dari yg utk tdk tidak juga lagi aja saja kalau kalo gimana bagaimana halo hai hi pagi siang sore malam terima kasih makasih rp ribu rb juta jt".split(" "),
+);
+
+/** Kebutuhan pelanggan → label + kata kunci katalog. Tanpa kebutuhan dikenal: pakai kata penting dari pesan. */
+export function needsToTerms(message: string): { label: string | null; terms: string[] } {
+  const hits = NEED_RULES.filter((r) => r.re.test(message));
+  if (hits.length) {
+    const terms: string[] = [];
+    for (const h of hits) for (const t of h.terms) if (!terms.includes(t)) terms.push(t);
+    return { label: hits.slice(0, 2).map((h) => h.label).join(" & "), terms: terms.slice(0, 4) };
+  }
+  const words = cleanQuery(message.toLowerCase())
+    .split(" ")
+    .filter((w) => w.length > 2 && !STOPWORDS.has(w) && !/^\d+$/.test(w));
+  return { label: null, terms: words.length ? [words.slice(0, 3).join(" ")] : [] };
+}
+
+/** Pilih maks 3 produk berbeda: satu per kata kunci, harga tengah (bukan termurah/termahal); budget = paling dekat di bawahnya. */
+export function pickProducts(groups: FinderProduct[][], budget: number | null): FinderProduct[] {
+  const out: FinderProduct[] = [];
+  const add = (p: FinderProduct | undefined) => {
+    if (p && !out.some((x) => x.id === p.id) && out.length < MAX_PRODUCTS) out.push(p);
+  };
+  if (budget) {
+    const all = groups.flat().filter((p) => p.price <= budget).sort((a, b) => b.price - a.price);
+    for (const p of all) add(p);
+    return out;
+  }
+  for (const g of groups) {
+    const sorted = [...g].sort((a, b) => a.price - b.price);
+    add(sorted[Math.floor((sorted.length - 1) / 2)]);
+  }
+  for (const g of groups) for (const p of g) add(p);
+  return out;
+}
+
+const fmtIdr = (n: number) => `Rp ${Math.round(n).toLocaleString("id-ID")}`;
+export const ASK_GOAL_REPLY =
+  "Hai, aku Vita! Ceritakan tujuanmu, nanti aku pilihkan produknya. Contoh: \"mau tambah otot budget 500 ribu\", \"susah tidur\", \"daya tahan tubuh\", atau \"whey untuk pemula\".";
+
+export async function runKeywordFinder({ input, searchProducts, log = defaultLog }: Omit<RunParams, "callModel">): Promise<FinderOutput> {
+  const key = makeIdempotencyKey(input.session_id, input.message, input.history.length);
+  // Pesan singkat lanjutan ("yang murah", "500 ribu") memakai konteks pesan pelanggan sebelumnya.
+  const prevUser = input.history.filter((h) => h.role === "user").map((h) => h.content);
+  let need = needsToTerms(input.message);
+  if (!need.label && prevUser.length) {
+    const ctx = needsToTerms([...prevUser.slice(-2), input.message].join(" "));
+    if (ctx.label) need = ctx;
+  }
+  const budget = parseBudgetIdr(input.message) ?? parseBudgetIdr(prevUser.slice(-2).join(" "));
+  if (!need.terms.length) return envelope(key, "needs_input", ASK_GOAL_REPLY, { confidence: 0.5, needs_human: false, reason: "goal_unclear" });
+
+  const groups: FinderProduct[][] = [];
+  let failed = 0;
+  for (const term of need.terms.slice(0, 3)) {
+    const args: SearchArgs = { query: cleanQuery(term) };
+    if (budget) args.max_price = budget;
+    try {
+      groups.push(sanitizeProducts(await searchProducts(args), budget ?? undefined));
+    } catch {
+      failed++;
+    }
+  }
+  if (failed && failed === Math.min(need.terms.length, 3)) {
+    log({ agent: AGENT_ID, event: "keyword_search_failed" });
+    return fallbackOutput(key, "catalog_unavailable");
+  }
+  const products = pickProducts(groups, budget);
+  if (!products.length) {
+    const reply = budget
+      ? `Belum ada produk yang cocok dengan budget ${fmtIdr(budget)}. Coba naikkan sedikit budget-nya, atau sebutkan merek/jenis produk yang kamu cari.`
+      : "Aku belum menemukan produk itu di katalog. Coba sebutkan jenisnya (misal whey, creatine, vitamin C) atau tujuanmu (misal tambah otot, tidur nyenyak).";
+    return envelope(key, "needs_input", reply, { confidence: 0.4, needs_human: false, reason: "no_matching_product" });
+  }
+  const intro = need.label ? `Untuk ${need.label}, ini pilihan dari katalog kami` : "Ini yang aku temukan di katalog kami";
+  const lines = products.map((p, i) => `${i + 1}. ${p.name} — ${fmtIdr(p.price)}`).join("\n");
+  const tail = budget ? `Semua di bawah budget ${fmtIdr(budget)}.` : "Mau aku carikan yang lebih hemat atau sesuai budget tertentu?";
+  return envelope(key, "ok", `${intro}:\n${lines}\n${tail} Ketuk kartu untuk lihat detail.`, {
+    products,
+    confidence: 0.7,
+    needs_human: false,
+    reason: "keyword_mode",
+  });
 }
 
 // ---------- Klien Anthropic (fetch diinjeksi agar bisa diuji) ----------

@@ -4,6 +4,7 @@ import {
   buildCorrectionMessage,
   isForbiddenText,
   makeAnthropicCaller,
+  needsToTerms,
   runFinder,
   sanitizeProducts,
   validateFinderOutput,
@@ -166,26 +167,60 @@ describe("Vitamin Finder: 6 prompt wajib (model di-mock)", () => {
     expect(out.needs_human).toBe(true);
   });
 
-  it("6a. API down (callModel melempar) -> error + needs_human + fallback WhatsApp, tanpa melempar", async () => {
-    const out = await run(input("cari whey"), async () => {
+  it("6a. API down (callModel melempar) -> mode tanpa AI tetap merekomendasikan produk dari katalog", async () => {
+    const s = search();
+    const out = await run(input("mau tambah massa otot"), async () => {
       throw new Error("anthropic_http_503");
-    });
-    expect(out.status).toBe("error");
-    expect(out.needs_human).toBe(true);
-    expect(out.result.product_ids).toEqual([]);
-    expect(out.result.reply_text).toMatch(/WhatsApp/);
+    }, s);
+    expect(out.status).toBe("ok");
+    expect(out.needs_human).toBe(false);
+    expect(out.result.product_ids.length).toBeGreaterThan(0);
+    expect(out.result.product_ids.every((id) => ["p1", "p2", "p3"].includes(id))).toBe(true);
+    expect(out.result.reply_text).not.toMatch(/WhatsApp/);
+    expect(JSON.stringify(out)).not.toContain("hpp");
+    expect(s.calls.length).toBeGreaterThan(0);
     expect(validateFinderOutput(out).ok).toBe(true);
   });
 
-  it("6b. HTTP 5xx dari Anthropic (fetch di-mock) dan kunci hilang -> error + needs_human", async () => {
+  it("6b. HTTP 5xx dari Anthropic dan kunci hilang -> tetap rekomendasi; katalog juga mati -> fallback WhatsApp", async () => {
     const fetch5xx = async () => ({ ok: false, status: 503, json: async () => ({}) });
     const out1 = await run(input("cari whey"), makeAnthropicCaller(fetch5xx, "sk-test"));
-    expect(out1.status).toBe("error");
-    expect(out1.needs_human).toBe(true);
+    expect(out1.status).toBe("ok");
+    expect(out1.result.product_ids.length).toBeGreaterThan(0);
     const out2 = await run(input("cari whey"), makeAnthropicCaller(fetch5xx, undefined));
-    expect(out2.status).toBe("error");
-    expect(out2.needs_human).toBe(true);
+    expect(out2.status).toBe("ok");
     expect(JSON.stringify(log.mock.calls)).not.toContain("sk-test");
+    const out3 = await runFinder({
+      input: input("cari whey"),
+      callModel: makeAnthropicCaller(fetch5xx, undefined),
+      searchProducts: async () => {
+        throw new Error("db down");
+      },
+      log,
+    });
+    expect(out3.status).toBe("error");
+    expect(out3.needs_human).toBe(true);
+    expect(out3.result.reply_text).toMatch(/WhatsApp/);
+  });
+
+  it("6c-mode tanpa AI: sapaan -> tanya tujuan (bukan WhatsApp); budget dihormati; terlarang tetap ditolak", async () => {
+    const noKey = makeAnthropicCaller(async () => ({ ok: true, status: 200, json: async () => ({}) }), undefined);
+    const hi = await run(input("halo"), noKey);
+    expect(hi.status).toBe("needs_input");
+    expect(hi.needs_human).toBe(false);
+    const cheap = await run(input("whey budget 130 ribu"), noKey);
+    expect(cheap.result.products?.every((p) => p.price <= 130000)).toBe(true);
+    expect(cheap.result.product_ids.length).toBeGreaterThan(0);
+    const banned = await run(input("jual yohimbe?"), noKey);
+    expect(banned.result.product_ids).toEqual([]);
+  });
+
+  it("kebutuhan berbahasa Indonesia diterjemahkan ke kata kunci katalog", () => {
+    expect(needsToTerms("susah tidur").terms).toContain("melatonin");
+    expect(needsToTerms("mau tambah massa otot").terms).toContain("gainer");
+    expect(needsToTerms("daya tahan tubuh").terms).toContain("vitamin c");
+    expect(needsToTerms("optimum nutrition gold standard").terms[0]).toContain("optimum");
+    expect(needsToTerms("halo kak").terms).toEqual([]);
   });
 
   it("6c. pencarian DB gagal -> model tetap dijawab, tanpa produk, needs_human", async () => {
