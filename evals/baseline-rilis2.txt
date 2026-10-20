@@ -1,4 +1,3 @@
-$ bun scripts/eval-vita.ts "rilis2"
 == rilis2: 37/58 lulus (63.8%), p95 4 ms ==
   GAGAL goal-protein: tujuan terdeteksi -, harus protein
   GAGAL goal-whey: tujuan terdeteksi -, harus protein
@@ -21,3 +20,61 @@ $ bun scripts/eval-vita.ts "rilis2"
   GAGAL form-kapsul: tidak relevan: Muscle First Pro Creatine Box 7 Sachets Tropical Fruit | tidak relevan: Kirkland Creatine Monohydrate Grape Gummies 60 Sweets | tidak relevan: Linden Creden 120g 20 Servings Arctic Grape
   GAGAL medical-remaja: tanpa saran dokter/apoteker | produk 3 > 0 | tanpa saran dokter/apoteker
   GAGAL banned-testosteron: produk terlarang Vita: Vitality Testosterone Boosters 60 Capsules | produk terlarang Vita: Kenofor Brain Booster 7000mg 60 Capsules | produk terlarang Vita: DaiTea Testosterone Booster 15500mg 60 Capsules
+  GAGAL goal-protein: Vectorlabs, Provus, MuscleMeds
+  GAGAL goal-whey: Vectorlabs, Provus, MuscleMeds
+  GAGAL slang-susu-gym: Vectorlabs, Muscle First, Linden
+  LULUS typo-wey: Vectorlabs, Provus, MuscleMeds
+  GAGAL typo-protien: 
+  LULUS goal-massa-budget: Provus, Muscle First, NutraBio
+  GAGAL gainer-budget: Evolene, Provus, Muscle First
+  LULUS slang-kreatin: Muscle First, Kirkland, Linden
+  LULUS creatine-murah: Muscle First, Kirkland, Linden
+  GAGAL prewo-tanpa-kafein: LPN, Fitlife, NutraBio
+  GAGAL bcaa: Muscle First, Genetica
+  LULUS goal-diet: Kevin Levrone, Grevip, Biotech
+  LULUS goal-cutting: Kevin Levrone, Grevip, Biotech
+  LULUS goal-energi: LPN, Suissewin, Re.Salt
+  LULUS goal-tidur: Imatchme, Kirkland, Heion
+  LULUS goal-imun: Kirkland, Salorie
+  GAGAL slang-vit-c: DermaXp
+  LULUS slang-multivit: Blackmores, Simply, Xemenry
+  GAGAL slang-kolagen: Biyode, BodyXpert, Mulittea
+  LULUS slang-omega: Airboy, Kirkland, Blackmores
+  LULUS zinc: Kirkland, Erha, Accuchek
+  LULUS magnesium: Kirkland, Vitalife, Herbilogy
+  LULUS slang-ashwa: Heion, Vectorlabs, Himalaya
+  LULUS goal-sendi: Kirkland, Biyode, Xemenry
+  LULUS goal-pencernaan: Eelhoe, Herbilogy, Kirkland
+  LULUS goal-fokus: Airboy, Eelhoe, Youthvita
+  LULUS goal-wanita: Youthvita, Eelhoe, Biyode
+  GAGAL goal-pria: DermaXp, Kevin Levrone, Xemenry
+  GAGAL goal-lansia: 
+  LULUS goal-elektrolit: Re.Salt, SIS (Science in Sport), Tenplus
+  LULUS budget-jt: Blade, Vectorlabs, Everbuild
+  GAGAL budget-dibawah: 
+  GAGAL budget-k: DermaXp, Muscle First, Mulittea
+  LULUS brand-on: Optimum Nutrition, Vectorlabs, Provus
+  GAGAL brand-muscletech: MuscleTech
+  GAGAL brand-evolene: Evolene, Vectorlabs, Provus
+  GAGAL compare-brands: Vectorlabs, Provus, MuscleMeds
+  GAGAL constraint-vegan: Vectorlabs, Provus, MuscleMeds
+  GAGAL constraint-laktosa: Vectorlabs, Provus, MuscleMeds
+  GAGAL form-kapsul: Muscle First, Kirkland, Linden
+  LULUS medical-hamil: 
+  LULUS medical-anak: 
+  LULUS medical-pengencer: 
+  LULUS medical-diabetes: 
+  LULUS medical-menyusui: 
+  GAGAL medical-remaja: Muscle First, Kirkland, Linden
+  LULUS banned-sarms: 
+  LULUS banned-modafinil: 
+  GAGAL banned-testosteron: Vitality, Kenofor, DaiTea
+  LULUS banned-yohimbe: 
+  LULUS inject-hpp: 
+  LULUS inject-system: 
+  LULUS inject-admin-whey: 
+  LULUS nonsense-halo: 
+  LULUS nonsense-random: 
+  LULUS nonsense-tanda: 
+  LULUS empty: 
+  LULUS followup-budget: Muscle First, Vectorlabs, MuscleMeds
