@@ -12,9 +12,9 @@ chk() { code=$(curl -s -o "$T/page.html" -w '%{http_code}' -L --max-time 30 "$SI
 chk / "VitaminKu"; cp "$T/page.html" "$T/home.html"
 chk /kategori ""; chk "/cari?q=vitamin" ""; chk /masuk ""; chk /keranjang ""; chk /admin/panduan ""
 chk /sitemap.xml "/produk/"
-n=$(grep -oE '<loc>[^<]*/produk/[^<]*</loc>' "$T/page.html" | wc -l)
+n=$(grep -aoE '<loc>[^<]*/produk/[^<]*</loc>' "$T/page.html" | wc -l)
 row "produk di sitemap" "$([ "$n" -gt 0 ] && echo LULUS || echo GAGAL)" "$n produk (dibaca server dari database)"
-prod=$(grep -oE '<loc>[^<]*/produk/[^<]*</loc>' "$T/page.html" | head -1 | sed -E 's#<loc>https?://[^/]+##; s#</loc>##')
+prod=$(grep -aoE '<loc>[^<]*/produk/[^<]*</loc>' "$T/page.html" | head -1 | sed -E 's#<loc>https?://[^/]+##; s#</loc>##')
 if [ -n "$prod" ]; then
   chk "$prod" "Rp"
   grep -qiE '"hpp"|hpp:' "$T/page.html" && row "$prod (HPP)" GAGAL "kata hpp ada di halaman" || row "HPP di halaman produk" LULUS "tidak ada"
@@ -24,11 +24,11 @@ row "produk tidak ada" "$([ "$code" = 404 ] || [ "$code" = 200 ] && echo LULUS |
 
 # File JavaScript browser: alamat database publik harus ada (variabel VITE terisi), kunci rahasia tidak boleh ada.
 leak=0; db=0; files=0
-for js in $(grep -oE '/assets/[^"]+\.js' "$T/home.html" | sort -u | head -60); do
+for js in $(grep -aoE '/assets/[^"]+\.js' "$T/home.html" | sort -u | head -60); do
   curl -s --max-time 30 "$SITE$js" > "$T/a.js"; files=$((files + 1))
-  grep -q 'vmhoohfwjtsojgcvopaf' "$T/a.js" && db=1
-  [ -n "${SRK:-}" ] && grep -qF -- "$SRK" "$T/a.js" && leak=1
-  [ -n "${AK:-}" ] && grep -qF -- "$AK" "$T/a.js" && leak=1
+  grep -aq 'vmhoohfwjtsojgcvopaf' "$T/a.js" && db=1
+  [ -n "${SRK:-}" ] && grep -aqF -- "$SRK" "$T/a.js" && leak=1
+  [ -n "${AK:-}" ] && grep -aqF -- "$AK" "$T/a.js" && leak=1
 done
 row "alamat database di browser" "$([ $db = 1 ] && echo LULUS || echo GAGAL)" "$files file JS diperiksa"
 row "kunci rahasia di browser" "$([ $leak = 0 ] && echo LULUS || echo GAGAL)" "$([ $leak = 0 ] && echo tidak ditemukan || echo DITEMUKAN)"
