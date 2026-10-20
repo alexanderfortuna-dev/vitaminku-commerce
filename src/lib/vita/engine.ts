@@ -85,6 +85,8 @@ export function queryHash(normalized: string): string {
 
 /** Teks kueri hanya disimpan untuk kueri tanpa hasil, setelah data pribadi (angka panjang, email, nama) dibuang. */
 export function scrubQuery(normalized: string): string {
+  // Teks dengan ≥ 7 angka (mungkin nomor telepon/rekening, termasuk yang berspasi/bertanda hubung) tidak disimpan sama sekali.
+  if ((normalized.match(/\d/g) ?? []).length >= 7) return "";
   return normalized
     .replace(/\S+@\S+/g, " ")
     .replace(/\b\d{5,}\b/g, " ")

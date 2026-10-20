@@ -128,7 +128,10 @@ describe("penjaga keamanan", () => {
     expect(routeSafety("whey yang bagus apa", [{ role: "user", content: "saya sedang hamil" }]).kind).toBe("medical");
   });
   it("teks kueri tanpa hasil dibersihkan dari data pribadi", () => {
-    expect(scrubQuery("nama saya budi 081234567890 budi@mail.com sirup")).toBe("sirup");
+    expect(scrubQuery("nama saya budi budi@mail.com sirup")).toBe("sirup");
+    expect(scrubQuery("0812 3456 7890 sirup")).toBe("");
+    expect(scrubQuery("+62 812-3456-7890 sirup")).toBe("");
+    expect(scrubQuery("omega 3 1000 mg")).toBe("omega 3 1000 mg");
   });
 });
 

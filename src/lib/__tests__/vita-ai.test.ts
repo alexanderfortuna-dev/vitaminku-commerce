@@ -3,6 +3,8 @@ import { AI_FALLBACK_MODEL, AI_MODEL, runVitaAi, type VitaCallModel, type VitaMo
 import type { CatalogSearch } from "../vita/engine";
 import type { CatalogRow } from "../vita/rank";
 import { cacheGet, cacheKey, cacheSet } from "../vitamin-finder.server";
+import { AI_DEADLINE_MS } from "../vita/ai";
+import { FINDER_TIMEOUT_MS } from "../vitamin-finder-client";
 import type { ContentBlock, ModelResponse } from "../../../supabase/functions/_shared/vitamin-finder-core";
 
 const row = (id: string, name: string, brand: string, price: number, extra: Partial<CatalogRow> = {}): CatalogRow => ({
@@ -104,6 +106,35 @@ describe("Vita AI: hanya data dari tool, adil, aman", () => {
     const m = scripted([{ ...good, reply_text: "Takaran label Alpha: 1 scoop (30 g)." }]);
     const out = await runVitaAi(input("whey"), { search, callModel: m });
     expect(out.result.mode).toBe("ai");
+  });
+
+  it("takaran dicocokkan sebagai angka utuh: '50 mg' tidak lolos karena '350mg'", async () => {
+    const withDose: CatalogSearch = async () => CATALOG.map((r) => (r.id === "b1" ? { ...r, dose: "350mg per kapsul" } : r));
+    const m = scripted(Array(3).fill({ ...good, reply_text: "Minum 50 mg saja." }));
+    const out = await runVitaAi(input("whey"), { search: withDose, callModel: m });
+    expect(out.result.mode).toBe("keyword");
+  });
+
+  it("status ok wajib memilih 3 produk bila tersedia", async () => {
+    const one = { ...good, products: good.products.slice(0, 1) };
+    const m = scripted([one, one, one]);
+    const out = await runVitaAi(input("whey"), { search, callModel: m });
+    expect(out.result.mode).toBe("keyword");
+    expect(out.result.product_ids.length).toBe(3);
+  });
+
+  it("batas waktu mencakup database lambat; klien menunggu lebih lama dari server", async () => {
+    let calls = 0;
+    const slow: CatalogSearch = async () => {
+      calls++;
+      if (calls === 1) await new Promise((r) => setTimeout(r, 1000)); // pencarian tool lambat
+      return CATALOG;
+    };
+    const t0 = Date.now();
+    const out = await runVitaAi(input("whey"), { search: slow, callModel: scripted([good]), deadlineMs: 400 });
+    expect(Date.now() - t0).toBeLessThan(950); // batas 400 ms, bukan menunggu pencarian 1000 ms
+    expect(out.result.mode).toBe("keyword");
+    expect(FINDER_TIMEOUT_MS).toBeGreaterThanOrEqual(AI_DEADLINE_MS + 4000);
   });
 
   it("merek yang disebut wajib ada", async () => {

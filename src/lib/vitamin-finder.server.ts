@@ -100,7 +100,8 @@ export async function searchCatalog(db: Anon, q: CatalogQuery): Promise<CatalogR
       p_limit: q.limit,
     });
     if (!error && Array.isArray(data)) return (data as DbRow[]).map(toRow).filter((r): r is CatalogRow => r !== null);
-    rpcMissingUntil = Date.now() + 10 * 60_000; // fungsi belum dipasang: jangan coba lagi selama 10 menit
+    // Hanya "fungsi belum dipasang" yang mematikan RPC 10 menit; gangguan sesaat cukup memakai ilike untuk permintaan ini.
+    if (error && (error.code === "PGRST202" || error.code === "42883")) rpcMissingUntil = Date.now() + 10 * 60_000;
   }
   const conds = [
     ...(q.subcategories.length ? [`subcategory.in.(${q.subcategories.map(quote).join(",")})`] : []),
@@ -183,6 +184,8 @@ export async function handleVitaminFinder(req: Request): Promise<Response> {
     const pid = typeof ev["product_id"] === "string" && UUID.test(ev["product_id"]) ? ev["product_id"] : null;
     const qh = typeof ev["query_hash"] === "string" && /^[0-9a-f]{8,64}$/.test(ev["query_hash"]) ? ev["query_hash"] : null;
     if (!pid || !qh) return json({ ok: false }, 400);
+    const adb = anonClient();
+    if (!adb || !(await rateAllowed(req, adb))) return json({ ok: false }, 429);
     await logEvent({ event: "chosen", query_hash: qh, chosen_product_id: pid });
     return json({ ok: true });
   }
@@ -210,6 +213,7 @@ export async function handleVitaminFinder(req: Request): Promise<Response> {
       cacheSet(ck, out as VitaOutput);
     }
   }
-  for (const e of events) await logEvent({ event: "answer", ...e });
+  // Statistik paralel & dibatasi 250 ms total (serverless bisa menghentikan kerja setelah respons dikirim).
+  if (events.length) await Promise.race([Promise.all(events.map((e) => logEvent({ event: "answer", ...e }))), new Promise((r) => setTimeout(r, 250))]);
   return json(out);
 }

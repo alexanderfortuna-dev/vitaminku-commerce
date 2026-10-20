@@ -1,7 +1,8 @@
 // Klien browser untuk Edge Function `vitamin-finder`. Murni (fetch/storage diinjeksi) agar bisa diuji.
 // Hanya kunci publishable yang dipakai di browser; kunci AI hanya ada di Edge secret.
 
-export const FINDER_TIMEOUT_MS = 8000;
+/** Lebih lama dari batas AI server (6 dtk) + cadangan kata kunci, agar jawaban cadangan tidak terpotong browser. */
+export const FINDER_TIMEOUT_MS = 12000;
 export const FINDER_MAX_HISTORY = 10;
 
 export interface FinderCard {

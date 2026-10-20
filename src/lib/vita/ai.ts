@@ -33,7 +33,8 @@ import { goalById, parseBudget, parseProfile, type Form, type GoalId, type Profi
 
 export const AI_MODEL = "claude-sonnet-5-5";
 export const AI_FALLBACK_MODEL = "claude-haiku-5-5";
-export const AI_DEADLINE_MS = 8000;
+/** Batas jalur AI (model + tool + DB). Cadangan kata kunci ±0,5 dtk → total di bawah 8 dtk; klien menunggu 12 dtk. */
+export const AI_DEADLINE_MS = 6000;
 export const AI_CALL_TIMEOUT_MS = 5000;
 export const AI_MAX_TOKENS = 450; // jawaban ±350 token + ruang JSON
 const MAX_ROUNDS = 4;
@@ -197,7 +198,7 @@ export function validateAiOutput(text: string, st: ToolState, userBudget: number
     choices.push({ id, reason: str("alasan", 180), good_for: str("cocok_untuk", 120), not_for: str("kurang_cocok_jika", 120) });
   }
   if (list.length > 3) errors.push("products maksimal 3");
-  if (status === "ok" && st.byId.size > 0 && choices.length === 0) errors.push("status ok wajib memilih produk dari hasil tool");
+  if (status === "ok" && choices.length < Math.min(3, st.byId.size)) errors.push(`status ok wajib memilih ${Math.min(3, st.byId.size)} produk dari hasil tool`);
   // Keadilan antar-merek.
   const chosenBrands = new Set(choices.map((c) => st.byId.get(c.id)!.row.brand.toLowerCase()));
   if (choices.length >= 2 && st.brands.size >= 2 && chosenBrands.size < 2) errors.push("pilih minimal 2 merek berbeda (hasil tool memuat merek lain)");
@@ -217,7 +218,9 @@ export function validateAiOutput(text: string, st: ToolState, userBudget: number
   const names = [...st.byId.values()].map((r) => r.row.name.toLowerCase()).join(" ");
   for (const m of texts.matchAll(DOSE_IN_TEXT)) {
     const frag = m[0].toLowerCase().replace(/\s+/g, "");
-    if (!doseOk.replace(/\s+/g, "").includes(frag) && !names.replace(/\s+/g, "").includes(frag)) errors.push(`takaran "${m[0]}" tidak berasal dari label/tabel bukti`);
+    // Cocok sebagai angka utuh: "50mg" tidak boleh lolos karena ada "350mg".
+    const re = new RegExp(`(^|[^0-9.,])${frag.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}`);
+    if (!re.test(doseOk.replace(/\s+/g, "")) && !re.test(names.replace(/\s+/g, ""))) errors.push(`takaran "${m[0]}" tidak berasal dari label/tabel bukti`);
   }
   if (reply.length > 700) errors.push("reply_text terlalu panjang");
   if (errors.length) return { ok: false, errors };
@@ -330,7 +333,7 @@ export async function runVitaAi(input: FinderInput, deps: AiDeps): Promise<VitaO
   const call = async (): Promise<ModelResponse> => {
     for (;;) {
       const remaining = deadline - Date.now();
-      if (remaining <= 200) throw new Error("deadline");
+      if (remaining <= 100) throw new Error("deadline");
       const ctl = new AbortController();
       const timer = setTimeout(() => ctl.abort(), Math.min(deps.callTimeoutMs ?? AI_CALL_TIMEOUT_MS, remaining));
       try {
@@ -358,8 +361,9 @@ export async function runVitaAi(input: FinderInput, deps: AiDeps): Promise<VitaO
       const uses = res.content.filter((b): b is Extract<ContentBlock, { type: "tool_use" }> => b.type === "tool_use");
       if (!uses.length) return res.content.map((b) => (b.type === "text" ? b.text : "")).join("");
       const results: ContentBlock[] = [];
-      for (const u of uses.slice(0, 3)) {
-        const r = await runTool(u.name, u.input);
+      // Setiap tool_use wajib dijawab (API menolak bila ada yang terlewat); lebih dari 3 sekaligus → galat untuk sisanya.
+      for (const [i, u] of uses.entries()) {
+        const r = i < 3 ? await runTool(u.name, u.input) : { content: "Maksimal 3 tool sekaligus.", is_error: true };
         results.push({ type: "tool_result", tool_use_id: u.id, content: r.content, ...(r.is_error ? { is_error: true } : {}) });
       }
       messages.push({ role: "user", content: results });
@@ -367,20 +371,32 @@ export async function runVitaAi(input: FinderInput, deps: AiDeps): Promise<VitaO
     throw new Error("too_many_rounds");
   };
 
-  for (let attempt = 0; attempt <= MAX_FIX; attempt++) {
-    let text: string;
-    try {
-      text = await turn();
-    } catch (e) {
-      return fallback(e instanceof Error ? e.message : "model_error");
+  const attempt = async (): Promise<VitaOutput | string> => {
+    for (let i = 0; i <= MAX_FIX; i++) {
+      let text: string;
+      try {
+        text = await turn();
+      } catch (e) {
+        return e instanceof Error ? e.message : "model_error";
+      }
+      // Katalog tidak punya yang cocok: jawaban jujur & deterministik dari mode kata kunci (mis. "belum ada di budget Rp X").
+      if (st.profiles.length && st.byId.size === 0) return "no_results";
+      const v = validateAiOutput(text, st, userProfile.budget);
+      if (v.ok) return finalize(key, v.value, st, userProfile, deps);
+      messages.push({ role: "user", content: `Jawaban sebelumnya ditolak pemeriksa: ${v.errors.slice(0, 5).join("; ")}. Perbaiki hanya bagian itu, jangan mengarang, kembalikan HANYA JSON.` });
     }
-    // Katalog tidak punya yang cocok: jawaban jujur & deterministik dari mode kata kunci (mis. "belum ada di budget Rp X").
-    if (st.profiles.length && st.byId.size === 0) return fallback("no_results");
-    const v = validateAiOutput(text, st, userProfile.budget);
-    if (v.ok) return finalize(key, v.value, st, userProfile, deps);
-    messages.push({ role: "user", content: `Jawaban sebelumnya ditolak pemeriksa: ${v.errors.slice(0, 5).join("; ")}. Perbaiki hanya bagian itu, jangan mengarang, kembalikan HANYA JSON.` });
-  }
-  return fallback("validation_failed");
+    return "validation_failed";
+  };
+  // Batas waktu mencakup SEMUA (model, tool, database), bukan hanya panggilan model.
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const result = await Promise.race([
+    attempt(),
+    new Promise<string>((r) => {
+      timer = setTimeout(() => r("deadline"), Math.max(0, deadline - Date.now()));
+    }),
+  ]);
+  clearTimeout(timer);
+  return typeof result === "string" ? fallback(result) : result;
 }
 
 function finalize(key: string, m: AiParsed, st: ToolState, profile: Profile, deps: AiDeps): VitaOutput {

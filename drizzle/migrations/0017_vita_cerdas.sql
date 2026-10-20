@@ -7,7 +7,12 @@ CREATE SCHEMA IF NOT EXISTS extensions;
 CREATE EXTENSION IF NOT EXISTS pg_trgm WITH SCHEMA extensions;
 GRANT USAGE ON SCHEMA extensions TO anon, authenticated, service_role; -- sama dengan bawaan Supabase
 
-CREATE INDEX IF NOT EXISTS products_name_trgm_idx ON public.products USING gin (lower(name) extensions.gin_trgm_ops);
+-- pg_trgm bisa sudah ada di skema lain (mis. public): pakai skema tempat ekstensi itu benar-benar berada.
+DO $$
+DECLARE s text := (SELECT n.nspname FROM pg_extension e JOIN pg_namespace n ON n.oid = e.extnamespace WHERE e.extname = 'pg_trgm');
+BEGIN
+  EXECUTE format('CREATE INDEX IF NOT EXISTS products_name_trgm_idx ON public.products USING gin (lower(name) %I.gin_trgm_ops)', s);
+END $$;
 
 -- 1. Pencarian ------------------------------------------------------------------------------------------------
 CREATE OR REPLACE FUNCTION public.vita_search(p_terms text[], p_subcategories text[], p_max_price numeric, p_limit int)
@@ -24,7 +29,7 @@ LANGUAGE sql STABLE SECURITY INVOKER SET search_path = public, extensions AS $$
   SELECT p.id, p.name, p.brand, p.category, p.subcategory, p.size, p.servings, p.dose, p.flavor,
          p.price, (p.stock > 0) AS in_stock, p.image_url, p.slug, p.pack_count, p.variant_group,
          greatest(
-           coalesce((SELECT max(extensions.word_similarity(t.term, lower(p.name))) FROM t), 0),
+           coalesce((SELECT max(word_similarity(t.term, lower(p.name))) FROM t), 0),
            CASE WHEN p.subcategory = ANY (coalesce(p_subcategories, ARRAY[]::text[])) THEN 0.5 ELSE 0 END
          )::real AS score
   FROM public.products p
@@ -37,7 +42,7 @@ LANGUAGE sql STABLE SECURITY INVOKER SET search_path = public, extensions AS $$
         WHERE lower(p.name) LIKE '%' || t.term || '%'
            OR lower(coalesce(p.brand, '')) LIKE '%' || t.term || '%'
            OR to_tsvector('simple', p.name || ' ' || coalesce(p.brand, '')) @@ plainto_tsquery('simple', t.term)
-           OR extensions.word_similarity(t.term, lower(p.name)) >= 0.6
+           OR word_similarity(t.term, lower(p.name)) >= 0.6
       )
     )
   ORDER BY score DESC, p.id
