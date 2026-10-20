@@ -44,7 +44,7 @@ jobs:
     env:
       MODE: ${{ inputs.mode }}
       CONFIRM: ${{ inputs.confirm }}
-      KINGS_EMAIL: ${{ inputs.kings_email }}
+      KINGS_EMAIL: ${{ inputs.kings_email || secrets.OWNER_EMAIL }}
       LIVITA_EMAIL: ${{ inputs.livita_email }}
       ADMIN_EMAIL: ${{ inputs.admin_email }}
       SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
