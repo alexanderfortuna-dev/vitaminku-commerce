@@ -222,6 +222,7 @@ jobs:
               echo "| $cek | $ikon $hasil | $detail |"
             done < /tmp/verify.txt
           } >> "$GITHUB_STEP_SUMMARY"
+          echo "Hasil cek (juga di ringkasan):"; cat /tmp/verify.txt
           if { [ "$MODE" = "pasang-database" ] || [ "$MODE" = "migrate" ]; } && grep -q '|GAGAL|' /tmp/verify.txt; then exit 1; fi
 
   deploy:
