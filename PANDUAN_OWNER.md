@@ -21,6 +21,7 @@ Satu halaman untuk menjalankan toko tanpa coding. Versi yang sama ada di Seller 
 3. Tanpa email undangan: di kartu **Kode aktivasi staf** isi email staf, pilih peran, klik **Buat kode aktivasi**, lalu **Salin pesan untuk dikirim**. Staf membuka tautan `/admin/aktivasi`, memakai email + kode itu, dan membuat kata sandi sendiri. Kode terikat ke satu email, berlaku 14 hari, dan sekali pakai selama akun stafnya ada.
    - Kirim pesan aktivasi lewat saluran tertutup (WhatsApp pribadi ke orangnya). Siapa pun yang memegang email + kode bisa mengaktifkan lebih dulu.
    - Mencabut kode sebelum dipakai: ganti rahasia `STAFF_ACTIVATION_SECRET` di Vercel (semua kode lama batal; buat kode baru).
+   - Pakai email staf yang belum pernah dipakai belanja atau masuk di VitaminKu (periksa ejaan). Email yang sudah punya akun ditolak dan akunnya tidak disentuh.
    - Untuk menonaktifkan staf, pakai **Nonaktifkan**, jangan hapus akunnya di dasbor Supabase.
 4. Menonaktifkan staf: di **Akun Staf** klik **Nonaktifkan** pada nama staf (akun tidak dihapus).
 

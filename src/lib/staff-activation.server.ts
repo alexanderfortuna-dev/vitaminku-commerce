@@ -118,9 +118,6 @@ export class StaffActivationError extends Error {
 /** Operasi database/auth yang disuntikkan, supaya alur bisa diuji tanpa Supabase. Nilai kembali: pesan galat atau null. */
 export type StaffDeps = {
   createUser(email: string, password: string): Promise<{ id: string } | { exists: true } | { error: string }>;
-  findUserIdByEmail(email: string): Promise<string | null>;
-  updateUserPassword(id: string, password: string): Promise<string | null>;
-  hasRoleRow(id: string): Promise<boolean>;
   upsertRole(id: string, grant: StaffGrant, displayName: string | null): Promise<string | null>;
   deleteUser(id: string): Promise<string | null>;
   audit(id: string, grant: StaffGrant): Promise<string | null>;
@@ -149,43 +146,48 @@ export async function runStaffActivation(
   }
   const grant = verdict.grant;
 
-  let userId: string;
-  let createdHere = false;
   const created = await deps.createUser(email, input.password);
-  if ("id" in created) {
-    userId = created.id;
-    createdHere = true;
-  } else if ("exists" in created) {
-    // Email sudah punya akun (mis. pernah belanja lewat tautan email). Sekali-pakai dijaga oleh baris peran, bukan oleh kegagalan createUser.
-    const existingId = await deps.findUserIdByEmail(email);
-    if (!existingId) throw new StaffActivationError("Gagal membuat akun. Hubungi owner.", "other");
-    if (await deps.hasRoleRow(existingId)) {
-      throw new StaffActivationError("Akun staf dengan email ini sudah aktif. Silakan langsung masuk.", "other");
-    }
-    const pwError = await deps.updateUserPassword(existingId, input.password);
-    if (pwError) {
-      deps.log(`updateUserPassword gagal: ${pwError}`);
-      throw new StaffActivationError("Gagal mengatur kata sandi. Coba lagi atau hubungi owner.", "other");
-    }
-    userId = existingId;
-  } else {
+  if ("exists" in created) {
+    // Akun yang sudah ada (mis. akun pelanggan) TIDAK PERNAH disentuh: tidak ada reset kata sandi, tidak ada pemberian peran.
+    throw new StaffActivationError(
+      "Email ini sudah terdaftar sebagai akun lain. Minta owner membuat kode untuk email staf yang belum pernah dipakai di VitaminKu.",
+      "other",
+    );
+  }
+  if ("error" in created) {
     deps.log(`createUser gagal: ${created.error}`);
     throw new StaffActivationError("Gagal membuat akun. Coba lagi atau hubungi owner.", "other");
   }
+  const userId = created.id;
 
-  const roleError = await deps.upsertRole(userId, grant, displayName);
-  if (roleError) {
-    deps.log(`upsertRole gagal: ${roleError}`);
-    if (createdHere) {
-      const delError = await deps.deleteUser(userId); // hanya akun yang baru kita buat; akun lama tidak pernah dihapus
-      if (delError) {
-        deps.log(`deleteUser (pembatalan) gagal untuk ${userId}: ${delError}`);
-        throw new StaffActivationError("Akun terbuat tetapi peran gagal disimpan. Hubungi owner; sebutkan waktu kejadian.", "other");
-      }
+  // Setiap langkah setelah akun terbuat dijaga: kegagalan APA PUN (dikembalikan maupun dilempar) membatalkan akun baru ini.
+  const rollback = async (reason: string): Promise<never> => {
+    deps.log(`${reason}; akun baru ${userId} dibatalkan`);
+    let delError: string | null = null;
+    try {
+      delError = await deps.deleteUser(userId);
+    } catch (e) {
+      delError = e instanceof Error ? e.message : "tidak diketahui";
+    }
+    if (delError) {
+      deps.log(`deleteUser (pembatalan) gagal untuk ${userId}: ${delError}`);
+      throw new StaffActivationError("Akun terbuat tetapi peran gagal disimpan. Hubungi owner; sebutkan waktu kejadian.", "other");
     }
     throw new StaffActivationError("Gagal menyimpan peran staf. Coba lagi atau hubungi owner.", "other");
+  };
+  let roleError: string | null;
+  try {
+    roleError = await deps.upsertRole(userId, grant, displayName);
+  } catch (e) {
+    roleError = e instanceof Error ? e.message : "tidak diketahui";
   }
-  const auditError = await deps.audit(userId, grant);
-  if (auditError) deps.log(`audit staff_activate gagal: ${auditError}`);
+  if (roleError) return rollback(`upsertRole gagal: ${roleError}`);
+
+  try {
+    const auditError = await deps.audit(userId, grant);
+    if (auditError) deps.log(`audit staff_activate gagal: ${auditError}`);
+  } catch (e) {
+    deps.log(`audit staff_activate melempar: ${e instanceof Error ? e.message : "tidak diketahui"}`);
+  }
   return { ok: true };
 }

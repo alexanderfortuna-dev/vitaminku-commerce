@@ -89,9 +89,6 @@ function fakeDeps(over: Partial<StaffDeps> = {}) {
   const logs: string[] = [];
   const deps: StaffDeps = {
     createUser: async () => { calls.push("create"); return { id: "u-baru" }; },
-    findUserIdByEmail: async () => { calls.push("find"); return "u-lama"; },
-    updateUserPassword: async () => { calls.push("setpw"); return null; },
-    hasRoleRow: async () => { calls.push("hasrole"); return false; },
     upsertRole: async () => { calls.push("role"); return null; },
     deleteUser: async (id) => { calls.push(`delete:${id}`); return null; },
     audit: async () => { calls.push("audit"); return null; },
@@ -148,19 +145,28 @@ describe("alur aktivasi akun staf", () => {
     expect(logs.join("\n")).toContain("u-baru");
   });
 
-  it("email sudah punya akun pelanggan tanpa peran -> peran diberikan dan kata sandi diatur", async () => {
+  it("email sudah punya akun (pelanggan/staf) -> ditolak, akun lama tidak disentuh sama sekali", async () => {
     const { deps, calls } = fakeDeps({ createUser: async () => ({ exists: true as const }) });
-    await runStaffActivation(deps, base);
-    expect(calls).toEqual(["find", "hasrole", "setpw", "role", "audit"]);
+    const err = await runStaffActivation(deps, base).catch((e) => e);
+    expect(err).toBeInstanceOf(StaffActivationError);
+    expect(err.message).toContain("sudah terdaftar");
+    expect(calls).toEqual([]); // tidak ada role/audit/delete
   });
 
-  it("akun lama dengan peran (sudah aktif) -> ditolak; akun lama TIDAK pernah dihapus saat gagal", async () => {
-    const active = fakeDeps({ createUser: async () => ({ exists: true as const }), hasRoleRow: async () => true });
-    await expect(runStaffActivation(active.deps, base)).rejects.toThrow("sudah aktif");
-    expect(active.calls).not.toContain("setpw");
-    const failing = fakeDeps({ createUser: async () => ({ exists: true as const }), upsertRole: async () => "boom" });
-    await expect(runStaffActivation(failing.deps, base)).rejects.toThrow();
-    expect(failing.calls.some((c) => c.startsWith("delete"))).toBe(false);
+  it("langkah simpan peran MELEMPAR (bukan mengembalikan galat) -> akun baru tetap dibatalkan", async () => {
+    const { deps, calls } = fakeDeps({ upsertRole: async () => { throw new Error("jaringan putus"); } });
+    await expect(runStaffActivation(deps, base)).rejects.toThrow("Gagal menyimpan peran");
+    expect(calls).toContain("delete:u-baru");
+  });
+
+  it("pembatalan akun juga melempar -> pesan jujur, tidak crash", async () => {
+    const { deps } = fakeDeps({ upsertRole: async () => "boom", deleteUser: async () => { throw new Error("x"); } });
+    await expect(runStaffActivation(deps, base)).rejects.toThrow("Hubungi owner");
+  });
+
+  it("audit melempar tidak menggagalkan aktivasi", async () => {
+    const { deps } = fakeDeps({ audit: async () => { throw new Error("audit mati"); } });
+    expect(await runStaffActivation(deps, base)).toEqual({ ok: true });
   });
 
   it("galat createUser lain dicatat ke log dan pesan ke staf generik", async () => {

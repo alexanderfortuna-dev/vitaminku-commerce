@@ -698,26 +698,8 @@ export const activateStaffAccount = createServerFn({ method: "POST" })
           async createUser(email, password) {
             const { data: created, error } = await admin.createUser({ email, password, email_confirm: true });
             if (created?.user) return { id: created.user.id };
-            if (/already|registered|exists/i.test(error?.message ?? "")) return { exists: true as const };
+            if (error?.code === "email_exists" || /already|registered|exists/i.test(error?.message ?? "")) return { exists: true as const };
             return { error: `${error?.status ?? ""} ${error?.code ?? error?.message ?? "tidak diketahui"}`.trim() };
-          },
-          async findUserIdByEmail(email) {
-            for (let page = 1; page <= 50; page += 1) {
-              const { data: list, error } = await admin.listUsers({ page, perPage: 200 });
-              if (error || !list) return null;
-              const hit = list.users.find((u) => (u.email ?? "").toLowerCase() === email);
-              if (hit) return hit.id;
-              if (list.users.length < 200) return null;
-            }
-            return null;
-          },
-          async updateUserPassword(id, password) {
-            const { error } = await admin.updateUserById(id, { password, email_confirm: true });
-            return error ? error.message : null;
-          },
-          async hasRoleRow(id) {
-            const { data: row } = await supabaseAdmin.from("user_roles").select("user_id").eq("user_id", id).maybeSingle();
-            return !!row;
           },
           async upsertRole(id, grant, displayName) {
             const { error } = await supabaseAdmin
@@ -783,6 +765,10 @@ function bootstrapRateLimited(ip: string, attempts = bootstrapAttempts): boolean
 }
 
 function recordBootstrapFailure(ip: string, attempts = bootstrapAttempts) {
+  if (attempts.size > 2000) {
+    for (const [key, value] of attempts) if (Date.now() - value.firstAt > BOOTSTRAP_WINDOW_MS) attempts.delete(key);
+    if (attempts.size > 2000) attempts.clear();
+  }
   const entry = attempts.get(ip);
   if (!entry || Date.now() - entry.firstAt > BOOTSTRAP_WINDOW_MS) {
     attempts.set(ip, { count: 1, firstAt: Date.now() });
