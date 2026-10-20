@@ -587,7 +587,7 @@ export interface NeedRule {
   terms: string[];
 }
 export const NEED_RULES: NeedRule[] = [
-  { re: /\b(massa|bulking|gemuk|menggemukkan|naik\s*berat|berat\s*badan\s*naik|kurus|gainer)\b/i, label: "menambah massa & berat badan", terms: ["gainer", "mass", "whey"] },
+  { re: /\b(massa|bulking|gemuk|menggemukkan|naik\s*berat|berat\s*badan\s*naik|kurus|gainer)\b/i, label: "menambah massa & berat badan", terms: ["gainer", "whey", "creatine"] },
   { re: /\b(otot|muscle|bentuk\s*badan|six\s*pack|fitness|gym)\b/i, label: "membentuk otot", terms: ["whey", "creatine", "isolate"] },
   { re: /\b(protein|whey|isolate|susu\s*protein)\b/i, label: "kebutuhan protein", terms: ["whey", "isolate", "protein"] },
   { re: /\bvegan|nabati|plant\s*based\b/i, label: "protein nabati", terms: ["vegan", "plant protein", "pea protein"] },
@@ -613,39 +613,44 @@ export const NEED_RULES: NeedRule[] = [
 ];
 
 const STOPWORDS = new Set(
-  "mau ingin pengen pingin cari carikan butuh perlu yang untuk buat dan atau dengan saya aku gue gw kak min admin dong ya yah nih tuh apa ada bisa tolong rekomendasi rekomendasikan saran produk suplemen vitamin bagus terbaik paling murah mahal harga budget sekitar di ke dari yg utk tdk tidak juga lagi aja saja kalau kalo gimana bagaimana halo hai hi pagi siang sore malam terima kasih makasih rp ribu rb juta jt".split(" "),
+  "mau ingin pengen pingin cari carikan butuh perlu yang untuk buat dan atau dengan saya aku gue gw kak min admin dong ya yah nih tuh apa ada bisa tolong rekomendasi rekomendasikan saran produk suplemen vitamin bagus terbaik paling murah mahal harga budget sekitar di ke dari yg utk tdk tidak juga lagi aja saja kalau kalo gimana bagaimana halo hai hi pagi siang sore malam terima kasih makasih rp ribu rb juta jt tubuh badan susah tambah tambahin naik turun banyak cepat biar supaya agar pemula pake pakai minum diminum enak aman cocok ga gak nggak enggak udah sudah sama baru orang punya kasih jual beli harian rutin sehat kesehatan menjaga jaga meningkatkan tingkatkan".split(" "),
 );
 
 /** Kebutuhan pelanggan → label + kata kunci katalog. Tanpa kebutuhan dikenal: pakai kata penting dari pesan. */
 export function needsToTerms(message: string): { label: string | null; terms: string[] } {
   const hits = NEED_RULES.filter((r) => r.re.test(message));
-  if (hits.length) {
-    const terms: string[] = [];
-    for (const h of hits) for (const t of h.terms) if (!terms.includes(t)) terms.push(t);
-    return { label: hits.slice(0, 2).map((h) => h.label).join(" & "), terms: terms.slice(0, 4) };
-  }
-  const words = cleanQuery(message.toLowerCase())
+  // Kata spesifik (merek/jenis) di luar frasa kebutuhan: dicari lebih dulu agar "whey optimum nutrition" menemukan merek itu.
+  let rest = message.toLowerCase();
+  for (const h of hits) rest = rest.replace(new RegExp(h.re.source, "gi"), " ");
+  const extras = cleanQuery(rest)
     .split(" ")
-    .filter((w) => w.length > 2 && !STOPWORDS.has(w) && !/^\d+$/.test(w));
-  return { label: null, terms: words.length ? [words.slice(0, 3).join(" ")] : [] };
+    .filter((w) => w.length > 2 && !STOPWORDS.has(w) && !/^\d+$/.test(w))
+    .slice(0, 3);
+  const terms: string[] = extras.length ? [extras.join(" ")] : [];
+  for (const h of hits) for (const t of h.terms) if (!terms.includes(t)) terms.push(t);
+  return { label: hits.length ? hits.slice(0, 2).map((h) => h.label).join(" & ") : null, terms: terms.slice(0, 4) };
 }
 
 /** Pilih maks 3 produk berbeda: satu per kata kunci, harga tengah (bukan termurah/termahal); budget = paling dekat di bawahnya. */
+/** Kunci varian: merek + 3 kata awal nama, agar rasa/warna berbeda dari produk yang sama tidak muncul dua kali. */
+export function variantKey(p: FinderProduct): string {
+  return `${p.brand} ${p.name}`.toLowerCase().replace(/[^a-z0-9 ]/g, " ").split(/\s+/).filter(Boolean).slice(0, 4).join(" ");
+}
+
 export function pickProducts(groups: FinderProduct[][], budget: number | null): FinderProduct[] {
   const out: FinderProduct[] = [];
   const add = (p: FinderProduct | undefined) => {
-    if (p && !out.some((x) => x.id === p.id) && out.length < MAX_PRODUCTS) out.push(p);
+    if (!p || out.length >= MAX_PRODUCTS) return;
+    if (out.some((x) => x.id === p.id || variantKey(x) === variantKey(p))) return;
+    out.push(p);
   };
-  if (budget) {
-    const all = groups.flat().filter((p) => p.price <= budget).sort((a, b) => b.price - a.price);
-    for (const p of all) add(p);
-    return out;
-  }
+  // Satu produk per kata kunci dulu (urutan kata kunci = urutan relevansi), lalu isi sisa slot.
   for (const g of groups) {
-    const sorted = [...g].sort((a, b) => a.price - b.price);
-    add(sorted[Math.floor((sorted.length - 1) / 2)]);
+    const ok = budget ? g.filter((p) => p.price <= budget) : g;
+    const sorted = [...ok].sort((a, b) => (budget ? b.price - a.price : a.price - b.price));
+    add(budget ? sorted[0] : sorted[Math.floor((sorted.length - 1) / 2)]);
   }
-  for (const g of groups) for (const p of g) add(p);
+  for (const g of groups) for (const p of g) if (!budget || p.price <= budget) add(p);
   return out;
 }
 

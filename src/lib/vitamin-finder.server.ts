@@ -69,10 +69,9 @@ async function queryProducts(db: Anon, a: SearchArgs): Promise<unknown[]> {
     if (error) throw new Error(`products_${error.code ?? "error"}`);
     return data ?? [];
   };
-  const terms = cleanQuery(a.query)
-    .split(" ")
-    .filter((t) => t.length > 1)
-    .slice(0, 3);
+  const words = cleanQuery(a.query).split(" ").filter(Boolean);
+  // Frasa dengan huruf tunggal ("vitamin c", "vitamin d") dicari utuh, bukan per kata.
+  const terms = words.some((w) => w.length === 1) ? [words.join(" ")] : words.filter((t) => t.length > 1).slice(0, 3);
   const rows = await run(terms);
   if (rows.length === 0 && terms.length > 1) return run(terms.slice(0, 1));
   return rows;
