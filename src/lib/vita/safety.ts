@@ -4,6 +4,7 @@ import {
   isCostOrSecretProbe,
   isForbiddenText,
   looksLikeInjection,
+  stripCostOrSecretProbe,
   type HistoryItem,
 } from "../../../supabase/functions/_shared/vitamin-finder-core";
 
@@ -49,8 +50,6 @@ const PROBE_STRIP: RegExp[] = [
   /\b(abaikan|lupakan|acuhkan|langgar|ignore|forget)\b[^,.?!]{0,60}/gi,
   /\b(kamu|anda)\s+sekarang\s+(adalah|jadi)\b[^,.?!]{0,40}/gi,
   /\byou\s+are\s+now\b[^,.?!]{0,40}/gi,
-  /\b(tampilkan|tunjukkan|kasih|beri|sebutkan|show|print|reveal)\b[^,.?!]{0,20}\b(hpp|harga\s*(modal|pokok|beli\s*toko|kulak)|cost\s*price|system\s*prompt|prompt|instruksi|api[\s_-]?key|service[\s_-]?role)\b/gi,
-  /\b(hpp|harga\s*(modal|pokok|beli\s*toko|kulak)|cost\s*price|system\s*prompt|prompt\s*(awal|sistem)|api[\s_-]?key|service[\s_-]?role)\b/gi,
   /\b(developer|dan|jailbreak)\s+mode\b/gi,
 ];
 
@@ -66,7 +65,7 @@ export function routeSafety(message: string, history: HistoryItem[] = []): Safet
   const recentUser = history.filter((h) => h.role === "user").slice(-2).map((h) => h.content);
   if (isMedical([...recentUser, message].join("\n"))) return { kind: "medical" };
   if (isCostOrSecretProbe(message) || looksLikeInjection(message)) {
-    let cleaned = message;
+    let cleaned = stripCostOrSecretProbe(message);
     for (const re of PROBE_STRIP) cleaned = cleaned.replace(re, " ");
     return { kind: "probe", cleaned: cleaned.replace(/\s+/g, " ").replace(/^[\s,.;:!?-]+|[\s,;:-]+$/g, "").trim() };
   }

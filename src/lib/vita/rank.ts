@@ -1,5 +1,5 @@
 // Peringkat adil Vita (deterministik, tanpa AI). Skor = kecocokan tujuan + kecocokan kata + budget + stok + foto + nilai per sajian.
-// TIDAK ADA bobot dari merek, margin, HPP, atau "merek toko". Keragaman: ≥2 merek bila tersedia, 1 produk per kelompok varian.
+// TIDAK ADA bobot dari merek, margin, harga modal, atau "merek toko". Keragaman: ≥2 merek bila tersedia, 1 produk per kelompok varian.
 import { evidenceFor, type Evidence } from "./evidence";
 import {
   goalById,
@@ -13,7 +13,7 @@ import {
   type Tag,
 } from "./taxonomy";
 
-/** Baris katalog yang boleh dibaca Vita (kolom eksplisit, tanpa HPP; stok hanya ada/tidak). */
+/** Baris katalog yang boleh dibaca Vita (kolom eksplisit, tanpa harga modal; stok hanya ada/tidak). */
 export interface CatalogRow {
   id: string;
   name: string;

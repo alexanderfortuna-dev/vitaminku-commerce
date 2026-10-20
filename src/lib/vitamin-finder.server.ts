@@ -1,6 +1,6 @@
 // Vita (Vitamin Finder) di server Vercel (/api/vitamin-finder). Bentuk JSON sama dengan Rilis 2, ditambah kolom opsional.
 // Tanpa ANTHROPIC_API_KEY: mode kata kunci (src/lib/vita/engine.ts). Dengan kunci: mode AI berbasis tool (src/lib/vita/ai.ts),
-// jatuh ke mode kata kunci bila AI lambat/gagal. Katalog dibaca sebagai anon (RLS tetap berlaku) dengan kolom eksplisit — tanpa HPP.
+// jatuh ke mode kata kunci bila AI lambat/gagal. Katalog dibaca sebagai anon (RLS tetap berlaku) dengan kolom eksplisit — tanpa harga modal.
 import { createClient } from "@supabase/supabase-js";
 import {
   RATE_LIMIT,
@@ -20,7 +20,7 @@ import { normalizeText } from "./vita/taxonomy";
 import type { CatalogRow } from "./vita/rank";
 
 const MAX_BODY_BYTES = 20_000;
-/** Kolom yang boleh dibaca Vita. JANGAN tambahkan hpp atau "*". stock hanya dipakai sebagai ada/tidak. */
+/** Kolom yang boleh dibaca Vita. JANGAN tambahkan kolom harga modal atau "*". stock hanya dipakai sebagai ada/tidak. */
 export const VITA_COLUMNS = "id,name,brand,category,subcategory,size,servings,dose,flavor,price,stock,image_url,slug,pack_count,variant_group";
 
 function json(body: unknown, status = 200): Response {

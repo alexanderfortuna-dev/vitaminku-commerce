@@ -49,6 +49,7 @@ import { Route as AdminProdukCepatRouteImport } from './routes/admin/produk-cepa
 import { Route as AdminPromoRouteImport } from './routes/admin/promo'
 import { Route as AdminTautanRouteImport } from './routes/admin/tautan'
 import { Route as AdminUploadMassalRouteImport } from './routes/admin/upload-massal'
+import { Route as AdminVitaInsightRouteImport } from './routes/admin/vita-insight'
 import { Route as ApiVitaChatRouteImport } from './routes/api/vita-chat'
 import { Route as ApiVitaminFinderRouteImport } from './routes/api/vitamin-finder'
 import { Route as KategoriIndexRouteImport } from './routes/kategori.index'
@@ -266,6 +267,11 @@ const AdminUploadMassalRoute = AdminUploadMassalRouteImport.update({
   path: '/upload-massal',
   getParentRoute: () => AdminRouteRoute,
 } as any)
+const AdminVitaInsightRoute = AdminVitaInsightRouteImport.update({
+  id: '/vita-insight',
+  path: '/vita-insight',
+  getParentRoute: () => AdminRouteRoute,
+} as any)
 const ApiVitaChatRoute = ApiVitaChatRouteImport.update({
   id: '/api/vita-chat',
   path: '/api/vita-chat',
@@ -383,6 +389,7 @@ export interface FileRoutesByFullPath {
   '/admin/promo': typeof AdminPromoRoute
   '/admin/tautan': typeof AdminTautanRoute
   '/admin/upload-massal': typeof AdminUploadMassalRoute
+  '/admin/vita-insight': typeof AdminVitaInsightRoute
   '/api/vita-chat': typeof ApiVitaChatRoute
   '/api/vitamin-finder': typeof ApiVitaminFinderRoute
   '/kategori/$slug': typeof KategoriSlugRoute
@@ -436,6 +443,7 @@ export interface FileRoutesByTo {
   '/admin/promo': typeof AdminPromoRoute
   '/admin/tautan': typeof AdminTautanRoute
   '/admin/upload-massal': typeof AdminUploadMassalRoute
+  '/admin/vita-insight': typeof AdminVitaInsightRoute
   '/api/vita-chat': typeof ApiVitaChatRoute
   '/api/vitamin-finder': typeof ApiVitaminFinderRoute
   '/kategori/$slug': typeof KategoriSlugRoute
@@ -494,6 +502,7 @@ export interface FileRoutesById {
   '/admin/promo': typeof AdminPromoRoute
   '/admin/tautan': typeof AdminTautanRoute
   '/admin/upload-massal': typeof AdminUploadMassalRoute
+  '/admin/vita-insight': typeof AdminVitaInsightRoute
   '/api/vita-chat': typeof ApiVitaChatRoute
   '/api/vitamin-finder': typeof ApiVitaminFinderRoute
   '/kategori/$slug': typeof KategoriSlugRoute
@@ -553,6 +562,7 @@ export interface FileRouteTypes {
     | '/admin/promo'
     | '/admin/tautan'
     | '/admin/upload-massal'
+    | '/admin/vita-insight'
     | '/api/vita-chat'
     | '/api/vitamin-finder'
     | '/kategori/$slug'
@@ -606,6 +616,7 @@ export interface FileRouteTypes {
     | '/admin/promo'
     | '/admin/tautan'
     | '/admin/upload-massal'
+    | '/admin/vita-insight'
     | '/api/vita-chat'
     | '/api/vitamin-finder'
     | '/kategori/$slug'
@@ -663,6 +674,7 @@ export interface FileRouteTypes {
     | '/admin/promo'
     | '/admin/tautan'
     | '/admin/upload-massal'
+    | '/admin/vita-insight'
     | '/api/vita-chat'
     | '/api/vitamin-finder'
     | '/kategori/$slug'
@@ -991,6 +1003,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminUploadMassalRouteImport
       parentRoute: typeof AdminRouteRoute
     }
+    '/admin/vita-insight': {
+      id: '/admin/vita-insight'
+      path: '/vita-insight'
+      fullPath: '/admin/vita-insight'
+      preLoaderRoute: typeof AdminVitaInsightRouteImport
+      parentRoute: typeof AdminRouteRoute
+    }
     '/api/vita-chat': {
       id: '/api/vita-chat'
       path: '/api/vita-chat'
@@ -1120,6 +1139,7 @@ interface AdminRouteRouteChildren {
   AdminPromoRoute: typeof AdminPromoRoute
   AdminTautanRoute: typeof AdminTautanRoute
   AdminUploadMassalRoute: typeof AdminUploadMassalRoute
+  AdminVitaInsightRoute: typeof AdminVitaInsightRoute
   AdminIndexRoute: typeof AdminIndexRoute
   AdminProdukIdRoute: typeof AdminProdukIdRoute
   AdminProdukBaruRoute: typeof AdminProdukBaruRoute
@@ -1146,6 +1166,7 @@ const AdminRouteRouteChildren: AdminRouteRouteChildren = {
   AdminPromoRoute: AdminPromoRoute,
   AdminTautanRoute: AdminTautanRoute,
   AdminUploadMassalRoute: AdminUploadMassalRoute,
+  AdminVitaInsightRoute: AdminVitaInsightRoute,
   AdminIndexRoute: AdminIndexRoute,
   AdminProdukIdRoute: AdminProdukIdRoute,
   AdminProdukBaruRoute: AdminProdukBaruRoute,

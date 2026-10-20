@@ -1,6 +1,7 @@
 {
   "version": "2026-10-21.1",
   "note": "Kasus emas Vita. kind: products | refuse | medical | probe | ask | invalid. Regex dicocokkan tanpa membedakan huruf besar/kecil. each_product: setiap produk (nama + subkategori) harus cocok.",
+  "forbidden_output": "\"hpp\"|\"stock\"|service_role|harga modal: ?rp",
   "cases": [
     { "id": "goal-protein", "message": "protein", "expect": { "kind": "products", "min_products": 3, "min_brands": 2, "each_product": "protein|whey|isolate", "goal": "protein" } },
     { "id": "goal-whey", "message": "whey", "expect": { "kind": "products", "min_products": 3, "min_brands": 2, "each_product": "protein|whey|isolate", "goal": "protein" } },

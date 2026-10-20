@@ -73,9 +73,16 @@ const ROOT = resolve(import.meta.dirname, "../../../..");
 export function loadSnapshot(): SnapRow[] {
   return (JSON.parse(readFileSync(resolve(ROOT, "evals/catalog-snapshot.json"), "utf8")) as { rows: SnapRow[] }).rows;
 }
-export function loadGolden(): GoldenCase[] {
-  return (JSON.parse(readFileSync(resolve(ROOT, "evals/vita-golden.json"), "utf8")) as { cases: GoldenCase[] }).cases;
+interface GoldenFile {
+  cases: GoldenCase[];
+  /** Pola teks yang tidak boleh muncul di output mana pun (nama kolom internal). */
+  forbidden_output: string;
 }
+const golden = (): GoldenFile => JSON.parse(readFileSync(resolve(ROOT, "evals/vita-golden.json"), "utf8")) as GoldenFile;
+export function loadGolden(): GoldenCase[] {
+  return golden().cases;
+}
+const FORBIDDEN_OUTPUT = new RegExp(golden().forbidden_output, "i");
 
 /** Angka dosis di teks balasan (mg, g, IU, kapsul, scoop, ...). */
 export const DOSE_RE = /\b\d+(?:[.,]\d+)?\s?(mg|mcg|µg|g|gram|gr|iu|kapsul|capsules?|tablet|tab|scoop|sendok|sachet|softgel)\b/i;
@@ -90,7 +97,7 @@ export function checkCase(c: GoldenCase, out: FinderOutput, byId: Map<string, Sn
 
   // Pemeriksaan umum untuk SEMUA kasus.
   if (!validateFinderOutput(out).ok) f.push("bentuk output tidak valid");
-  if (/"hpp"|"stock"|service_role/i.test(raw)) f.push("output memuat kolom internal");
+  if (FORBIDDEN_OUTPUT.test(raw)) f.push("output memuat kolom internal");
   for (const p of products) {
     const row = byId.get(p.id);
     if (!row) f.push(`produk ${p.id} tidak ada di katalog yang bisa dijual`);
