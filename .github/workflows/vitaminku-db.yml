@@ -88,6 +88,29 @@ jobs:
             fi
           done
 
+      - name: Periksa bentuk alamat database (nilai tidak dicetak)
+        run: |
+          u="$SUPABASE_DB_URL"
+          # Rapikan spasi, baris baru, dan tanda kutip yang ikut tersalin di awal/akhir.
+          u="$(printf '%s' "$u" | tr -d '\r\n' | sed -E "s/^[[:space:]\"']+//; s/[[:space:]\"']+$//")"
+          echo "::add-mask::$u"
+          ok=1; out=""
+          chk() { if [ "$1" = 1 ]; then out="$out\n| $2 | ✅ |"; else out="$out\n| $2 | ❌ $3 |"; ok=0; fi; }
+          case "$u" in postgresql://*|postgres://*) a=1 ;; *) a=0 ;; esac
+          chk $a "Diawali postgresql://" "isi kunci harus alamat lengkap, bukan hanya password"
+          case "$u" in *"://postgres.vmhoohfwjtsojgcvopaf:"*) a=1 ;; *) a=0 ;; esac
+          chk $a "Pengguna postgres.vmhoohfwjtsojgcvopaf" "bagian setelah :// harus postgres.vmhoohfwjtsojgcvopaf:"
+          case "$u" in *"@aws-"*".pooler.supabase.com:5432/postgres") a=1 ;; *) a=0 ;; esac
+          chk $a "Diakhiri @aws-…pooler.supabase.com:5432/postgres" "salin alamat Session pooler apa adanya"
+          case "$u" in *PASSWORD_BARU*|*YOUR-PASSWORD*|*"["*|*"]"*) a=0 ;; *) a=1 ;; esac
+          chk $a "Password sudah diganti" "kata PASSWORD_BARU / [YOUR-PASSWORD] atau tanda [ ] masih ada"
+          case "$u" in *" "*) a=0 ;; *) a=1 ;; esac
+          chk $a "Tanpa spasi di tengah" "hapus spasi di dalam alamat"
+          { echo "### Bentuk alamat database"; echo "| Cek | Hasil |"; echo "|---|---|"; printf '%b\n' "$out"; } >> "$GITHUB_STEP_SUMMARY"
+          printf '%b\n' "$out"
+          [ "$ok" = 1 ] || exit 1
+          echo "SUPABASE_DB_URL=$u" >> "$GITHUB_ENV"
+
       - uses: actions/checkout@v4
         with:
           ref: fix/vitaminku-launch-v2
