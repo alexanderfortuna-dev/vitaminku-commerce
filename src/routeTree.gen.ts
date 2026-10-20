@@ -29,6 +29,7 @@ import { Route as SyaratRouteImport } from './routes/syarat'
 import { Route as TujuanRouteImport } from './routes/tujuan'
 import { Route as Char91DotwellKnownChar93OauthProtectedResourceRouteImport } from './routes/[.well-known]/oauth-protected-resource'
 import { Route as AdminIndexRouteImport } from './routes/admin/index'
+import { Route as AdminAktivasiRouteImport } from './routes/admin/aktivasi'
 import { Route as AdminAktivitasRouteImport } from './routes/admin/aktivitas'
 import { Route as AdminAntrianRouteImport } from './routes/admin/antrian'
 import { Route as AdminBlokirRouteImport } from './routes/admin/blokir'
@@ -163,6 +164,11 @@ const Char91DotwellKnownChar93OauthProtectedResourceRoute =
 const AdminIndexRoute = AdminIndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => AdminRouteRoute,
+} as any)
+const AdminAktivasiRoute = AdminAktivasiRouteImport.update({
+  id: '/aktivasi',
+  path: '/aktivasi',
   getParentRoute: () => AdminRouteRoute,
 } as any)
 const AdminAktivitasRoute = AdminAktivitasRouteImport.update({
@@ -357,6 +363,7 @@ export interface FileRoutesByFullPath {
   '/syarat': typeof SyaratRoute
   '/tujuan': typeof TujuanRouteWithChildren
   '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
+  '/admin/aktivasi': typeof AdminAktivasiRoute
   '/admin/aktivitas': typeof AdminAktivitasRoute
   '/admin/antrian': typeof AdminAntrianRoute
   '/admin/blokir': typeof AdminBlokirRoute
@@ -409,6 +416,7 @@ export interface FileRoutesByTo {
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/syarat': typeof SyaratRoute
   '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
+  '/admin/aktivasi': typeof AdminAktivasiRoute
   '/admin/aktivitas': typeof AdminAktivitasRoute
   '/admin/antrian': typeof AdminAntrianRoute
   '/admin/blokir': typeof AdminBlokirRoute
@@ -466,6 +474,7 @@ export interface FileRoutesById {
   '/syarat': typeof SyaratRoute
   '/tujuan': typeof TujuanRouteWithChildren
   '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
+  '/admin/aktivasi': typeof AdminAktivasiRoute
   '/admin/aktivitas': typeof AdminAktivitasRoute
   '/admin/antrian': typeof AdminAntrianRoute
   '/admin/blokir': typeof AdminBlokirRoute
@@ -524,6 +533,7 @@ export interface FileRouteTypes {
     | '/syarat'
     | '/tujuan'
     | '/.well-known/oauth-protected-resource'
+    | '/admin/aktivasi'
     | '/admin/aktivitas'
     | '/admin/antrian'
     | '/admin/blokir'
@@ -576,6 +586,7 @@ export interface FileRouteTypes {
     | '/sitemap.xml'
     | '/syarat'
     | '/.well-known/oauth-protected-resource'
+    | '/admin/aktivasi'
     | '/admin/aktivitas'
     | '/admin/antrian'
     | '/admin/blokir'
@@ -632,6 +643,7 @@ export interface FileRouteTypes {
     | '/syarat'
     | '/tujuan'
     | '/.well-known/oauth-protected-resource'
+    | '/admin/aktivasi'
     | '/admin/aktivitas'
     | '/admin/antrian'
     | '/admin/blokir'
@@ -837,6 +849,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/admin/'
       preLoaderRoute: typeof AdminIndexRouteImport
+      parentRoute: typeof AdminRouteRoute
+    }
+    '/admin/aktivasi': {
+      id: '/admin/aktivasi'
+      path: '/aktivasi'
+      fullPath: '/admin/aktivasi'
+      preLoaderRoute: typeof AdminAktivasiRouteImport
       parentRoute: typeof AdminRouteRoute
     }
     '/admin/aktivitas': {
@@ -1081,6 +1100,7 @@ declare module '@tanstack/react-router' {
 }
 
 interface AdminRouteRouteChildren {
+  AdminAktivasiRoute: typeof AdminAktivasiRoute
   AdminAktivitasRoute: typeof AdminAktivitasRoute
   AdminAntrianRoute: typeof AdminAntrianRoute
   AdminBlokirRoute: typeof AdminBlokirRoute
@@ -1106,6 +1126,7 @@ interface AdminRouteRouteChildren {
 }
 
 const AdminRouteRouteChildren: AdminRouteRouteChildren = {
+  AdminAktivasiRoute: AdminAktivasiRoute,
   AdminAktivitasRoute: AdminAktivitasRoute,
   AdminAntrianRoute: AdminAntrianRoute,
   AdminBlokirRoute: AdminBlokirRoute,

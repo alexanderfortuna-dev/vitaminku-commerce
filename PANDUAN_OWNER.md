@@ -18,7 +18,8 @@ Satu halaman untuk menjalankan toko tanpa coding. Versi yang sama ada di Seller 
 ## Menambah akun staf
 1. Seller Center → **Akun Staf** → isi email staf → pilih peran → **Undang via email**.
 2. Staf membuka email undangan dan klik tautannya. Selesai.
-3. Menonaktifkan staf: di **Akun Staf** klik **Nonaktifkan** pada nama staf (akun tidak dihapus).
+3. Tanpa email undangan: di kartu **Kode aktivasi staf** isi email staf, pilih peran, klik **Buat kode aktivasi**, lalu **Salin pesan untuk dikirim**. Staf membuka tautan `/admin/aktivasi`, memakai email + kode itu, dan membuat kata sandi sendiri. Kode terikat ke satu email, berlaku 14 hari, dan sekali pakai.
+4. Menonaktifkan staf: di **Akun Staf** klik **Nonaktifkan** pada nama staf (akun tidak dihapus).
 
 ## Mengisi harga dan stok
 1. Seller Center → **Ubah Harga & Stok** → **1. Unduh Template**.

@@ -636,6 +636,107 @@ export const setAdminUserRole = createServerFn({ method: "POST" })
     return { ok: true };
   });
 
+/* --------------------------- kode aktivasi staf --------------------------- */
+
+// Owner membuat kode untuk SATU email + SATU peran (Manajer / Tim Produk). Kode tidak disimpan di mana pun;
+// ia dihitung dari rahasia server STAFF_ACTIVATION_SECRET. Peran owner sengaja tidak bisa dibuat lewat kode.
+export const generateStaffActivationCode = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator(
+    (input: { email: string; role: "admin" | "seller"; title?: "admin" | "general_manager" | null; validDays?: number }) => {
+      if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(input.email ?? "")) throw new Error("Email tidak valid.");
+      if (!["admin", "seller"].includes(input.role)) throw new Error("Peran tidak valid.");
+      return input;
+    },
+  )
+  .handler(async ({ data, context }) => {
+    const ctx = context as unknown as Ctx;
+    await requirePermission(ctx, "users_manage");
+    const { expiryFromDays, makeStaffCode, normalizeEmail } = await import("./staff-activation.server");
+    const { STAFF_CODE_DEFAULT_DAYS, STAFF_CODE_MAX_DAYS } = await import("./staff-activation-format");
+    const secret = process.env["STAFF_ACTIVATION_SECRET"];
+    if (!secret || secret.length < 24) {
+      throw new Error("Kode aktivasi staf belum aktif di server (rahasia STAFF_ACTIVATION_SECRET belum dipasang).");
+    }
+    const days = Math.min(Math.max(Math.round(data.validDays ?? STAFF_CODE_DEFAULT_DAYS), 1), STAFF_CODE_MAX_DAYS);
+    const grant =
+      data.role === "admin"
+        ? { role: "admin" as const, title: data.title === "general_manager" ? ("general_manager" as const) : ("admin" as const) }
+        : { role: "seller" as const, title: null };
+    const email = normalizeEmail(data.email);
+    const expiresOn = expiryFromDays(days);
+    const code = makeStaffCode({ secret, email, grant, expiresOn });
+    await audit(ctx, "staff_code_issue", null, { email, role: grant.role, title: grant.title, expiresOn });
+    return { code, email, expiresOn, role: grant.role, title: grant.title };
+  });
+
+// Publik, dijaga ketat: butuh kode yang cocok dengan email + peran, belum kedaluwarsa, dan akun belum ada.
+// Kata sandi dipilih sendiri oleh staf; owner/agen tidak pernah mengetahuinya.
+export const activateStaffAccount = createServerFn({ method: "POST" })
+  .inputValidator((input: { email: string; password: string; code: string; displayName?: string }) => {
+    if (!input?.email || !input?.password || !input?.code) {
+      throw new Error("Email, kata sandi, dan kode aktivasi wajib diisi.");
+    }
+    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(input.email)) throw new Error("Email tidak valid.");
+    if (input.password.length < 10) throw new Error("Kata sandi minimal 10 karakter.");
+    if (input.code.length > 80 || input.email.length > 200 || input.password.length > 200) {
+      throw new Error("Data terlalu panjang.");
+    }
+    return input;
+  })
+  .handler(async ({ data }) => {
+    const ip = bootstrapClientIp();
+    if (bootstrapRateLimited(ip)) {
+      throw new Error("Terlalu banyak percobaan. Coba lagi dalam 15 menit.");
+    }
+    const { normalizeEmail, verifyStaffCode } = await import("./staff-activation.server");
+    const email = normalizeEmail(data.email);
+    const result = verifyStaffCode({ secret: process.env["STAFF_ACTIVATION_SECRET"], email, code: data.code });
+    if (!result.ok) {
+      recordBootstrapFailure(ip);
+      if (result.reason === "unavailable") throw new Error("Aktivasi staf belum tersedia. Hubungi owner.");
+      if (result.reason === "expired") throw new Error("Kode aktivasi sudah kedaluwarsa. Minta kode baru ke owner.");
+      throw new Error("Email atau kode aktivasi tidak cocok.");
+    }
+
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: created, error } = await supabaseAdmin.auth.admin.createUser({
+      email,
+      password: data.password,
+      email_confirm: true,
+    });
+    if (error || !created?.user) {
+      if (/already|registered|exists/i.test(error?.message ?? "")) {
+        throw new Error("Email ini sudah terdaftar. Jika akun staf Anda sudah aktif, langsung masuk; jika tidak, minta owner memberi peran lewat menu Akun Staf.");
+      }
+      throw new Error("Gagal membuat akun. Coba lagi atau hubungi owner.");
+    }
+    const { error: roleError } = await supabaseAdmin.from("user_roles").upsert({
+      user_id: created.user.id,
+      role: result.grant.role,
+      title: result.grant.title,
+      is_active: true,
+      display_name: data.displayName?.trim().slice(0, 80) || null,
+    });
+    if (roleError) {
+      // Akun yang baru saja dibuat dibatalkan agar kode tetap bisa dicoba ulang (tidak ada akun yatim).
+      await supabaseAdmin.auth.admin.deleteUser(created.user.id);
+      throw new Error("Gagal menyimpan peran staf. Coba lagi atau hubungi owner.");
+    }
+    try {
+      await supabaseAdmin.from("admin_audit_log").insert({
+        user_id: created.user.id,
+        action: "staff_activate",
+        product_id: null,
+        payload: { role: result.grant.role, title: result.grant.title } as never,
+      });
+    } catch (auditError) {
+      console.error("audit log failed", auditError);
+    }
+    bootstrapAttempts.delete(ip);
+    return { ok: true };
+  });
+
 /* ------------------------------ bootstrap ------------------------------- */
 
 // In-process rate limiter: max 5 failed attempts per 15 minutes per IP.

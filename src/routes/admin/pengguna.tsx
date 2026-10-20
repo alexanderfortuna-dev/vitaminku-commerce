@@ -3,7 +3,13 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useState } from "react";
 import { toast } from "sonner";
-import { inviteAdminUser, listAdminUsers, setAdminUserRole } from "@/lib/admin.functions";
+import {
+  generateStaffActivationCode,
+  inviteAdminUser,
+  listAdminUsers,
+  setAdminUserRole,
+} from "@/lib/admin.functions";
+import { STAFF_CODE_DEFAULT_DAYS, formatExpiryId } from "@/lib/staff-activation-format";
 import { ROLE_LABEL, type AdminRole } from "@/lib/admin-roles";
 import { getAdminStore } from "@/lib/store.functions";
 import { TITLE_LABEL } from "@/lib/permissions";
@@ -35,6 +41,32 @@ function AdminUsersPage() {
   const [email, setEmail] = useState("");
   const [role, setRoleValue] = useState<AdminRole>("seller");
   const [title, setTitle] = useState<"general_manager" | "admin">("admin");
+
+  const makeCode = useServerFn(generateStaffActivationCode);
+  const [codeEmail, setCodeEmail] = useState("");
+  const [codeRole, setCodeRole] = useState<"admin" | "seller">("admin");
+  const [issued, setIssued] = useState<{ message: string } | null>(null);
+  const codeMutation = useMutation({
+    mutationFn: () =>
+      makeCode({
+        data: { email: codeEmail, role: codeRole, title: codeRole === "admin" ? "admin" : null, validDays: STAFF_CODE_DEFAULT_DAYS },
+      }),
+    onSuccess: (res) => {
+      const label = res.role === "admin" ? "Manajer (Admin)" : "Tim Produk";
+      setIssued({
+        message: [
+          "Aktivasi akun VitaminKu Seller Center",
+          `Tautan: ${window.location.origin}/admin/aktivasi`,
+          `Email: ${res.email}`,
+          `Peran: ${label}`,
+          `Kode aktivasi: ${res.code}`,
+          `Berlaku sampai: ${formatExpiryId(res.expiresOn)} (sekali pakai, hanya untuk email ini)`,
+          "Buat kata sandi sendiri saat aktivasi (minimal 10 karakter).",
+        ].join("\n"),
+      });
+    },
+    onError: (err: unknown) => toast.error(err instanceof Error ? err.message : "Gagal membuat kode"),
+  });
 
   const { data, isPending, isError, error, refetch } = useQuery({
     queryKey: ["admin-users"],
@@ -141,6 +173,68 @@ function AdminUsersPage() {
         >
           {inviteMutation.isPending ? "Mengirim…" : "Kirim undangan"}
         </button>
+      </form>
+
+      <form
+        onSubmit={(e) => {
+          e.preventDefault();
+          setIssued(null);
+          codeMutation.mutate();
+        }}
+        className="mt-3 space-y-2 p-3 card-surface"
+      >
+        <p className="text-xs font-semibold text-navy">Kode aktivasi staf (tanpa email undangan)</p>
+        <p className="text-[11px] text-muted-foreground">
+          Satu kode untuk satu email, berlaku {STAFF_CODE_DEFAULT_DAYS} hari, sekali pakai. Staf membuat kata sandinya sendiri.
+        </p>
+        <input
+          type="email"
+          required
+          placeholder="Email staf"
+          value={codeEmail}
+          onChange={(e) => setCodeEmail(e.target.value)}
+          className="w-full rounded-xl border border-border bg-background px-3 py-2 text-sm"
+        />
+        <select
+          value={codeRole}
+          onChange={(e) => setCodeRole(e.target.value as "admin" | "seller")}
+          className="w-full rounded-xl border border-border bg-background px-3 py-2 text-sm"
+        >
+          <option value="admin">Manajer (produk, pesanan, promo, laporan)</option>
+          <option value="seller">Tim Produk (tambah/ubah produk & foto)</option>
+        </select>
+        <button
+          type="submit"
+          disabled={codeMutation.isPending}
+          className="w-full rounded-full bg-primary px-4 py-2 text-sm font-bold text-primary-foreground disabled:opacity-60"
+        >
+          {codeMutation.isPending ? "Membuat…" : "Buat kode aktivasi"}
+        </button>
+        {issued && (
+          <div className="space-y-2">
+            <textarea
+              readOnly
+              rows={7}
+              value={issued.message}
+              onFocus={(e) => e.currentTarget.select()}
+              className="w-full rounded-xl border border-border bg-background px-3 py-2 font-mono text-xs"
+            />
+            <button
+              type="button"
+              onClick={async () => {
+                try {
+                  await navigator.clipboard.writeText(issued.message);
+                  toast.success("Pesan aktivasi disalin");
+                } catch {
+                  toast.error("Tidak bisa menyalin otomatis; pilih teksnya lalu salin manual.");
+                }
+              }}
+              className="w-full rounded-full bg-secondary px-4 py-2 text-sm font-bold text-navy"
+            >
+              Salin pesan untuk dikirim
+            </button>
+          </div>
+        )}
       </form>
 
       {isPending ? (

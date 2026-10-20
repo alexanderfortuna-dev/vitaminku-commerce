@@ -7,10 +7,14 @@ import { supabase } from "@/integrations/supabase/client";
 import { getMyAdminRole } from "@/lib/admin.functions";
 import { ROLE_LABEL, canEditCommerce, canEditContent, canManageUsers, type AdminRole } from "@/lib/admin-roles";
 
+// Halaman yang boleh dibuka tanpa masuk: halaman masuk dan aktivasi akun staf (dijaga kode dari owner).
+const isOpenPath = (pathname: string) =>
+  pathname.startsWith("/admin/login") || pathname.startsWith("/admin/aktivasi");
+
 export const Route = createFileRoute("/admin")({
   ssr: false,
   beforeLoad: async ({ location }) => {
-    if (location.pathname.startsWith("/admin/login")) return;
+    if (isOpenPath(location.pathname)) return;
     const { data, error } = await supabase.auth.getUser();
     if (error || !data.user) {
       throw redirect({ to: "/admin/login", search: { next: location.pathname } });
@@ -37,7 +41,7 @@ export function useAdminRole() {
 
 function AdminLayout() {
   const router = useRouter();
-  const isLogin = router.state.location.pathname.startsWith("/admin/login");
+  const isLogin = isOpenPath(router.state.location.pathname);
   const { data, isPending, isError, error } = useAdminRole();
 
   if (isLogin) return <Outlet />;
