@@ -9,3 +9,6 @@
 - [2026-10-19][v4] WHEN something is within owner authorization DO execute and verify it instead of sending the owner a manual procedure BECAUSE owner rule v4: owner never receives a manual procedure for something the agent is authorized to do.
 - [2026-10-19][v4] WHEN writing anything the owner sees DO use human Indonesian labels and keep hashes/PR/run IDs/paths in "Lampiran teknis" BECAUSE owner rule v4: owner-facing names are human Indonesian labels.
 - [2026-10-19][v4] WHEN editing the operator workflow guard DO keep it to one pinned branch BECAUSE widening it to several branches was blocked as a security weakening.
+- [2026-10-20][rilis-1] WHEN a workflow result lives only in GITHUB_STEP_SUMMARY DO also echo it to the job log BECAUSE the agent can read job logs via API but not step summaries.
+- [2026-10-20][rilis-1] WHEN production checks must hit supabase.co DO run them inside GitHub Actions BECAUSE the session proxy answers 403 for supabase.co.
+- [2026-10-20][rilis-1] WHEN Vercel answers "User not found"/"token not valid" or 403 "permission to create the project" DO ask the owner for an account-wide token (scope = whole account, not one project) BECAUSE the VERCEL_TOKEN secret was scoped to project nolimit-system and cannot create project vitaminku (runs 20-22).
