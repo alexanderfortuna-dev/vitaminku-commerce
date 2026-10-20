@@ -49,6 +49,7 @@ import { Route as AdminPromoRouteImport } from './routes/admin/promo'
 import { Route as AdminTautanRouteImport } from './routes/admin/tautan'
 import { Route as AdminUploadMassalRouteImport } from './routes/admin/upload-massal'
 import { Route as ApiVitaChatRouteImport } from './routes/api/vita-chat'
+import { Route as ApiVitaminFinderRouteImport } from './routes/api/vitamin-finder'
 import { Route as KategoriIndexRouteImport } from './routes/kategori.index'
 import { Route as KategoriSlugRouteImport } from './routes/kategori.$slug'
 import { Route as MerekIndexRouteImport } from './routes/merek.index'
@@ -264,6 +265,11 @@ const ApiVitaChatRoute = ApiVitaChatRouteImport.update({
   path: '/api/vita-chat',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiVitaminFinderRoute = ApiVitaminFinderRouteImport.update({
+  id: '/api/vitamin-finder',
+  path: '/api/vitamin-finder',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const KategoriIndexRoute = KategoriIndexRouteImport.update({
   id: '/',
   path: '/',
@@ -371,6 +377,7 @@ export interface FileRoutesByFullPath {
   '/admin/tautan': typeof AdminTautanRoute
   '/admin/upload-massal': typeof AdminUploadMassalRoute
   '/api/vita-chat': typeof ApiVitaChatRoute
+  '/api/vitamin-finder': typeof ApiVitaminFinderRoute
   '/kategori/$slug': typeof KategoriSlugRoute
   '/merek/$brand': typeof MerekBrandRoute
   '/pesanan/$token': typeof PesananTokenRoute
@@ -422,6 +429,7 @@ export interface FileRoutesByTo {
   '/admin/tautan': typeof AdminTautanRoute
   '/admin/upload-massal': typeof AdminUploadMassalRoute
   '/api/vita-chat': typeof ApiVitaChatRoute
+  '/api/vitamin-finder': typeof ApiVitaminFinderRoute
   '/kategori/$slug': typeof KategoriSlugRoute
   '/merek/$brand': typeof MerekBrandRoute
   '/pesanan/$token': typeof PesananTokenRoute
@@ -478,6 +486,7 @@ export interface FileRoutesById {
   '/admin/tautan': typeof AdminTautanRoute
   '/admin/upload-massal': typeof AdminUploadMassalRoute
   '/api/vita-chat': typeof ApiVitaChatRoute
+  '/api/vitamin-finder': typeof ApiVitaminFinderRoute
   '/kategori/$slug': typeof KategoriSlugRoute
   '/merek/$brand': typeof MerekBrandRoute
   '/pesanan/$token': typeof PesananTokenRoute
@@ -535,6 +544,7 @@ export interface FileRouteTypes {
     | '/admin/tautan'
     | '/admin/upload-massal'
     | '/api/vita-chat'
+    | '/api/vitamin-finder'
     | '/kategori/$slug'
     | '/merek/$brand'
     | '/pesanan/$token'
@@ -586,6 +596,7 @@ export interface FileRouteTypes {
     | '/admin/tautan'
     | '/admin/upload-massal'
     | '/api/vita-chat'
+    | '/api/vitamin-finder'
     | '/kategori/$slug'
     | '/merek/$brand'
     | '/pesanan/$token'
@@ -641,6 +652,7 @@ export interface FileRouteTypes {
     | '/admin/tautan'
     | '/admin/upload-massal'
     | '/api/vita-chat'
+    | '/api/vitamin-finder'
     | '/kategori/$slug'
     | '/merek/$brand'
     | '/pesanan/$token'
@@ -678,6 +690,7 @@ export interface RootRouteChildren {
   TujuanRoute: typeof TujuanRouteWithChildren
   Char91DotwellKnownChar93OauthProtectedResourceRoute: typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   ApiVitaChatRoute: typeof ApiVitaChatRoute
+  ApiVitaminFinderRoute: typeof ApiVitaminFinderRoute
   PesananTokenRoute: typeof PesananTokenRoute
   ProdukHandleRoute: typeof ProdukHandleRoute
   ApiPublicClientErrorRoute: typeof ApiPublicClientErrorRoute
@@ -966,6 +979,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiVitaChatRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/vitamin-finder': {
+      id: '/api/vitamin-finder'
+      path: '/api/vitamin-finder'
+      fullPath: '/api/vitamin-finder'
+      preLoaderRoute: typeof ApiVitaminFinderRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/kategori/': {
       id: '/kategori/'
       path: '/'
@@ -1186,6 +1206,7 @@ const rootRouteChildren: RootRouteChildren = {
   Char91DotwellKnownChar93OauthProtectedResourceRoute:
     Char91DotwellKnownChar93OauthProtectedResourceRoute,
   ApiVitaChatRoute: ApiVitaChatRoute,
+  ApiVitaminFinderRoute: ApiVitaminFinderRoute,
   PesananTokenRoute: PesananTokenRoute,
   ProdukHandleRoute: ProdukHandleRoute,
   ApiPublicClientErrorRoute: ApiPublicClientErrorRoute,
