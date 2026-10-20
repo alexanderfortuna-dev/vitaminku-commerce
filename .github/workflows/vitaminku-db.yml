@@ -109,7 +109,19 @@ jobs:
           { echo "### Bentuk alamat database"; echo "| Cek | Hasil |"; echo "|---|---|"; printf '%b\n' "$out"; } >> "$GITHUB_STEP_SUMMARY"
           printf '%b\n' "$out"
           [ "$ok" = 1 ] || exit 1
-          echo "DB_URL=$u" >> "$GITHUB_ENV"  # nama baru: variabel job-level tidak bisa ditimpa
+          # Pecah alamat menjadi bagian terpisah (password dengan tanda khusus tidak merusak sambungan).
+          rest="${u#*://}"; userinfo="${rest%@*}"; hostpart="${rest##*@}"
+          U="${userinfo%%:*}"; PW="${userinfo#*:}"
+          hostport="${hostpart%%/*}"; D="${hostpart#*/}"; D="${D%%\?*}"
+          H="${hostport%%:*}"; PORT="${hostport##*:}"
+          case "$PW" in *%[0-9A-Fa-f][0-9A-Fa-f]*) PW="$(printf '%b' "${PW//%/\\x}")" ;; esac
+          echo "::add-mask::$PW"
+          sym=$(printf '%s' "$PW" | tr -d 'A-Za-z0-9' | wc -c)
+          echo "Bagian alamat: server=${H%%.*}…, port=$PORT, database=$D, password ${#PW} karakter (${sym} tanda khusus)"
+          {
+            echo "PGHOST=$H"; echo "PGPORT=$PORT"; echo "PGUSER=$U"; echo "PGDATABASE=$D"
+            echo "PGPASSWORD=$PW"; echo "PGSSLMODE=require"
+          } >> "$GITHUB_ENV"
 
       - uses: actions/checkout@v4
         with:
@@ -126,7 +138,7 @@ jobs:
           # Produksi sudah memuat migrasi s/d 0009. Semua file 0010+ idempoten, dipasang berurutan dalam SATU transaksi.
           files=$(ls drizzle/migrations/[0-9][0-9][0-9][0-9]_*.sql | sort | awk -F/ '{ if (substr($NF,1,4)+0 >= 10) print }')
           args=""; for f in $files; do args="$args -f $f"; done
-          if psql "$DB_URL" -v ON_ERROR_STOP=1 --single-transaction -q $args > /tmp/migrate.log 2>&1; then
+          if psql -v ON_ERROR_STOP=1 --single-transaction -q $args > /tmp/migrate.log 2>&1; then
             echo "### ✅ Database terpasang (satu transaksi): $(echo $files | wc -w) file migrasi" >> "$GITHUB_STEP_SUMMARY"
           else
             echo "### ❌ Pemasangan GAGAL — tidak ada yang berubah (transaksi dibatalkan)" >> "$GITHUB_STEP_SUMMARY"
@@ -152,7 +164,7 @@ jobs:
           for e in "$KINGS_EMAIL" "$LIVITA_EMAIL" "$ADMIN_EMAIL"; do
             [ -z "$e" ] && continue
             m=$(mask "$e")
-            ada=$(echo "select count(*) from auth.users where lower(email)=lower(:'e');" | psql "$DB_URL" -tAq -v e="$e" 2>/dev/null || echo "?")
+            ada=$(echo "select count(*) from auth.users where lower(email)=lower(:'e');" | psql -tAq -v e="$e" 2>/dev/null || echo "?")
             if [ "$ada" = "1" ]; then echo "| $m | sudah terdaftar — dilewati |" >> "$GITHUB_STEP_SUMMARY"; continue; fi
             code=$(curl -sS -o /dev/null -w '%{http_code}' -X POST "${SUPABASE_URL%/}/auth/v1/invite${q}" \
               -H "apikey: $SERVICE_KEY" -H "Authorization: Bearer $SERVICE_KEY" -H "Content-Type: application/json" \
@@ -165,7 +177,7 @@ jobs:
       - name: Aktifkan peran
         if: ${{ contains(fromJSON('["aktifkan-peran","bootstrap"]'), inputs.mode) }}
         run: |
-          if ! psql "$DB_URL" -v ON_ERROR_STOP=1 --single-transaction -q -P footer=off \
+          if ! psql -v ON_ERROR_STOP=1 --single-transaction -q -P footer=off \
               -v kings_email="$KINGS_EMAIL" -v livita_email="$LIVITA_EMAIL" -v admin_email="$ADMIN_EMAIL" \
               -A -F ' | ' -f supabase/operasi/aktifkan-peran.sql > /tmp/boot.log 2>&1; then
             echo "### ❌ Aktifkan peran GAGAL — tidak ada yang berubah" >> "$GITHUB_STEP_SUMMARY"
@@ -178,7 +190,7 @@ jobs:
       - name: Verifikasi (hanya baca)
         if: ${{ !cancelled() && steps.guard.outcome == 'success' && steps.psql.outcome == 'success' }}
         run: |
-          if ! psql "$DB_URL" -v ON_ERROR_STOP=1 -tAq -F '|' -f supabase/operasi/cek-database.sql > /tmp/verify.txt 2>/tmp/verify.err; then
+          if ! psql -v ON_ERROR_STOP=1 -tAq -F '|' -f supabase/operasi/cek-database.sql > /tmp/verify.txt 2>/tmp/verify.err; then
             e=$(cat /tmp/verify.err)
             case "$e" in
               *"password authentication failed"*) why="Password database salah. Reset password di Supabase lalu perbarui SUPABASE_DB_URL." ;;
