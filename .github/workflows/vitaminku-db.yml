@@ -267,10 +267,20 @@ jobs:
           tok="$(clean "$VERCEL_TOKEN")"; sc="$(clean "$VERCEL_SCOPE")"
           npx --yes vercel@latest whoami --token "$tok" >/tmp/who.out 2>/tmp/who.err || true
           who=$(grep -vE '^(Vercel CLI|>)' /tmp/who.out | tail -1 | tr -d '[:space:]')
+          # Token tim (jenis baru) tidak bisa membaca data pengguna: cari tim yang boleh dipakai token ini.
+          if [ -z "$who" ]; then
+            curl -s -H "Authorization: Bearer $tok" "https://api.vercel.com/v2/teams?limit=20" > /tmp/teams.json || true
+            teams=$(jq -r '.teams[]?.slug' /tmp/teams.json 2>/dev/null | tr '\n' ' ')
+            echo "Tim yang bisa dipakai token: ${teams:-(tidak ada)} · kode jawaban: $(jq -r '.error.code // "ok"' /tmp/teams.json 2>/dev/null)"
+            pick=""
+            for t in $teams; do [ "$t" = "$sc" ] && pick="$t"; done
+            [ -z "$pick" ] && pick=$(printf '%s' "$teams" | awk '{print $1}')
+            if [ -n "$pick" ]; then who="tim $pick"; sc="$pick"; fi
+          fi
           if [ -z "$who" ]; then
             alnum=$(printf '%s' "$tok" | tr -cd 'A-Za-z0-9' | wc -c); other=$((${#tok} - alnum))
             hint="Token tidak dikenal Vercel."
-            [ "$other" -gt 0 ] && hint="$hint Isinya mengandung tanda '-' atau simbol: kemungkinan yang tersalin adalah NAMA token, bukan token-nya."
+            [ "$other" -gt 1 ] && hint="$hint Isinya mengandung beberapa tanda/simbol: kemungkinan yang tersalin bukan token Vercel."
             [ "${#tok}" -lt 20 ] && hint="$hint Isinya terlalu pendek (${#tok} karakter) untuk sebuah token."
             {
               echo "### ❌ Token Vercel ditolak"
