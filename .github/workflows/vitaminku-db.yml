@@ -265,8 +265,19 @@ jobs:
             echo "C_$n=$v" >> "$GITHUB_ENV"
           done
           tok="$(clean "$VERCEL_TOKEN")"; sc="$(clean "$VERCEL_SCOPE")"
-          if ! who=$(npx --yes vercel@latest whoami --token "$tok" 2>/tmp/who.err | tail -1); then
-            echo "### ❌ Token Vercel ditolak — buat token baru di vercel.com/account/settings/tokens lalu perbarui VERCEL_TOKEN" >> "$GITHUB_STEP_SUMMARY"
+          npx --yes vercel@latest whoami --token "$tok" >/tmp/who.out 2>/tmp/who.err || true
+          who=$(grep -vE '^(Vercel CLI|>)' /tmp/who.out | tail -1 | tr -d '[:space:]')
+          if [ -z "$who" ]; then
+            alnum=$(printf '%s' "$tok" | tr -cd 'A-Za-z0-9' | wc -c); other=$((${#tok} - alnum))
+            hint="Token tidak dikenal Vercel."
+            [ "$other" -gt 0 ] && hint="$hint Isinya mengandung tanda '-' atau simbol: kemungkinan yang tersalin adalah NAMA token, bukan token-nya."
+            [ "${#tok}" -lt 20 ] && hint="$hint Isinya terlalu pendek (${#tok} karakter) untuk sebuah token."
+            {
+              echo "### ❌ Token Vercel ditolak"
+              echo "$hint"
+              echo "Perbaikan: vercel.com/account/settings/tokens → Create Token → salin kode panjang yang muncul (hanya tampil sekali) → perbarui secret VERCEL_TOKEN."
+            } >> "$GITHUB_STEP_SUMMARY"
+            echo "Token: ${#tok} karakter, ${other} bukan huruf/angka. $hint"
             grep -iE "error" /tmp/who.err | head -2; exit 1
           fi
           echo "Token milik akun: $who"
