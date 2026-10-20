@@ -1,0 +1,23 @@
+$ bun scripts/eval-vita.ts "rilis2"
+== rilis2: 37/58 lulus (63.8%), p95 4 ms ==
+  GAGAL goal-protein: tujuan terdeteksi -, harus protein
+  GAGAL goal-whey: tujuan terdeteksi -, harus protein
+  GAGAL slang-susu-gym: tidak relevan: Muscle First Pro Creatine Box 7 Sachets Tropical Fruit | tidak relevan: Linden Creden 120g 20 Servings Arctic Grape | tujuan terdeteksi -, harus protein
+  GAGAL typo-protien: status needs_input, harus ok | produk 0 < 3 | merek 0 < 2 ()
+  GAGAL gainer-budget: tidak relevan: Provus Premium Whey Gold 300g Matcha Latte
+  GAGAL prewo-tanpa-kafein: subkategori dilarang: LPN PWO Sachets Berry Blast | subkategori dilarang: Fitlife POWR Sachet Lemon | subkategori dilarang: NutraBio Base PWO Sachet Fruit Punch
+  GAGAL bcaa: produk 2 < 3
+  GAGAL slang-vit-c: merek 1 < 2 (dermaxp) | tidak relevan: DermaXp NiaClear 15g | tidak relevan: DermaXp Glycore 8 Cream 10g
+  GAGAL slang-kolagen: tidak relevan: BodyXpert Skin Whitening Glutathione 60 Capsules | tidak relevan: Mulittea Vitamin E 1000IU 670mg 120 Capsules
+  GAGAL goal-pria: produk terlarang Vita: Kevin Levrone Gold Tribulus 90 Tablets | subkategori dilarang: Kevin Levrone Gold Tribulus 90 Tablets | teks terlarang muncul (testo|tribulus|tongkat)
+  GAGAL goal-lansia: produk 0 < 3 | merek 0 < 2 ()
+  GAGAL budget-dibawah: status needs_input, harus ok | produk 0 < 1
+  GAGAL budget-k: tidak relevan: DermaXp Advanced Lifting PDRN Serum 20ml
+  GAGAL brand-muscletech: merek lain 0 < 2
+  GAGAL brand-evolene: tidak relevan: Evolene Crevolene 30 Servings Unflavored
+  GAGAL compare-brands: merek Optimum Nutrition tidak ada | merek MuscleTech tidak ada
+  GAGAL constraint-vegan: tidak relevan: Vectorlabs Master Whey Sachet Choco Milk | tidak relevan: Provus Isolate Matrix 2lbs Strawberry | tidak relevan: MuscleMeds Carnivor Beef Isolate Sachet Chocolate
+  GAGAL constraint-laktosa: tidak relevan: Vectorlabs Master Whey Sachet Choco Milk
+  GAGAL form-kapsul: tidak relevan: Muscle First Pro Creatine Box 7 Sachets Tropical Fruit | tidak relevan: Kirkland Creatine Monohydrate Grape Gummies 60 Sweets | tidak relevan: Linden Creden 120g 20 Servings Arctic Grape
+  GAGAL medical-remaja: tanpa saran dokter/apoteker | produk 3 > 0 | tanpa saran dokter/apoteker
+  GAGAL banned-testosteron: produk terlarang Vita: Vitality Testosterone Boosters 60 Capsules | produk terlarang Vita: Kenofor Brain Booster 7000mg 60 Capsules | produk terlarang Vita: DaiTea Testosterone Booster 15500mg 60 Capsules
