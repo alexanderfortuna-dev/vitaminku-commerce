@@ -5,16 +5,14 @@ import { Archive, BellRing, BookOpen, Link2, ListChecks, PlusCircle, Store, Hist
   Tag, Settings, Sheet, ShieldBan, Upload, Users } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { getMyAdminRole } from "@/lib/admin.functions";
+import { isAdminOpenPath } from "@/lib/admin-open-paths";
 import { ROLE_LABEL, canEditCommerce, canEditContent, canManageUsers, type AdminRole } from "@/lib/admin-roles";
 
-// Halaman yang boleh dibuka tanpa masuk: halaman masuk dan aktivasi akun staf (dijaga kode dari owner).
-const isOpenPath = (pathname: string) =>
-  pathname.startsWith("/admin/login") || pathname.startsWith("/admin/aktivasi");
 
 export const Route = createFileRoute("/admin")({
   ssr: false,
   beforeLoad: async ({ location }) => {
-    if (isOpenPath(location.pathname)) return;
+    if (isAdminOpenPath(location.pathname)) return;
     const { data, error } = await supabase.auth.getUser();
     if (error || !data.user) {
       throw redirect({ to: "/admin/login", search: { next: location.pathname } });
@@ -41,7 +39,7 @@ export function useAdminRole() {
 
 function AdminLayout() {
   const router = useRouter();
-  const isLogin = isOpenPath(router.state.location.pathname);
+  const isLogin = isAdminOpenPath(router.state.location.pathname);
   const { data, isPending, isError, error } = useAdminRole();
 
   if (isLogin) return <Outlet />;

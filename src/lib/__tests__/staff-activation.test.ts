@@ -79,3 +79,119 @@ describe("kode aktivasi staf", () => {
     expect(formatExpiryId("bukan")).toBe("bukan");
   });
 });
+
+/* ------------------------- alur aktivasi (klien disuntik) ------------------------- */
+import { StaffActivationError, cleanDisplayName, grantFor, runStaffActivation, type StaffDeps } from "../staff-activation.server";
+import { isAdminOpenPath } from "../admin-open-paths";
+
+function fakeDeps(over: Partial<StaffDeps> = {}) {
+  const calls: string[] = [];
+  const logs: string[] = [];
+  const deps: StaffDeps = {
+    createUser: async () => { calls.push("create"); return { id: "u-baru" }; },
+    findUserIdByEmail: async () => { calls.push("find"); return "u-lama"; },
+    updateUserPassword: async () => { calls.push("setpw"); return null; },
+    hasRoleRow: async () => { calls.push("hasrole"); return false; },
+    upsertRole: async () => { calls.push("role"); return null; },
+    deleteUser: async (id) => { calls.push(`delete:${id}`); return null; },
+    audit: async () => { calls.push("audit"); return null; },
+    log: (m) => logs.push(m),
+    ...over,
+  };
+  return { deps, calls, logs };
+}
+const exp2 = expiryFromDays(14, NOW);
+const goodCode = makeStaffCode({ secret: SECRET, email: EMAIL, grant: ADMIN, expiresOn: exp2 });
+const base = { secret: SECRET, email: EMAIL, password: "kata-sandi-panjang", code: goodCode, now: NOW };
+
+describe("alur aktivasi akun staf", () => {
+  it("jalur normal: buat akun, simpan peran, catat audit", async () => {
+    const { deps, calls } = fakeDeps();
+    expect(await runStaffActivation(deps, base)).toEqual({ ok: true });
+    expect(calls).toEqual(["create", "role", "audit"]);
+  });
+
+  it("kode salah -> tidak ada akun dibuat, kind=code", async () => {
+    const { deps, calls } = fakeDeps();
+    const err = await runStaffActivation(deps, { ...base, code: "VK-20261104-AAAAA-AAAAA-AAAAA-AAAAA" }).catch((e) => e);
+    expect(err).toBeInstanceOf(StaffActivationError);
+    expect(err.kind).toBe("code");
+    expect(calls).toEqual([]);
+  });
+
+  it("rahasia server belum dipasang -> pesan sama dengan 'tidak cocok' dan tercatat di log", async () => {
+    const { deps, logs } = fakeDeps();
+    const err = await runStaffActivation(deps, { ...base, secret: undefined }).catch((e) => e);
+    expect(err.message).toBe("Email atau kode aktivasi tidak cocok.");
+    expect(logs.join()).toContain("STAFF_ACTIVATION_SECRET");
+  });
+
+  it("nama tampilan bukan teks tidak membuat akun yatim", async () => {
+    expect(cleanDisplayName({})).toBeNull();
+    expect(cleanDisplayName(42)).toBeNull();
+    expect(cleanDisplayName("  Admin 1  ")).toBe("Admin 1");
+    expect(cleanDisplayName("x".repeat(200))).toHaveLength(80);
+    const { deps, calls } = fakeDeps();
+    await runStaffActivation(deps, { ...base, displayName: { aneh: true } });
+    expect(calls).toEqual(["create", "role", "audit"]);
+  });
+
+  it("peran gagal disimpan -> akun yang baru dibuat dibatalkan", async () => {
+    const { deps, calls } = fakeDeps({ upsertRole: async () => "boom" });
+    await expect(runStaffActivation(deps, base)).rejects.toThrow("Gagal menyimpan peran");
+    expect(calls).toContain("delete:u-baru");
+  });
+
+  it("peran gagal DAN pembatalan gagal -> pesan jujur ke staf dan jejak di log", async () => {
+    const { deps, logs } = fakeDeps({ upsertRole: async () => "boom", deleteUser: async () => "gagal hapus" });
+    await expect(runStaffActivation(deps, base)).rejects.toThrow("Hubungi owner");
+    expect(logs.join("\n")).toContain("u-baru");
+  });
+
+  it("email sudah punya akun pelanggan tanpa peran -> peran diberikan dan kata sandi diatur", async () => {
+    const { deps, calls } = fakeDeps({ createUser: async () => ({ exists: true as const }) });
+    await runStaffActivation(deps, base);
+    expect(calls).toEqual(["find", "hasrole", "setpw", "role", "audit"]);
+  });
+
+  it("akun lama dengan peran (sudah aktif) -> ditolak; akun lama TIDAK pernah dihapus saat gagal", async () => {
+    const active = fakeDeps({ createUser: async () => ({ exists: true as const }), hasRoleRow: async () => true });
+    await expect(runStaffActivation(active.deps, base)).rejects.toThrow("sudah aktif");
+    expect(active.calls).not.toContain("setpw");
+    const failing = fakeDeps({ createUser: async () => ({ exists: true as const }), upsertRole: async () => "boom" });
+    await expect(runStaffActivation(failing.deps, base)).rejects.toThrow();
+    expect(failing.calls.some((c) => c.startsWith("delete"))).toBe(false);
+  });
+
+  it("galat createUser lain dicatat ke log dan pesan ke staf generik", async () => {
+    const { deps, logs } = fakeDeps({ createUser: async () => ({ error: "422 weak_password" }) });
+    await expect(runStaffActivation(deps, base)).rejects.toThrow("Gagal membuat akun");
+    expect(logs.join()).toContain("weak_password");
+  });
+
+  it("kegagalan audit tidak menggagalkan aktivasi tetapi tercatat", async () => {
+    const { deps, logs } = fakeDeps({ audit: async () => "audit down" });
+    expect(await runStaffActivation(deps, base)).toEqual({ ok: true });
+    expect(logs.join()).toContain("audit");
+  });
+});
+
+describe("hak yang boleh diberikan lewat kode", () => {
+  it("owner dan peran asing ditolak", () => {
+    for (const bad of ["owner", "superadmin", "", "ADMIN"]) expect(() => grantFor(bad)).toThrow();
+    expect(grantFor("admin")).toEqual({ role: "admin", title: "admin" });
+    expect(grantFor("admin", "general_manager")).toEqual({ role: "admin", title: "general_manager" });
+    expect(grantFor("seller", "general_manager")).toEqual({ role: "seller", title: null });
+  });
+});
+
+describe("penjaga halaman terbuka /admin", () => {
+  it("hanya login dan aktivasi (eksak atau anak rute)", () => {
+    expect(isAdminOpenPath("/admin/login")).toBe(true);
+    expect(isAdminOpenPath("/admin/aktivasi")).toBe(true);
+    expect(isAdminOpenPath("/admin/aktivasi/")).toBe(true);
+    for (const closed of ["/admin", "/admin/aktivitas", "/admin/aktivasi-lain", "/admin/loginx", "/admin/pengguna"]) {
+      expect(isAdminOpenPath(closed)).toBe(false);
+    }
+  });
+});

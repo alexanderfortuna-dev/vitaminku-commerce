@@ -77,7 +77,7 @@ export function verifyStaffCode(input: {
   secret: string | undefined;
   email: string;
   code: string;
-  now?: Date;
+  now?: Date | undefined;
 }): VerifyResult {
   if (!input.secret || input.secret.length < MIN_SECRET_LENGTH) return { ok: false, reason: "unavailable" };
   const compact = input.code.toUpperCase().replace(/[^A-Z0-9]/g, "");
@@ -94,4 +94,98 @@ export function verifyStaffCode(input: {
   const now = (input.now ?? new Date()).getTime();
   if (now > endOfDayWib(expiresOn)) return { ok: false, reason: "expired" };
   return { ok: true, grant: found, expiresOn };
+}
+
+/** Satu-satunya tempat peran dari input owner diterjemahkan ke hak. Owner (atau apa pun selain dua peran) ditolak. */
+export function grantFor(role: string, title?: string | null): StaffGrant {
+  if (role === "admin") return { role: "admin", title: title === "general_manager" ? "general_manager" : "admin" };
+  if (role === "seller") return { role: "seller", title: null };
+  throw new Error("Peran tidak valid.");
+}
+
+/* ---------------------------- alur aktivasi akun ---------------------------- */
+
+export class StaffActivationError extends Error {
+  constructor(
+    message: string,
+    /** "code" = kode/email salah (dihitung ke pembatas percobaan); "other" = kegagalan lain. */
+    readonly kind: "code" | "other",
+  ) {
+    super(message);
+  }
+}
+
+/** Operasi database/auth yang disuntikkan, supaya alur bisa diuji tanpa Supabase. Nilai kembali: pesan galat atau null. */
+export type StaffDeps = {
+  createUser(email: string, password: string): Promise<{ id: string } | { exists: true } | { error: string }>;
+  findUserIdByEmail(email: string): Promise<string | null>;
+  updateUserPassword(id: string, password: string): Promise<string | null>;
+  hasRoleRow(id: string): Promise<boolean>;
+  upsertRole(id: string, grant: StaffGrant, displayName: string | null): Promise<string | null>;
+  deleteUser(id: string): Promise<string | null>;
+  audit(id: string, grant: StaffGrant): Promise<string | null>;
+  log(message: string): void;
+};
+
+export function cleanDisplayName(value: unknown): string | null {
+  if (typeof value !== "string") return null;
+  return value.trim().slice(0, 80) || null;
+}
+
+export async function runStaffActivation(
+  deps: StaffDeps,
+  input: { secret: string | undefined; email: string; password: string; code: string; displayName?: unknown; now?: Date | undefined },
+): Promise<{ ok: true }> {
+  const email = normalizeEmail(input.email);
+  const displayName = cleanDisplayName(input.displayName); // dihitung SEBELUM akun dibuat
+
+  const verdict = verifyStaffCode({ secret: input.secret, email, code: input.code, now: input.now });
+  if (!verdict.ok) {
+    if (verdict.reason === "unavailable") deps.log("STAFF_ACTIVATION_SECRET belum dipasang atau terlalu pendek");
+    if (verdict.reason === "expired") {
+      throw new StaffActivationError("Kode aktivasi sudah kedaluwarsa. Minta kode baru ke owner.", "code");
+    }
+    throw new StaffActivationError("Email atau kode aktivasi tidak cocok.", "code");
+  }
+  const grant = verdict.grant;
+
+  let userId: string;
+  let createdHere = false;
+  const created = await deps.createUser(email, input.password);
+  if ("id" in created) {
+    userId = created.id;
+    createdHere = true;
+  } else if ("exists" in created) {
+    // Email sudah punya akun (mis. pernah belanja lewat tautan email). Sekali-pakai dijaga oleh baris peran, bukan oleh kegagalan createUser.
+    const existingId = await deps.findUserIdByEmail(email);
+    if (!existingId) throw new StaffActivationError("Gagal membuat akun. Hubungi owner.", "other");
+    if (await deps.hasRoleRow(existingId)) {
+      throw new StaffActivationError("Akun staf dengan email ini sudah aktif. Silakan langsung masuk.", "other");
+    }
+    const pwError = await deps.updateUserPassword(existingId, input.password);
+    if (pwError) {
+      deps.log(`updateUserPassword gagal: ${pwError}`);
+      throw new StaffActivationError("Gagal mengatur kata sandi. Coba lagi atau hubungi owner.", "other");
+    }
+    userId = existingId;
+  } else {
+    deps.log(`createUser gagal: ${created.error}`);
+    throw new StaffActivationError("Gagal membuat akun. Coba lagi atau hubungi owner.", "other");
+  }
+
+  const roleError = await deps.upsertRole(userId, grant, displayName);
+  if (roleError) {
+    deps.log(`upsertRole gagal: ${roleError}`);
+    if (createdHere) {
+      const delError = await deps.deleteUser(userId); // hanya akun yang baru kita buat; akun lama tidak pernah dihapus
+      if (delError) {
+        deps.log(`deleteUser (pembatalan) gagal untuk ${userId}: ${delError}`);
+        throw new StaffActivationError("Akun terbuat tetapi peran gagal disimpan. Hubungi owner; sebutkan waktu kejadian.", "other");
+      }
+    }
+    throw new StaffActivationError("Gagal menyimpan peran staf. Coba lagi atau hubungi owner.", "other");
+  }
+  const auditError = await deps.audit(userId, grant);
+  if (auditError) deps.log(`audit staff_activate gagal: ${auditError}`);
+  return { ok: true };
 }
