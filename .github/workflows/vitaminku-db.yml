@@ -320,18 +320,41 @@ jobs:
           if [ -n "$sc" ] && npx --yes vercel@latest project ls --token "$tok" --scope "$sc" >/dev/null 2>&1; then arg="--scope $sc"; fi
           [ -z "$arg" ] && [ -n "$sc" ] && echo "Nama tim '$sc' tidak dipakai (akun pribadi) — memakai akun pemilik token."
           echo "VC_SCOPE=$arg" >> "$GITHUB_ENV"
+          # ID tim/akun untuk API langsung (CLI Vercel menolak token yang tidak bisa membaca data pengguna).
+          tid=""
+          [ -n "$sc" ] && tid=$(curl -s -H "Authorization: Bearer $tok" "https://api.vercel.com/v2/teams/$sc" | jq -r '.id // empty')
+          [ -z "$tid" ] && [ -n "$sc" ] && tid=$(curl -s -H "Authorization: Bearer $tok" "https://api.vercel.com/v9/projects?slug=$sc&limit=1" | jq -r '.projects[0].accountId // empty')
+          [ -z "$tid" ] && tid=$(curl -s -H "Authorization: Bearer $tok" "https://api.vercel.com/v2/user" | jq -r '.user.defaultTeamId // .user.id // empty')
+          [ -z "$tid" ] && { echo "ID tim Vercel tidak ditemukan untuk token ini."; exit 1; }
+          echo "VC_TEAM=$tid" >> "$GITHUB_ENV"
           echo "### ✅ Token Vercel milik akun **$who**" >> "$GITHUB_STEP_SUMMARY"
 
       - name: Buat/sambungkan proyek "vitaminku" (terpisah dari NoLimit System)
         run: |
-          npx --yes vercel@latest link --yes --project vitaminku --token "$C_VERCEL_TOKEN" $VC_SCOPE > /tmp/link.log 2>&1 || { tail -5 /tmp/link.log; exit 1; }
+          api() { curl -s -H "Authorization: Bearer $C_VERCEL_TOKEN" -H "Content-Type: application/json" "$@"; }
+          q="teamId=$VC_TEAM"
+          code=$(api -o /tmp/p.json -w '%{http_code}' "https://api.vercel.com/v9/projects/vitaminku?$q")
+          if [ "$code" = "404" ]; then
+            code=$(api -o /tmp/p.json -w '%{http_code}' -X POST "https://api.vercel.com/v11/projects?$q" -d '{"name":"vitaminku","framework":null}')
+          fi
+          pid=$(jq -r 'select(.name == "vitaminku") | .id // empty' /tmp/p.json)
+          if [ -z "$pid" ]; then
+            echo "Proyek vitaminku tidak bisa dibaca/dibuat: kode $code · $(jq -r '.error.code // ""' /tmp/p.json) · $(jq -r '.error.message // ""' /tmp/p.json | head -c 200)"
+            echo "### ❌ Proyek vitaminku tidak bisa dibuat (kode $code) — token kemungkinan hanya untuk proyek lain" >> "$GITHUB_STEP_SUMMARY"
+            exit 1
+          fi
+          echo "VC_PROJECT=$pid" >> "$GITHUB_ENV"
+          echo "Proyek vitaminku siap (kode $code)."
           echo "### ✅ Proyek Vercel: vitaminku (NoLimit System tidak disentuh)" >> "$GITHUB_STEP_SUMMARY"
 
       - name: Isi variabel lingkungan (nilai tidak dicetak)
         run: |
+          api() { curl -s -H "Authorization: Bearer $C_VERCEL_TOKEN" -H "Content-Type: application/json" "$@"; }
           put() { [ -z "$2" ] && return 0
-            printf '%s' "$2" | npx --yes vercel@latest env add "$1" production --force --token "$C_VERCEL_TOKEN" $VC_SCOPE >/dev/null 2>&1 \
-              && echo "| $1 | ✅ |" >> "$GITHUB_STEP_SUMMARY" || { echo "| $1 | ❌ |" >> "$GITHUB_STEP_SUMMARY"; return 1; }; }
+            code=$(jq -nc --arg k "$1" --arg v "$2" '{key:$k,value:$v,type:"encrypted",target:["production"]}' \
+              | api -o /tmp/e.json -w '%{http_code}' -X POST "https://api.vercel.com/v10/projects/$VC_PROJECT/env?upsert=true&teamId=$VC_TEAM" --data-binary @-)
+            if [ "$code" = "200" ] || [ "$code" = "201" ]; then echo "| $1 | ✅ |" >> "$GITHUB_STEP_SUMMARY"; echo "$1: tersimpan"
+            else echo "| $1 | ❌ $code |" >> "$GITHUB_STEP_SUMMARY"; echo "$1: gagal $code $(jq -r '.error.code // ""' /tmp/e.json)"; return 1; fi; }
           echo "| Variabel | Status |" >> "$GITHUB_STEP_SUMMARY"; echo "|---|---|" >> "$GITHUB_STEP_SUMMARY"
           put SUPABASE_URL "$C_V_SUPABASE_URL"
           put VITE_SUPABASE_URL "$C_V_SUPABASE_URL"
@@ -344,14 +367,16 @@ jobs:
 
       - name: Deploy produksi
         run: |
-          url=$(npx --yes vercel@latest deploy --prod --yes --token "$C_VERCEL_TOKEN" $VC_SCOPE 2>/tmp/deploy.err | tail -1)
+          # Proyek sudah tertaut lewat ID: CLI tidak perlu memilih akun/tim.
+          export VERCEL_ORG_ID="$VC_TEAM" VERCEL_PROJECT_ID="$VC_PROJECT"
+          url=$(npx --yes vercel@latest deploy --prod --yes --token "$C_VERCEL_TOKEN" 2>/tmp/deploy.err | tail -1)
           if [ -z "$url" ]; then echo "### ❌ Deploy gagal" >> "$GITHUB_STEP_SUMMARY"; grep -iE "error" /tmp/deploy.err | head -5; exit 1; fi
           echo "### ✅ Situs tayang: $url" >> "$GITHUB_STEP_SUMMARY"
-          npx --yes vercel@latest inspect "$url" --token "$C_VERCEL_TOKEN" $VC_SCOPE > /tmp/inspect.txt 2>&1 || true
-          site=$(grep -oE 'https://[a-z0-9-]+\.vercel\.app' /tmp/inspect.txt | grep -v -- "$(basename "$url")" | awk '{ print length, $0 }' | sort -n | head -1 | cut -d' ' -f2)
-          site="${site:-$url}"
+          curl -s -H "Authorization: Bearer $C_VERCEL_TOKEN" "https://api.vercel.com/v13/deployments/${url#https://}?teamId=$VC_TEAM" > /tmp/dep.json
+          site=$(jq -r '.alias[]?' /tmp/dep.json | awk '{ print length, $0 }' | sort -n | head -1 | cut -d' ' -f2)
+          site="${site:+https://$site}"; site="${site:-$url}"
           echo "SITE=$site" >> "$GITHUB_ENV"
-          echo "Alamat deploy: $url"; echo "Alamat toko: $site"; echo "Commit: $(git rev-parse HEAD)"
+          echo "Alamat deploy: $url"; echo "Alamat toko: $site"; echo "Status: $(jq -r '.readyState // "?"' /tmp/dep.json)"; echo "Commit: $(git rev-parse HEAD)"
           echo "Alamat toko: $site · commit $(git rev-parse --short HEAD)" >> "$GITHUB_STEP_SUMMARY"
 
       - name: Uji asap situs (hanya membaca halaman publik)
