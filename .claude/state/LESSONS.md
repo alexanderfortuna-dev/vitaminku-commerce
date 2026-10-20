@@ -12,3 +12,6 @@
 - [2026-10-20][rilis-1] WHEN a workflow result lives only in GITHUB_STEP_SUMMARY DO also echo it to the job log BECAUSE the agent can read job logs via API but not step summaries.
 - [2026-10-20][rilis-1] WHEN production checks must hit supabase.co DO run them inside GitHub Actions BECAUSE the session proxy answers 403 for supabase.co.
 - [2026-10-20][rilis-1] WHEN Vercel answers "User not found"/"token not valid" or 403 "permission to create the project" DO ask the owner for an account-wide token (scope = whole account, not one project) BECAUSE the VERCEL_TOKEN secret was scoped to project nolimit-system and cannot create project vitaminku (runs 20-22).
+- [2026-10-21][rilis-3] WHEN public src code must detect cost-price probes DO keep those patterns in supabase/functions/_shared/vitamin-finder-core.ts BECAUSE hpp-lockdown/promo-geo tests forbid the word anywhere in public src; never obfuscate to pass them.
+- [2026-10-21][rilis-3] WHEN tagging catalog products DO match name text only and map subcategory separately BECAUSE subcategory "Protein" made creatine (Crevolene) look like whey; descriptions are empty for all 1,193 sellable products.
+- [2026-10-21][rilis-3] WHEN writing an eval expectation with a budget DO check the catalog has items under it BECAUSE no multivitamin exists below Rp 185.000 and the honest answer is "none".

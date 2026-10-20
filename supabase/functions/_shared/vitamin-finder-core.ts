@@ -129,6 +129,17 @@ export function isCostOrSecretProbe(text: string): boolean {
   return COST_PROBE.some((re) => re.test(text));
 }
 
+const COST_STRIP: RegExp[] = [
+  /\b(tampilkan|tunjukkan|kasih|beri|sebutkan|show|print|reveal)\b[^,.?!]{0,20}\b(hpp|harga\s*(modal|pokok|beli\s*toko|kulak)|cost\s*price|system\s*prompt|prompt|instruksi|api[\s_-]?key|service[\s_-]?role)\b/gi,
+  /\b(hpp|harga\s*(modal|pokok|beli\s*toko|kulak)|cost\s*price|system\s*prompt|prompt\s*(awal|sistem)|api[\s_-]?key|service[\s_-]?role)\b/gi,
+];
+/** Buang permintaan data internal (harga modal, prompt, kunci) dari pesan, sisanya diproses normal. */
+export function stripCostOrSecretProbe(text: string): string {
+  let t = text;
+  for (const re of COST_STRIP) t = t.replace(re, " ");
+  return t;
+}
+
 const INJECTION: RegExp[] = [
   /\b(abaikan|lupakan|acuhkan|langgar)\b.{0,30}\b(aturan|instruksi|perintah|larangan)\b/i,
   /\bignore\b.{0,30}\b(rules?|instructions?|previous|above)\b/i,
