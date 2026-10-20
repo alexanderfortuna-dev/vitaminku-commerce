@@ -294,6 +294,14 @@ jobs:
             [ -z "$pick" ] && pick=$(printf '%s' "$teams" | awk '{print $1}')
             if [ -n "$pick" ]; then who="tim $pick"; sc="$pick"; fi
           fi
+          # Akun Vercel baru berjalan sebagai tim bernama sama dengan akun: coba langsung lingkup itu.
+          if [ -z "$who" ]; then
+            for s in $sc alexanderfortuna-dev; do
+              code=$(curl -s -o /dev/null -w '%{http_code}' -H "Authorization: Bearer $tok" "https://api.vercel.com/v9/projects?slug=$s&limit=1")
+              echo "Coba lingkup '$s': kode $code"
+              if [ "$code" = "200" ]; then who="tim $s"; sc="$s"; break; fi
+            done
+          fi
           if [ -z "$who" ]; then
             alnum=$(printf '%s' "$tok" | tr -cd 'A-Za-z0-9' | wc -c); other=$((${#tok} - alnum))
             hint="Token tidak dikenal Vercel."
