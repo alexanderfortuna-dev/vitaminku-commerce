@@ -22,21 +22,8 @@ import { MANUAL_SHIPPING_LABEL, buildFallbackWhatsappUrl } from "@/lib/whatsapp-
 import { OFFICIAL_WHATSAPP_MAIN } from "@/lib/official-contacts";
 import { reportClientError } from "@/lib/client-error-report";
 
-const SAVED_KEY = "vitaminku-checkout-details";
-function loadSaved(): { name?: string; whatsapp?: string; address?: string; branchId?: string } {
-  try {
-    return JSON.parse(localStorage.getItem(SAVED_KEY) ?? "{}") ?? {};
-  } catch {
-    return {};
-  }
-}
-function saveDetails(d: { name: string; whatsapp: string; address: string; branchId: string | null }) {
-  try {
-    localStorage.setItem(SAVED_KEY, JSON.stringify(d));
-  } catch {
-    /* storage unavailable */
-  }
-}
+import { clearSavedDetails, loadSavedDetails, saveDetails } from "@/lib/checkout-details";
+import { readPendingPromo, writePendingPromo } from "@/lib/promo";
 
 export const Route = createFileRoute("/checkout")({
   ssr: false,
@@ -143,13 +130,30 @@ function CheckoutPage() {
   const [submitting, setSubmitting] = useState(false);
   const submitRef = useRef(false);
 
+  const [fromSaved, setFromSaved] = useState(false);
   useEffect(() => {
-    const d = loadSaved();
+    // Data pesanan terakhir terisi otomatis (nol ketukan); pelanggan bisa menghapusnya kapan saja.
+    const d = loadSavedDetails();
     if (d.name) setName(d.name);
     if (d.whatsapp) setWhatsapp(d.whatsapp);
     if (d.address) setAddress(d.address);
     if (d.branchId) setBranchId(d.branchId);
+    setFromSaved(!!(d.name || d.whatsapp || d.address));
+    // Kode promo yang dipilih di keranjang/spanduk dipakai otomatis.
+    const pending = readPendingPromo();
+    if (pending) {
+      setPromoInput(pending);
+      setPromoCode(pending);
+    }
   }, []);
+  function forgetMe() {
+    clearSavedDetails();
+    setName("");
+    setWhatsapp("");
+    setAddress("");
+    setFromSaved(false);
+    toast.success("Data Anda di perangkat ini sudah dihapus.");
+  }
 
   // Tautan ?cabang=KODE: pilih-awal cabang (sekali, setelah daftar cabang termuat). Tidak memakai lokasi.
   const linkApplied = useRef(false);
@@ -247,6 +251,7 @@ function CheckoutPage() {
         },
       });
       saveDetails({ name, whatsapp, address, branchId: activeBranchId });
+      writePendingPromo(null);
       clearCart();
       rememberOrder(res.orderNumber, res.accessToken);
       if (method === "midtrans" && res.paymentUrl) window.location.assign(res.paymentUrl);
@@ -330,9 +335,9 @@ function CheckoutPage() {
             <input className={`${input} mt-0 font-normal uppercase`} value={promoInput} maxLength={32}
               onChange={(e) => setPromoInput(e.target.value)} placeholder="Opsional" />
             {promoCode ? (
-              <button type="button" onClick={() => { setPromoCode(null); setPromoInput(""); }} className="min-h-11 shrink-0 rounded-full bg-secondary px-4 text-xs font-bold text-navy">Hapus</button>
+              <button type="button" onClick={() => { setPromoCode(null); setPromoInput(""); writePendingPromo(null); }} className="min-h-11 shrink-0 rounded-full bg-secondary px-4 text-xs font-bold text-navy">Hapus</button>
             ) : (
-              <button type="button" disabled={!promoInput.trim()} onClick={() => setPromoCode(promoInput.trim())} className="min-h-11 shrink-0 rounded-full bg-primary px-4 text-xs font-bold text-primary-foreground disabled:opacity-50">Pakai</button>
+              <button type="button" disabled={!promoInput.trim()} onClick={() => { setPromoCode(promoInput.trim()); writePendingPromo(promoInput.trim()); }} className="min-h-11 shrink-0 rounded-full bg-primary px-4 text-xs font-bold text-primary-foreground disabled:opacity-50">Pakai</button>
             )}
           </div>
           {promoCode && quote.data?.promoError && <span className="mt-1 block text-xs font-normal text-destructive">{quote.data.promoError}</span>}
@@ -378,6 +383,14 @@ function CheckoutPage() {
 
       {step === 0 && (
         <section className="space-y-3 px-4 pt-4">
+          {fromSaved && (
+            <p className="flex items-center justify-between gap-2 rounded-xl bg-primary-soft px-3 py-2 text-xs text-accent-foreground">
+              <span>Data pesanan terakhir terisi otomatis. Cukup periksa, lalu kirim.</span>
+              <button type="button" onClick={forgetMe} className="min-h-11 shrink-0 font-bold underline">
+                Hapus data saya
+              </button>
+            </p>
+          )}
           <label className="block text-sm font-semibold text-navy">
             Nama penerima
             <input className={input} value={name} onChange={(e) => setName(e.target.value)} onBlur={() => setTouched(true)} autoComplete="name" />

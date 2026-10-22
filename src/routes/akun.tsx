@@ -10,6 +10,9 @@ import { formatIDR } from "@/lib/format";
 import { toast } from "sonner";
 import { AdminPanelLink } from "@/components/AdminPanelLink";
 import { AccountSection } from "@/components/AccountSection";
+import { ThemeToggle } from "@/components/ThemeToggle";
+import { clearSavedDetails, hasSavedDetails } from "@/lib/checkout-details";
+import { useEffect, useState } from "react";
 
 export const Route = createFileRoute("/akun")({
   head: () => ({
@@ -50,6 +53,8 @@ function SavedPage() {
   const foundHandles = wishlist.map((p) => productSlug(p));
   const missingHandles = handles.filter((h) => !foundHandles.includes(h));
 
+  const [savedGuest, setSavedGuest] = useState(false);
+  useEffect(() => setSavedGuest(hasSavedDetails()), []);
   const scrollToSection = (id: string) => {
     document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" });
   };
@@ -113,6 +118,28 @@ function SavedPage() {
       <AdminPanelLink />
 
       <AccountSection />
+      <section className="mx-4 mb-4 p-4 card-surface" aria-label="Pengaturan tampilan & data">
+        <p className="text-sm font-bold text-navy">Pengaturan</p>
+        <div className="mt-2 flex flex-wrap items-center gap-2">
+          <ThemeToggle withLabel />
+          {savedGuest && (
+            <button
+              type="button"
+              onClick={() => {
+                clearSavedDetails();
+                setSavedGuest(false);
+                toast.success("Data pesanan di perangkat ini sudah dihapus.");
+              }}
+              className="inline-flex min-h-11 items-center rounded-full border border-border px-4 text-sm font-bold text-navy"
+            >
+              Hapus data saya
+            </button>
+          )}
+        </div>
+        <p className="mt-2 text-[11px] text-muted-foreground">
+          Mode gelap mengikuti setelan HP sampai Anda memilih sendiri. {savedGuest ? "Nama, nomor, dan alamat pesanan terakhir tersimpan hanya di perangkat ini." : ""}
+        </p>
+      </section>
 
       <section id="simpanan" className="scroll-mt-24 py-4">
         <h2 className="px-4 pb-3 text-base font-extrabold">Simpan untuk Nanti</h2>
