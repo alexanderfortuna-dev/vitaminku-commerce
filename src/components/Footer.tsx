@@ -1,6 +1,9 @@
 import { Link } from "@tanstack/react-router";
 import { Logo } from "./Logo";
 import { openInstall } from "@/lib/pwa";
+import { OFFICIAL_WHATSAPP_MAIN } from "@/lib/official-contacts";
+
+const PROMO_OPTIN_URL = `https://wa.me/${OFFICIAL_WHATSAPP_MAIN}?text=${encodeURIComponent("Halo VitaminKu, saya ingin dikabari bila ada promo. Nama saya: ")}`;
 
 export function Footer() {
   return (
@@ -18,6 +21,9 @@ export function Footer() {
           <button type="button" onClick={openInstall} className="min-h-11 -my-3 font-semibold">
             Pasang Aplikasi
           </button>
+          <a href={PROMO_OPTIN_URL} target="_blank" rel="noopener noreferrer" className="inline-flex min-h-11 -my-3 items-center font-semibold">
+            Kabari promo via WhatsApp
+          </a>
         </div>
         <nav aria-label="Informasi hukum" className="mt-1 flex flex-wrap gap-x-5 text-xs font-semibold text-navy">
           <Link to="/syarat" className="inline-flex min-h-11 items-center">Syarat &amp; Ketentuan</Link>
