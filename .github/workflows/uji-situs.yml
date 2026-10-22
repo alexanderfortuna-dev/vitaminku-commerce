@@ -1,0 +1,44 @@
+name: "VitaminKu — Uji Situs (hanya membaca)"
+
+# Uji halaman publik, tampilan ponsel 375px, dan alur belanja tamu pada alamat mana pun (produksi atau pratinjau).
+# Tidak memakai secret, tidak menyentuh database, tidak membuat pesanan. Aman dijalankan dari cabang mana pun.
+on:
+  workflow_dispatch:
+    inputs:
+      site_url:
+        description: "Alamat situs yang diuji (mis. https://vitaminku.vercel.app atau alamat pratinjau Vercel)"
+        type: string
+        default: "https://vitaminku.vercel.app"
+
+permissions:
+  contents: read
+
+jobs:
+  uji:
+    name: uji situs
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Uji halaman publik, ponsel 375px, alur belanja tamu
+        env:
+          SITE_INPUT: ${{ inputs.site_url }}
+        run: |
+          SITE="$(printf '%s' "$SITE_INPUT" | tr -d '\r\n "')"; SITE="${SITE%/}"
+          echo "Situs diuji: $SITE · commit $(git rev-parse --short HEAD)"
+          code=$(curl -s -o /dev/null -w '%{http_code}' -L --max-time 30 "$SITE/")
+          if [ "$code" = "401" ] || [ "$code" = "403" ]; then
+            echo "situs|GAGAL|HTTP $code: alamat ini dilindungi login Vercel. Matikan Deployment Protection untuk pratinjau, atau uji alamat produksi." | tee /tmp/situs.txt
+            { echo "### ❌ Situs dilindungi (HTTP $code)"; echo "Vercel → Project vitaminku → Settings → Deployment Protection → nonaktifkan untuk Preview, lalu jalankan lagi."; } >> "$GITHUB_STEP_SUMMARY"
+            exit 1
+          fi
+          SITE="$SITE" bash scripts/uji-situs.sh | tee /tmp/situs.txt; f1=${PIPESTATUS[0]}
+          mkdir -p /tmp/pw && (cd /tmp/pw && npm init -y >/dev/null && npm i -s playwright@1.48.2 >/dev/null && npx playwright install --with-deps chromium >/dev/null 2>&1)
+          cp scripts/uji-situs-ponsel.mjs scripts/uji-belanja.mjs /tmp/pw/
+          (cd /tmp/pw && SITE="$SITE" node uji-situs-ponsel.mjs) | tee -a /tmp/situs.txt; f2=${PIPESTATUS[0]}
+          (cd /tmp/pw && SITE="$SITE" node uji-belanja.mjs) | tee -a /tmp/situs.txt; f3=${PIPESTATUS[0]}
+          { echo "### Uji situs ($SITE, commit $(git rev-parse --short HEAD))"; echo "| Uji | Hasil | Detail |"; echo "|---|---|---|"
+            while IFS='|' read -r a b c; do echo "| $a | $b | $c |"; done < /tmp/situs.txt; } >> "$GITHUB_STEP_SUMMARY"
+          [ "$f1" = 0 ] && [ "$f2" = 0 ] && [ "$f3" = 0 ]
