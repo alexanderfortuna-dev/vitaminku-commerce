@@ -3,7 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { formatIDR } from "@/lib/format";
 import { quoteCart } from "@/lib/checkout.functions";
-import { normalizePromoCode, readPendingPromo, writePendingPromo } from "@/lib/promo";
+import { PENDING_PROMO_EVENT, normalizePromoCode, readPendingPromo, writePendingPromo } from "@/lib/promo";
 
 /**
  * Kode diskon di keranjang: harga tetap dihitung server (quoteCart); kode disimpan di perangkat agar
@@ -13,11 +13,14 @@ export function CartPromoBox({ lines }: { lines: Array<{ slug: string; quantity:
   const [input, setInput] = useState("");
   const [code, setCode] = useState<string | null>(null);
   useEffect(() => {
-    const pending = readPendingPromo();
-    if (pending) {
-      setInput(pending);
+    const sync = () => {
+      const pending = readPendingPromo();
+      setInput(pending ?? "");
       setCode(pending);
-    }
+    };
+    sync();
+    window.addEventListener(PENDING_PROMO_EVENT, sync); // tombol "Pakai" di spanduk promo
+    return () => window.removeEventListener(PENDING_PROMO_EVENT, sync);
   }, []);
   const fetchQuote = useServerFn(quoteCart);
   const quote = useQuery({
@@ -71,6 +74,7 @@ export function CartPromoBox({ lines }: { lines: Array<{ slug: string; quantity:
       </div>
       {code && quote.isPending && <p className="mt-1 text-xs text-muted-foreground">Mengecek kode…</p>}
       {code && quote.data?.promoError && <p role="alert" className="mt-1 text-xs text-destructive">{quote.data.promoError}</p>}
+      {code && quote.isError && <p role="alert" className="mt-1 text-xs text-destructive">Gagal mengecek kode. Coba lagi sebentar.</p>}
       {ok && (
         <p className="mt-1 text-xs font-semibold text-primary">
           {quote.data?.promoLabel} dipakai: hemat {formatIDR(discount)}. Kode ini otomatis dipakai saat checkout.

@@ -57,6 +57,7 @@ const ls = (s?: StorageLike | null): StorageLike | null => {
 };
 
 export const PENDING_PROMO_KEY = "vitaminku-promo-code";
+export const PENDING_PROMO_EVENT = "vitaminku:promo-code";
 /** Kode yang dipilih di keranjang/spanduk, dipakai otomatis di checkout. Hanya kode; harga tetap dihitung server. */
 export function readPendingPromo(storage?: StorageLike | null): string | null {
   try {
@@ -72,6 +73,7 @@ export function writePendingPromo(code: string | null, storage?: StorageLike | n
     if (!s) return;
     if (code && normalizePromoCode(code)) s.setItem(PENDING_PROMO_KEY, normalizePromoCode(code).slice(0, 32));
     else s.removeItem(PENDING_PROMO_KEY);
+    if (typeof window !== "undefined") window.dispatchEvent(new Event(PENDING_PROMO_EVENT));
   } catch {
     /* abaikan */
   }

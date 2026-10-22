@@ -1,5 +1,8 @@
 // Data tamu (nama, WhatsApp, alamat, cabang) diingat di perangkat pelanggan setelah pesanan pertama,
 // agar pesanan berikutnya cukup satu ketukan. Tidak pernah dikirim ke server selain saat memesan.
+import { clearRecentOrders } from "./recent-orders";
+import { writePendingPromo } from "./promo";
+
 export const SAVED_DETAILS_KEY = "vitaminku-checkout-details";
 
 export interface SavedDetails {
@@ -50,6 +53,13 @@ export function clearSavedDetails(storage?: StorageLike | null): void {
   } catch {
     /* abaikan */
   }
+}
+
+/** "Hapus data saya": data tamu, token pesanan di perangkat ini, dan kode promo tertunda — semuanya. */
+export function forgetDevice(storage?: StorageLike | null): void {
+  clearSavedDetails(storage);
+  clearRecentOrders(storage ?? undefined);
+  writePendingPromo(null, storage);
 }
 
 export function hasSavedDetails(storage?: StorageLike | null): boolean {

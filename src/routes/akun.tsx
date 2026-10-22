@@ -11,7 +11,8 @@ import { toast } from "sonner";
 import { AdminPanelLink } from "@/components/AdminPanelLink";
 import { AccountSection } from "@/components/AccountSection";
 import { ThemeToggle } from "@/components/ThemeToggle";
-import { clearSavedDetails, hasSavedDetails } from "@/lib/checkout-details";
+import { forgetDevice, hasSavedDetails } from "@/lib/checkout-details";
+import { recentOrders } from "@/lib/recent-orders";
 import { useEffect, useState } from "react";
 
 export const Route = createFileRoute("/akun")({
@@ -54,14 +55,14 @@ function SavedPage() {
   const missingHandles = handles.filter((h) => !foundHandles.includes(h));
 
   const [savedGuest, setSavedGuest] = useState(false);
-  useEffect(() => setSavedGuest(hasSavedDetails()), []);
+  useEffect(() => setSavedGuest(hasSavedDetails() || recentOrders().length > 0), []);
   const scrollToSection = (id: string) => {
     document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" });
   };
 
   return (
     <div className="pb-8">
-      <div className="brand-gradient px-4 py-6 text-navy-foreground">
+      <div className="brand-gradient px-4 py-6 text-vita-foreground">
         <div className="flex items-center gap-3">
           <span className="grid h-12 w-12 place-items-center rounded-full bg-card/20">
             <Bookmark className="h-6 w-6" />
@@ -126,9 +127,9 @@ function SavedPage() {
             <button
               type="button"
               onClick={() => {
-                clearSavedDetails();
+                forgetDevice();
                 setSavedGuest(false);
-                toast.success("Data pesanan di perangkat ini sudah dihapus.");
+                toast.success("Data pesanan, riwayat pesanan, dan kode promo di perangkat ini sudah dihapus.");
               }}
               className="inline-flex min-h-11 items-center rounded-full border border-border px-4 text-sm font-bold text-navy"
             >
@@ -137,7 +138,7 @@ function SavedPage() {
           )}
         </div>
         <p className="mt-2 text-[11px] text-muted-foreground">
-          Mode gelap mengikuti setelan HP sampai Anda memilih sendiri. {savedGuest ? "Nama, nomor, dan alamat pesanan terakhir tersimpan hanya di perangkat ini." : ""}
+          Mode gelap mengikuti setelan HP sampai Anda memilih sendiri. {savedGuest ? "Data dan riwayat pesanan tersimpan hanya di perangkat ini; hapus bila HP ini dipakai bersama." : ""}
         </p>
       </section>
 

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { THEME_BOOT_SCRIPT, THEME_KEY, readThemeChoice, resolveTheme, writeThemeChoice } from "../theme";
-import { clearSavedDetails, hasSavedDetails, loadSavedDetails, saveDetails } from "../checkout-details";
+import { clearSavedDetails, forgetDevice, hasSavedDetails, loadSavedDetails, saveDetails } from "../checkout-details";
 import { dismissPromo, isPromoDismissed, pickBannerPromo, promoBannerText, readPendingPromo, writePendingPromo, type Promo } from "../promo";
 
 function memoryStorage(): Pick<Storage, "getItem" | "setItem" | "removeItem"> & { map: Map<string, string> } {
@@ -52,6 +52,14 @@ describe("data tamu (pakai data terakhir / hapus data saya)", () => {
     clearSavedDetails(s);
     expect(loadSavedDetails(s)).toEqual({});
     expect(hasSavedDetails(s)).toBe(false);
+  });
+  it("Hapus data saya menghapus data tamu, token pesanan, dan kode promo sekaligus", () => {
+    const s = memoryStorage();
+    saveDetails({ name: "Budi", whatsapp: "0812", address: "Jl. Mawar 1, Sanur", branchId: null }, s);
+    s.setItem("vitaminku-recent-orders", JSON.stringify([{ orderNumber: "VK-1", token: "a".repeat(48) }]));
+    writePendingPromo("HEMAT10", s);
+    forgetDevice(s);
+    expect(s.map.size).toBe(0);
   });
   it("isi penyimpanan yang rusak/asing diabaikan", () => {
     const s = memoryStorage();

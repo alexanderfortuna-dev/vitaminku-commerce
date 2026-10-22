@@ -74,7 +74,7 @@ async function flow(theme, label, opts = {}) {
     await page.waitForLoadState("networkidle").catch(() => {});
     const beli = page.getByRole("button", { name: /Beli Sekarang/i });
     if (await beli.count()) await tap(beli, "beli sekarang");
-    else { await tap(page.getByRole("button", { name: /Keranjang/i }), "keranjang"); await tap(page.locator('a[href="/checkout"]'), "checkout"); }
+    else { await tap(page.getByRole("button", { name: /Keranjang/i }), "keranjang"); await page.goto(SITE + "/keranjang", { waitUntil: "networkidle" }); await tap(page.locator('a[href="/checkout"]'), "checkout"); }
     await page.waitForURL(/\/checkout/, { timeout: 30000 });
     await page.waitForLoadState("networkidle").catch(() => {});
     const inputs = page.locator("input, textarea");
@@ -96,6 +96,9 @@ async function flow(theme, label, opts = {}) {
     const submit = page.getByRole("button", { name: /Pesan via WhatsApp|Lanjut ke Pengiriman/i });
     await submit.waitFor({ timeout: 20000 });
     await page.waitForFunction(() => { const b = [...document.querySelectorAll("button")].find((x) => /Pesan via WhatsApp|Lanjut ke Pengiriman/i.test(x.textContent || "")); return b && !b.disabled; }, null, { timeout: 20000 });
+    // Mode kurir online (Midtrans aktif): masih ada langkah Pengiriman + Pembayaran = 2 ketukan lagi.
+    const multiStep = await page.getByRole("button", { name: /Lanjut ke Pengiriman/i }).count();
+    if (multiStep) taps += 2;
     taps++; // ketukan terakhir dihitung, tidak ditekan (tidak membuat pesanan uji)
     const secs = (Date.now() - t0) / 1000;
     const w = await wide(page);

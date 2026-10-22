@@ -22,7 +22,7 @@ import { MANUAL_SHIPPING_LABEL, buildFallbackWhatsappUrl } from "@/lib/whatsapp-
 import { OFFICIAL_WHATSAPP_MAIN } from "@/lib/official-contacts";
 import { reportClientError } from "@/lib/client-error-report";
 
-import { clearSavedDetails, loadSavedDetails, saveDetails } from "@/lib/checkout-details";
+import { forgetDevice, loadSavedDetails, saveDetails } from "@/lib/checkout-details";
 import { readPendingPromo, writePendingPromo } from "@/lib/promo";
 
 export const Route = createFileRoute("/checkout")({
@@ -147,7 +147,9 @@ function CheckoutPage() {
     }
   }, []);
   function forgetMe() {
-    clearSavedDetails();
+    forgetDevice();
+    setPromoCode(null);
+    setPromoInput("");
     setName("");
     setWhatsapp("");
     setAddress("");

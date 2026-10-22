@@ -30,7 +30,6 @@ export function ThemeToggle({ withLabel = false, className = "" }: { withLabel?:
         setTheme(next);
       }}
       aria-label={`Ganti ke ${label.toLowerCase()}`}
-      aria-pressed={theme === "dark"}
       className={`inline-flex min-h-11 min-w-11 items-center justify-center gap-2 rounded-full bg-secondary text-navy ${withLabel ? "px-4 text-sm font-bold" : ""} ${className}`}
     >
       {theme === "dark" ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
