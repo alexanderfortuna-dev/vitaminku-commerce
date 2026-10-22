@@ -66,7 +66,7 @@ export interface KeywordDeps {
 }
 
 export const ASK_GOAL_REPLY =
-  'Halo, saya Vita. Ceritakan tujuan Anda, nanti Vita pilihkan 3 produk dari katalog. Contoh: "tambah otot budget 500 ribu", "susah tidur", "daya tahan tubuh", atau "whey untuk pemula".';
+  "Halo, saya Vita, asisten belanja VitaminKu. Boleh ceritakan tujuan Anda? Misalnya ingin menambah otot, tidur lebih nyenyak, menjaga daya tahan tubuh, atau punya budget tertentu. Nanti saya pilihkan 3 produk yang paling pas untuk Anda.";
 export const DEFAULT_CHIPS = ["Budget < 300rb", "Bubuk", "Kapsul", "Tanpa kafein"];
 const GOAL_CHIPS = ["Tambah otot", "Daya tahan tubuh", "Susah tidur", "Program diet"];
 
@@ -207,35 +207,47 @@ export async function retrieve(profile: Profile, search: CatalogSearch, goals: G
 }
 
 function intro(profile: Profile, goals: GoalId[], picked: Ranked[]): string {
-  const brands = new Set(picked.map((p) => p.row.brand)).size;
-  const named = picked.filter((p) => p.brandNamed).map((p) => p.row.brand);
-  if (profile.compare && named.length >= 2) return `Perbandingan ${[...new Set(named)].join(" dan ")} di katalog kami`;
-  if (named.length) return `Pilihan ${named[0]} terbaik untuk Anda, plus ${picked.length - 1} alternatif merek lain sebagai pembanding`;
+  const named = [...new Set(picked.filter((p) => p.brandNamed).map((p) => p.row.brand))];
+  if (profile.compare && named.length >= 2) return `Siap, ini perbandingan ${named.join(" dan ")} yang tersedia di toko kami`;
+  if (named.length)
+    return picked.length > 1
+      ? `Tentu, ${named[0]} tersedia di toko kami. Saya sertakan juga ${picked.length - 1} pilihan merek lain supaya Anda bisa membandingkan`
+      : `Tentu, ${named[0]} tersedia di toko kami`;
   const label =
     profile.noCaffeine && profile.goals.includes("pre_workout")
       ? "persiapan latihan tanpa kafein"
       : goals.length
-        ? goals.slice(0, 2).map((g) => goalById(g).label).join(" & ")
-        : "pencarian Anda";
-  return `Untuk ${label}, ini ${picked.length} pilihan dari ${brands} merek berbeda di katalog kami`;
+        ? goals.slice(0, 2).map((g) => goalById(g).label).join(" dan ")
+        : "kebutuhan Anda";
+  const brands = new Set(picked.map((p) => p.row.brand)).size;
+  const dari = brands > 1 ? ` dari ${brands} merek berbeda` : "";
+  return `Baik, untuk ${label}, ini ${picked.length} pilihan${dari} yang bisa Anda bandingkan`;
+}
+
+/** Satu pertanyaan lanjutan yang ramah, hanya bila jawabannya bisa membuat pilihan lebih pas. */
+function followUp(profile: Profile, goals: GoalId[]): string {
+  if (!profile.budget) return "Ada budget tertentu? Saya bisa carikan yang lebih pas.";
+  if (!profile.form && goals.some((g) => ["protein", "massa", "kreatin", "amino", "multivit", "omega", "kolagen"].includes(g)))
+    return "Lebih suka bentuk bubuk atau kapsul?";
+  return "Kalau sudah cocok, ketuk “Tambah ke keranjang”. Admin kami juga siap membantu lewat WhatsApp.";
 }
 
 export function composeReply(profile: Profile, goals: GoalId[], picked: Ranked[], prefix = ""): string {
   const lines = picked.map((p, i) => {
-    const per = p.costPerServing ? ` (± ${fmtIdr(p.costPerServing)}/sajian)` : "";
+    const per = p.costPerServing ? ` (± ${fmtIdr(p.costPerServing)} per sajian)` : "";
     return `${i + 1}. ${p.row.name} — ${fmtIdr(p.row.price)}${per}`;
   });
   const notes: string[] = [];
-  if (profile.budget) notes.push(`Semua di bawah budget ${fmtIdr(profile.budget)}.`);
+  if (profile.budget) notes.push(`Semuanya masih di bawah budget Anda, ${fmtIdr(profile.budget)}.`);
   if (profile.noCaffeine && profile.goals.includes("pre_workout"))
-    notes.push("Pre-workout di katalog kami umumnya mengandung kafein, jadi Vita pilihkan alternatif tanpa pre-workout.");
+    notes.push("Pre-workout di toko kami umumnya mengandung kafein, jadi saya pilihkan alternatif yang tanpa kafein.");
+  if (profile.level === "pemula") notes.push("Untuk pemula, mulai dari satu produk dulu dan ikuti takaran di label.");
   for (const g of goals) {
     const note = goalById(g).note;
     if (note && !notes.includes(note)) notes.push(note);
   }
   const head = `${prefix ? `${prefix} ` : ""}${intro(profile, goals, picked)}:`;
-  const tail = "Ketuk kartu untuk tambah ke keranjang atau bandingkan.";
-  const full = [head, ...lines, ...notes, tail].join("\n");
+  const full = [head, ...lines, ...notes, followUp(profile, goals)].join("\n");
   return full.length <= 700 ? full : [head, ...lines, ...notes].join("\n");
 }
 
@@ -265,14 +277,14 @@ export async function runVitaKeyword(input: FinderInput, deps: KeywordDeps): Pro
     r = await retrieve(profile, deps.search, goalsFor(profile));
   } catch (e) {
     deps.log?.({ agent: "vita", event: "catalog_search_failed", error: e instanceof Error ? e.message.slice(0, 80) : "unknown" });
-    return vitaEnvelope(key, "error", "Maaf, katalog sedang tidak bisa dibaca. Silakan tanya admin cabang lewat WhatsApp.", { confidence: 0, needs_human: true, reason: "catalog_unavailable", whatsapp: true, mode: "keyword" });
+    return vitaEnvelope(key, "error", "Mohon maaf, daftar produk sedang tidak bisa dibuka. Admin kami siap membantu Anda lewat WhatsApp.", { confidence: 0, needs_human: true, reason: "catalog_unavailable", whatsapp: true, mode: "keyword" });
   }
   const goal = r.goals[0] ?? null;
   if (!r.picked.length) {
     event(goal, true);
     const reply = profile.budget
-      ? `Belum ada produk yang cocok dengan budget ${fmtIdr(profile.budget)}. Coba naikkan sedikit budget-nya, atau tanya admin cabang lewat WhatsApp.`
-      : "Vita belum menemukan produk itu di katalog. Coba sebutkan jenisnya (misal whey, creatine, vitamin C) atau tujuan Anda (misal tambah otot, tidur nyenyak).";
+      ? `Mohon maaf, untuk budget ${fmtIdr(profile.budget)} belum ada produk yang cocok di toko kami. Kalau budget-nya bisa sedikit dinaikkan, saya carikan lagi. Admin kami juga bisa bantu lewat WhatsApp.`
+      : "Mohon maaf, saya belum menemukan produk itu di toko kami. Boleh sebutkan jenisnya (misalnya whey, creatine, vitamin C) atau tujuan Anda (misalnya tambah otot, tidur lebih nyenyak)?";
     return vitaEnvelope(key, "needs_input", probe ? `${PROBE_REPLY} ${reply}` : reply, {
       confidence: 0.4,
       needs_human: false,

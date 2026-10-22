@@ -74,10 +74,10 @@ export function routeSafety(message: string, history: HistoryItem[] = []): Safet
 
 // ---------- Teks tetap (bahasa formal "Anda") ----------
 export const DOCTOR_NOTE =
-  "Karena menyangkut kondisi kesehatan, mohon konsultasikan dulu dengan dokter atau apoteker sebelum mengonsumsi suplemen apa pun.";
-export const MEDICAL_REPLY = `${DOCTOR_NOTE} Admin cabang kami siap membantu lewat WhatsApp.`;
+  "Karena ini menyangkut kondisi kesehatan, sebaiknya tanyakan dulu ke dokter atau apoteker sebelum minum suplemen apa pun, supaya aman untuk Anda.";
+export const MEDICAL_REPLY = `Terima kasih sudah bercerita. ${DOCTOR_NOTE} Admin kami juga siap membantu lewat WhatsApp.`;
 export const FORBIDDEN_REPLY =
-  "Maaf, produk itu tidak kami jual karena termasuk obat keras, zat terlarang, atau produk hormon. Untuk kebutuhan medis, silakan konsultasi dengan dokter atau apoteker. Vita bisa bantu carikan pilihan yang aman, misalnya protein, multivitamin, atau elektrolit.";
+  "Mohon maaf, produk tersebut tidak kami jual karena termasuk obat keras, zat terlarang, atau produk hormon. Demi keamanan Anda, kebutuhan seperti ini sebaiknya dikonsultasikan ke dokter. Kalau Anda sedang mencari suplemen yang aman, saya bisa bantu carikan protein, multivitamin, atau elektrolit.";
 export const PROBE_REPLY =
-  "Maaf, Vita tidak bisa membagikan data internal toko seperti harga modal atau pengaturan sistem. Vita hanya membantu memilih produk dari katalog.";
+  "Mohon maaf, informasi internal toko tidak bisa saya bagikan. Tapi saya dengan senang hati membantu memilih produk yang pas untuk Anda.";
 export const FORBIDDEN_CHIPS = ["Protein", "Multivitamin", "Elektrolit"];

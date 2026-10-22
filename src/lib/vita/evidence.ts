@@ -8,45 +8,54 @@ export interface Evidence {
   ingredient: string;
   /** Rentang umum dewasa sehat, bahasa Indonesia. */
   range: string;
+  /** Sumber singkat yang ditampilkan ke pelanggan. */
   source: string;
+  /** Kutipan lengkap (untuk audit; tidak perlu ditampilkan). */
+  citation: string;
 }
 
 export const EVIDENCE: Evidence[] = [
   {
     tag: "creatine",
     ingredient: "Creatine monohydrate",
-    range: "3–5 g per hari (dosis pemeliharaan)",
-    source: "Kreider dkk., ISSN position stand: creatine supplementation, J Int Soc Sports Nutr 2017",
+    range: "3–5 g per hari",
+    source: "ISSN 2017",
+    citation: "Kreider dkk., ISSN position stand: creatine supplementation, J Int Soc Sports Nutr 2017",
   },
   {
     tag: "protein",
     ingredient: "Protein (total dari makanan + suplemen)",
-    range: "1,4–2,0 g per kg berat badan per hari bagi orang yang rutin berolahraga",
-    source: "Jäger dkk., ISSN position stand: protein and exercise, J Int Soc Sports Nutr 2017",
+    range: "1,4–2,0 g protein per kg berat badan per hari (dari makanan + suplemen) bagi yang rutin berolahraga",
+    source: "ISSN 2017",
+    citation: "Jäger dkk., ISSN position stand: protein and exercise, J Int Soc Sports Nutr 2017",
   },
   {
     tag: "vitc",
     ingredient: "Vitamin C",
     range: "kebutuhan dewasa 75–90 mg per hari; batas atas 2.000 mg per hari",
-    source: "NIH Office of Dietary Supplements, Vitamin C Fact Sheet for Health Professionals",
+    source: "NIH ODS",
+    citation: "NIH Office of Dietary Supplements, Vitamin C Fact Sheet for Health Professionals",
   },
   {
     tag: "vitd",
     ingredient: "Vitamin D",
     range: "kebutuhan dewasa 600–800 IU (15–20 mcg) per hari; batas atas 4.000 IU per hari",
-    source: "NIH Office of Dietary Supplements, Vitamin D Fact Sheet for Health Professionals",
+    source: "NIH ODS",
+    citation: "NIH Office of Dietary Supplements, Vitamin D Fact Sheet for Health Professionals",
   },
   {
     tag: "zinc",
     ingredient: "Zinc",
     range: "kebutuhan dewasa 8–11 mg per hari; batas atas 40 mg per hari",
-    source: "NIH Office of Dietary Supplements, Zinc Fact Sheet for Health Professionals",
+    source: "NIH ODS",
+    citation: "NIH Office of Dietary Supplements, Zinc Fact Sheet for Health Professionals",
   },
   {
     tag: "magnesium",
     ingredient: "Magnesium",
     range: "kebutuhan dewasa 310–420 mg per hari dari semua sumber; batas atas dari suplemen 350 mg per hari",
-    source: "NIH Office of Dietary Supplements, Magnesium Fact Sheet for Health Professionals",
+    source: "NIH ODS",
+    citation: "NIH Office of Dietary Supplements, Magnesium Fact Sheet for Health Professionals",
   },
 ];
 

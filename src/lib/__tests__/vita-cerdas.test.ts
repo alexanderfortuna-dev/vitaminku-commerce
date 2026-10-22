@@ -152,7 +152,10 @@ describe("mesin kata kunci", () => {
 
 describe("bukti takaran & kode Vita", () => {
   it("setiap baris evidence punya sumber primer", () => {
-    for (const e of EVIDENCE) expect(e.source).toMatch(/ISSN|NIH Office of Dietary Supplements/);
+    for (const e of EVIDENCE) {
+      expect(e.citation).toMatch(/ISSN position stand|NIH Office of Dietary Supplements/);
+      expect(e.source).toMatch(/^(ISSN|NIH ODS)/);
+    }
   });
   it("kode Vita tidak pernah memilih kolom hpp atau select('*')", () => {
     const dir = resolve(import.meta.dirname, "../vita");

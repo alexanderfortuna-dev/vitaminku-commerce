@@ -60,8 +60,8 @@ export function FinderCards({
           )}
           {(p.dose || p.evidence) && (
             <p className="mt-1 text-[11px] leading-snug text-muted-foreground">
-              {p.dose ? `Takaran di label: ${p.dose}. ` : "Takaran: ikuti label. "}
-              {p.evidence ? `Info umum dewasa: ${p.evidence.range} (sumber: ${p.evidence.source}).` : ""}
+              {p.dose ? `Takaran di label: ${p.dose}. ` : "Takaran: ikuti petunjuk di label. "}
+              {p.evidence ? `Umumnya untuk dewasa: ${p.evidence.range} (${p.evidence.source}).` : ""}
             </p>
           )}
           <div className="mt-2 grid grid-cols-[1fr_auto] gap-2">
