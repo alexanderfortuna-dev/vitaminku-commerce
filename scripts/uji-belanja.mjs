@@ -96,9 +96,12 @@ async function flow(theme, label, opts = {}) {
       const promoIn = page.locator('input[placeholder="Opsional"]');
       await tap(promoIn, "promo"); await promoIn.fill(opts.promo);
       await tap(page.getByRole("button", { name: /^Pakai$/ }), "pakai");
-      await page.waitForTimeout(1500);
+      // Tunggu jawaban server (harga dihitung ulang di server): kode valid → "dipakai"; kode salah → pesan "tidak berlaku" dan tanpa potongan.
+      await page.waitForFunction((valid) => (valid ? /dipakai/ : /tidak berlaku/).test(document.body.innerText), opts.promoValid, { timeout: 10000 }).catch(() => {});
       const body = await page.evaluate(() => document.body.innerText);
-      row(`${label}: kode promo ${opts.promo}`, opts.promoValid ? /dipakai/.test(body) : /tidak berlaku|Kode diskon/i.test(body), body.match(/Kode diskon[^\n]*\n[^\n]*/)?.[0]?.replace(/\n/g, " ").slice(0, 100) ?? "(tidak ada pesan)");
+      const pesan = body.match(/[^\n]*(dipakai|tidak berlaku)[^\n]*/)?.[0]?.trim().slice(0, 100) ?? "(tidak ada pesan)";
+      const okPromo = opts.promoValid ? /dipakai/.test(body) : /tidak berlaku/.test(body) && !/dipakai|Diskon\s*-\s*Rp/i.test(body);
+      row(`${label}: kode promo ${opts.promo}`, okPromo, pesan);
     }
     await page.locator('input[autocomplete="tel"]').blur().catch(() => {});
     const submit = page.getByRole("button", { name: /Pesan via WhatsApp|Lanjut ke Pengiriman/i });
