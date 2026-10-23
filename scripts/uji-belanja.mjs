@@ -29,20 +29,26 @@ async function newPage(theme, extraInit) {
 }
 
 const wide = (page) => page.evaluate(() => document.documentElement.scrollWidth);
-async function contrastIssues(page) {
+// Audit mode gelap satu halaman: latar body + kontras AA teks utama. Warna dinormalkan lewat canvas
+// karena Chromium mengembalikan oklch(...) apa adanya untuk token tema (bukan rgb).
+async function auditDark(page) {
   return page.evaluate(() => {
+    // Warna apa pun (oklch, rgb, hex) → [r,g,b,a] lewat piksel canvas 1×1 (Chromium menyerialkan oklch apa adanya).
+    const cv = document.createElement("canvas"); cv.width = cv.height = 1; const cx = cv.getContext("2d", { willReadFrequently: true });
+    const px = (c) => { cx.clearRect(0, 0, 1, 1); cx.fillStyle = "#010203"; cx.fillStyle = c; if (cx.fillStyle === "#010203" && !/^#010203$|rgb\(1, 2, 3\)/.test(c)) return null; cx.fillRect(0, 0, 1, 1); return [...cx.getImageData(0, 0, 1, 1).data]; };
+    const parse = (s) => { const d = px(s); return d && d[3] > 0 ? d.slice(0, 3) : null; };
+    const alpha = (s) => { const d = px(s); return d ? d[3] / 255 : 0; };
     const lum = (rgb) => {
       const [r, g, b] = rgb.map((v) => { const c = v / 255; return c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4; });
       return 0.2126 * r + 0.7152 * g + 0.0722 * b;
     };
-    const parse = (s) => { const m = s.match(/[\d.]+/g); return m ? m.slice(0, 3).map(Number) : null; };
-    const alpha = (s) => { const m = s.match(/[\d.]+/g); return m && m.length >= 4 ? Number(m[3]) : 1; };
+    const bodyBg = parse(getComputedStyle(document.body).backgroundColor) ?? [255, 255, 255];
     const bgOf = (el) => {
       for (let e = el; e; e = e.parentElement) {
         const c = getComputedStyle(e).backgroundColor;
         if (c && alpha(c) > 0.9 && parse(c)) return parse(c);
       }
-      return [255, 255, 255];
+      return bodyBg;
     };
     const ratio = (a, b) => { const [x, y] = [lum(a), lum(b)]; return (Math.max(x, y) + 0.05) / (Math.min(x, y) + 0.05); };
     const bad = [];
@@ -54,7 +60,7 @@ async function contrastIssues(page) {
       const r = ratio(fg, bgOf(e));
       if (r < (big ? 3 : 4.5)) bad.push(`${e.tagName.toLowerCase()} "${e.textContent.trim().slice(0, 24)}" ${r.toFixed(1)}`);
     }
-    return bad;
+    return { bg: `rgb(${bodyBg.join(", ")})`, dark: lum(bodyBg) < 0.08, bad };
   });
 }
 
@@ -73,9 +79,11 @@ async function flow(theme, label, opts = {}) {
     await page.waitForURL(/\/produk\//, { timeout: 30000 });
     await page.waitForLoadState("networkidle").catch(() => {});
     const beli = page.getByRole("button", { name: /Beli Sekarang/i });
-    if (await beli.count()) await tap(beli, "beli sekarang");
-    else { await tap(page.getByRole("button", { name: /Keranjang/i }), "keranjang"); await page.goto(SITE + "/keranjang", { waitUntil: "networkidle" }); await tap(page.locator('a[href="/checkout"]'), "checkout"); }
-    await page.waitForURL(/\/checkout/, { timeout: 30000 });
+    await beli.waitFor({ state: "visible", timeout: 20000 });
+    await tap(beli, "beli sekarang");
+    // Bila ketukan jatuh sebelum halaman selesai aktif (hidrasi), ketuk sekali lagi; ketukan ulang ikut dihitung (jujur ke pengalaman pelanggan).
+    const navigated = await page.waitForURL(/\/checkout/, { timeout: 8000 }).then(() => true).catch(() => false);
+    if (!navigated) { await tap(beli, "beli sekarang (ulang)"); await page.waitForURL(/\/checkout/, { timeout: 30000 }); }
     await page.waitForLoadState("networkidle").catch(() => {});
     const inputs = page.locator("input, textarea");
     const name = page.locator('input[autocomplete="name"]');
@@ -137,16 +145,16 @@ const repeat = await flow("light", "terang, pelanggan ulang", {
   init: () => localStorage.setItem("vitaminku-checkout-details", JSON.stringify({ name: "Uji Ulang", whatsapp: "081234567890", address: "Jl. Uji No. 2, Sanur, Denpasar (uji otomatis)" })),
 });
 
-// Mode gelap per halaman: tanpa geser samping, kontras AA pada teks utama.
+// Mode gelap per halaman: tanpa geser samping, latar gelap, kontras AA pada teks utama.
 for (const path of ["/", "/kategori", "/keranjang", "/akun", "/masuk", "/bantuan"]) {
   const { ctx, page } = await newPage("dark");
   try {
     await page.goto(SITE + path, { waitUntil: "networkidle", timeout: 45000 });
     await page.waitForTimeout(800);
-    const bg = await page.evaluate(() => getComputedStyle(document.body).backgroundColor);
-    const bad = await contrastIssues(page);
-    row(`gelap ${path}: latar gelap & kontras AA`, /rgb\((\d+), (\d+), (\d+)/.test(bg) && Number(bg.match(/\d+/g)[0]) < 80 && bad.length === 0, `latar ${bg}${bad.length ? "; kontras rendah: " + bad.slice(0, 3).join(" | ") : ""}`);
-    row(`gelap ${path}: tanpa geser samping`, (await wide(page)) <= 380, `lebar ${await wide(page)}px`);
+    const a = await auditDark(page);
+    row(`gelap ${path}: latar gelap & kontras AA`, a.dark && a.bad.length === 0, `latar ${a.bg}${a.bad.length ? "; kontras rendah: " + a.bad.slice(0, 3).join(" | ") : ""}`);
+    const w = await wide(page);
+    row(`gelap ${path}: tanpa geser samping`, w <= 380, `lebar ${w}px`);
   } catch (e) { row(`gelap ${path}`, false, String(e.message).slice(0, 100)); } finally { await ctx.close(); }
 }
 if (first && repeat) console.log(`ringkasan|INFO|pelanggan baru ${first.taps} ketukan / ${first.secs.toFixed(1)} dtk; pelanggan ulang ${repeat.taps} ketukan / ${repeat.secs.toFixed(1)} dtk`);
