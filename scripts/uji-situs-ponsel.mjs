@@ -4,7 +4,7 @@
 import { chromium } from "playwright";
 
 const SITE = (process.env.SITE ?? "").replace(/\/$/, "");
-const browser = await chromium.launch();
+const browser = await chromium.launch(process.env.PW_CHANNEL ? { channel: process.env.PW_CHANNEL } : {}); // PW_CHANNEL=chrome: Chrome bawaan runner
 const page = await browser.newPage({ viewport: { width: 375, height: 812 }, isMobile: true, hasTouch: true });
 let fail = 0;
 const row = (a, ok, d) => { console.log(`${a}|${ok ? "LULUS" : "GAGAL"}|${d}`); if (!ok) fail = 1; };
