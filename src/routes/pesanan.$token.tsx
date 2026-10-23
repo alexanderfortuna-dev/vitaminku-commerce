@@ -1,7 +1,8 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { CheckCircle2, Clock, XCircle } from "lucide-react";
+import { CheckCircle2, Clock, Copy, XCircle } from "lucide-react";
+import { toast } from "sonner";
 import { formatIDR } from "@/lib/format";
 import { getOrderByToken, getOrderContacts } from "@/lib/checkout.functions";
 import { whatsappOrderUrl } from "@/lib/whatsapp-order";
@@ -80,7 +81,19 @@ function OrderPage() {
         <s.Icon className={`mx-auto h-10 w-10 ${s.tone}`} />
         <p className={`mt-2 text-base font-extrabold ${s.tone}`}>{s.label}</p>
         <p className="mt-1 text-xs text-muted-foreground">No. pesanan</p>
-        <p className="text-lg font-extrabold tracking-wide text-navy">{order.order_number}</p>
+        <button
+          type="button"
+          onClick={() => {
+            void navigator.clipboard?.writeText(order.order_number).then(
+              () => toast.success("Nomor pesanan disalin."),
+              () => toast.error("Tidak bisa menyalin. Catat nomornya ya."),
+            );
+          }}
+          aria-label={`Salin nomor pesanan ${order.order_number}`}
+          className="mx-auto inline-flex min-h-11 items-center gap-2 rounded-full px-3 text-lg font-extrabold tracking-wide text-navy"
+        >
+          {order.order_number} <Copy className="h-4 w-4 text-muted-foreground" />
+        </button>
         {order.branch_name && <p className="mt-1 text-xs text-muted-foreground">Cabang: {order.branch_name}</p>}
       </div>
 

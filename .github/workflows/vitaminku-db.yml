@@ -27,6 +27,10 @@ on:
         description: "Email General Manager (boleh kosong)"
         type: string
         default: ""
+      site_url:
+        description: "Alamat situs yang diuji pada mode cek-saja (kosong = situs produksi; isi alamat pratinjau Vercel untuk menguji rilis berikutnya)"
+        type: string
+        default: ""
 
 permissions:
   contents: read
@@ -40,7 +44,7 @@ jobs:
     name: ${{ inputs.mode }}
     if: ${{ !contains(fromJSON('["rilis-website","deploy"]'), inputs.mode) }}
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 25
     env:
       MODE: ${{ inputs.mode }}
       CONFIRM: ${{ inputs.confirm }}
@@ -245,17 +249,22 @@ jobs:
         if: ${{ !cancelled() && contains(fromJSON('["cek-saja","verify"]'), inputs.mode) }}
         env:
           SITE_SECRET: ${{ secrets.SITE_URL }}
+          SITE_INPUT: ${{ inputs.site_url }}
           SRK: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
           AK: ${{ secrets.ANTHROPIC_API_KEY }}
         run: |
-          SITE="${SITE_SECRET:-https://vitaminku.vercel.app}"; SITE="$(printf '%s' "$SITE" | tr -d '\r\n "')"
+          SITE="${SITE_INPUT:-${SITE_SECRET:-https://vitaminku.vercel.app}}"; SITE="$(printf '%s' "$SITE" | tr -d '\r\n "')"
           echo "Situs diuji: $SITE"
           SITE="$SITE" bash scripts/uji-situs.sh | tee /tmp/situs.txt; f1=${PIPESTATUS[0]}
-          mkdir -p /tmp/pw && (cd /tmp/pw && npm init -y >/dev/null && npm i -s playwright@1.48.2 >/dev/null && npx playwright install --with-deps chromium >/dev/null 2>&1)
-          cp scripts/uji-situs-ponsel.mjs /tmp/pw/ && (cd /tmp/pw && SITE="$SITE" node uji-situs-ponsel.mjs) | tee -a /tmp/situs.txt; f2=${PIPESTATUS[0]}
+          # Peramban: unduh Chromium Playwright maks 5 menit; bila macet/gagal, pakai Chrome bawaan runner (PW_CHANNEL=chrome).
+          mkdir -p /tmp/pw && (cd /tmp/pw && npm init -y >/dev/null && npm i -s playwright@1.48.2 >/tmp/pw-npm.log 2>&1) || { tail -5 /tmp/pw-npm.log; }
+          if (cd /tmp/pw && timeout 300 npx playwright install chromium >/tmp/pw-install.log 2>&1); then echo "peramban|INFO|Chromium Playwright terpasang"
+          else echo "peramban|INFO|unduh Chromium gagal/macet, pakai Chrome bawaan runner"; tail -3 /tmp/pw-install.log; export PW_CHANNEL=chrome; fi
+          cp scripts/uji-situs-ponsel.mjs scripts/uji-belanja.mjs /tmp/pw/ && (cd /tmp/pw && SITE="$SITE" node uji-situs-ponsel.mjs) | tee -a /tmp/situs.txt; f2=${PIPESTATUS[0]}
+          (cd /tmp/pw && SITE="$SITE" node uji-belanja.mjs) | tee -a /tmp/situs.txt; f3=${PIPESTATUS[0]}
           { echo "### Uji situs ($SITE)"; echo "| Uji | Hasil | Detail |"; echo "|---|---|---|"
             while IFS='|' read -r a b c; do echo "| $a | $b | $c |"; done < /tmp/situs.txt; } >> "$GITHUB_STEP_SUMMARY"
-          [ "$f1" = 0 ] && [ "$f2" = 0 ]
+          [ "$f1" = 0 ] && [ "$f2" = 0 ] && [ "$f3" = 0 ]
 
   deploy:
     name: rilis website ke Vercel

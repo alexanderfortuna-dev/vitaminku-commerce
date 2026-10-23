@@ -2,6 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useEffect, useState } from "react";
+import { promoBannerText } from "@/lib/promo";
 import { Plus } from "lucide-react";
 import { toast } from "sonner";
 import { listAdminPromos, saveAdminPromo } from "@/lib/promo.functions";
@@ -72,6 +73,10 @@ function PromoPage() {
             <label className="text-xs font-semibold text-navy">Diskon %<input className={field} inputMode="decimal" value={d.value} onChange={(e) => set(i, { value: e.target.value.replace(/[^\d.]/g, "") })} /></label>
             <label className="col-span-2 text-xs font-semibold text-navy">Label<input className={field} value={d.label} onChange={(e) => set(i, { label: e.target.value })} /></label>
             <label className="col-span-2 text-xs font-semibold text-navy">Merek (opsional)<input className={field} value={d.brand} onChange={(e) => set(i, { brand: e.target.value })} placeholder="mis. Fitlife" /></label>
+            <p className="col-span-2 rounded-xl bg-primary-soft px-3 py-2 text-xs text-accent-foreground">
+              <span className="font-bold">Tampil di toko: </span>
+              {promoBannerText({ label: d.label, code: d.code || "KODE", brand: d.brand.trim() || null, ends_at: d.end ? toIso(d.end) : new Date().toISOString() })}
+            </p>
             <label className="text-xs font-semibold text-navy">Mulai<input type="datetime-local" className={field} value={d.start} onChange={(e) => set(i, { start: e.target.value })} /></label>
             <label className="text-xs font-semibold text-navy">Selesai<input type="datetime-local" className={field} value={d.end} onChange={(e) => set(i, { end: e.target.value })} /></label>
           </div>
