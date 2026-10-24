@@ -1,8 +1,11 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useInfiniteQuery } from "@tanstack/react-query";
+import { useInfiniteQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { useState } from "react";
-import { ImageOff, Star } from "lucide-react";
+import { useRef, useState } from "react";
+import { Camera, ImageOff, Star } from "lucide-react";
+import { toast } from "sonner";
+import { addProductPhoto } from "@/lib/seller.functions";
+import { compressImage } from "@/lib/image-compress";
 import { listWorkQueue } from "@/lib/work-queue.functions";
 import {
   QUEUE_FILTERS,
@@ -136,6 +139,23 @@ function Queue() {
 
 function QueueItem({ row }: { row: QueueRow }) {
   const missingPrice = row.issues.includes("no_price");
+  const needsPhoto = row.issues.includes("no_photo");
+  const input = useRef<HTMLInputElement>(null);
+  const queryClient = useQueryClient();
+  const add = useServerFn(addProductPhoto);
+  const upload = useMutation({
+    mutationFn: async (files: File[]) => {
+      const list = files.filter((f) => f.type.startsWith("image/")).slice(0, 9);
+      if (!list.length) throw new Error("Pilih file gambar.");
+      for (const f of list) await add({ data: { id: row.id, file: await compressImage(f) } });
+      return list.length;
+    },
+    onSuccess: (n) => {
+      toast.success(`${n} foto dipasang untuk ${row.sku}`);
+      void queryClient.invalidateQueries({ queryKey: ["work-queue"] });
+    },
+    onError: (e: unknown) => toast.error(e instanceof Error ? e.message : "Gagal mengunggah foto"),
+  });
   return (
     <li className="flex gap-3 p-3 card-surface">
       {row.image_url ? (
@@ -173,13 +193,41 @@ function QueueItem({ row }: { row: QueueRow }) {
           )}
         </div>
       </div>
-      <Link
-        to="/admin/produk/$id"
-        params={{ id: encodeURIComponent(row.id) }}
-        className="grid min-h-11 shrink-0 place-items-center self-center rounded-full bg-primary px-4 text-xs font-bold text-primary-foreground"
-      >
-        Perbaiki
-      </Link>
+      <div className="flex shrink-0 flex-col gap-1 self-center">
+        {needsPhoto && (
+          <>
+            <button
+              type="button"
+              disabled={upload.isPending}
+              onClick={() => input.current?.click()}
+              className="flex min-h-11 items-center justify-center gap-1 rounded-full bg-primary px-4 text-xs font-bold text-primary-foreground disabled:opacity-60"
+            >
+              <Camera className="h-4 w-4" aria-hidden /> {upload.isPending ? "Mengunggah…" : "Tambah foto"}
+            </button>
+            <input
+              ref={input}
+              type="file"
+              accept="image/*"
+              multiple
+              className="hidden"
+              onChange={(e) => {
+                const files = [...(e.target.files ?? [])];
+                e.target.value = "";
+                if (files.length) upload.mutate(files);
+              }}
+            />
+          </>
+        )}
+        <Link
+          to="/admin/produk/$id"
+          params={{ id: encodeURIComponent(row.id) }}
+          className={`grid min-h-11 place-items-center rounded-full px-4 text-xs font-bold ${
+            needsPhoto ? "bg-secondary text-navy" : "bg-primary text-primary-foreground"
+          }`}
+        >
+          {needsPhoto ? "Buka produk" : "Perbaiki"}
+        </Link>
+      </div>
     </li>
   );
 }
