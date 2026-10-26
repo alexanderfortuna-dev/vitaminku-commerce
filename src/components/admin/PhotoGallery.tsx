@@ -62,6 +62,9 @@ export function PhotoGallery({ productId, images }: { productId: string; images:
           {images.length}/{MAX_PHOTOS} · foto pertama = sampul
         </span>
       </div>
+      <p className="mt-1 text-[11px] text-muted-foreground">
+        Foto baru otomatis diberi watermark VitaminKu. Untuk mengganti foto: hapus yang lama, lalu tambahkan file asli yang baru.
+      </p>
       <div
         onDragOver={(e) => {
           e.preventDefault();
