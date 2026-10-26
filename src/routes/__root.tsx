@@ -17,11 +17,13 @@ import { Header } from "../components/Header";
 import { BottomNav } from "../components/BottomNav";
 import { Footer } from "../components/Footer";
 import { StoreStatusBanner } from "../components/StoreStatusBanner";
+import { PromoBanner } from "../components/PromoBanner";
 import { InstallPrompt } from "../components/InstallPrompt";
 import { Toaster } from "../components/ui/sonner";
 import { useCartSync } from "../hooks/useCartSync";
 import { captureLinkParams } from "../lib/referral";
 import { installClientErrorReporting, reportClientError } from "../lib/client-error-report";
+import { THEME_BOOT_SCRIPT } from "../lib/theme";
 
 function NotFoundComponent() {
   return (
@@ -129,8 +131,10 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
 
 function RootShell({ children }: { children: ReactNode }) {
   return (
-    <html lang="id">
+    <html lang="id" suppressHydrationWarning>
       <head>
+        {/* Tema dipasang sebelum CSS agar tidak ada kedipan putih di mode gelap. */}
+        <script dangerouslySetInnerHTML={{ __html: THEME_BOOT_SCRIPT }} />
         <HeadContent />
       </head>
       <body>
@@ -159,6 +163,7 @@ function AppShell() {
     <div className="min-h-screen bg-background">
       <Header />
       <StoreStatusBanner />
+      <PromoBanner />
       <main className="mx-auto max-w-3xl pb-16">
         {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
         <Outlet />

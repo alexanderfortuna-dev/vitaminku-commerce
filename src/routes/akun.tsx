@@ -10,6 +10,10 @@ import { formatIDR } from "@/lib/format";
 import { toast } from "sonner";
 import { AdminPanelLink } from "@/components/AdminPanelLink";
 import { AccountSection } from "@/components/AccountSection";
+import { ThemeToggle } from "@/components/ThemeToggle";
+import { forgetDevice, hasSavedDetails } from "@/lib/checkout-details";
+import { recentOrders } from "@/lib/recent-orders";
+import { useEffect, useState } from "react";
 
 export const Route = createFileRoute("/akun")({
   head: () => ({
@@ -50,13 +54,15 @@ function SavedPage() {
   const foundHandles = wishlist.map((p) => productSlug(p));
   const missingHandles = handles.filter((h) => !foundHandles.includes(h));
 
+  const [savedGuest, setSavedGuest] = useState(false);
+  useEffect(() => setSavedGuest(hasSavedDetails() || recentOrders().length > 0), []);
   const scrollToSection = (id: string) => {
     document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" });
   };
 
   return (
     <div className="pb-8">
-      <div className="brand-gradient px-4 py-6 text-navy-foreground">
+      <div className="brand-gradient px-4 py-6 text-vita-foreground">
         <div className="flex items-center gap-3">
           <span className="grid h-12 w-12 place-items-center rounded-full bg-card/20">
             <Bookmark className="h-6 w-6" />
@@ -113,6 +119,28 @@ function SavedPage() {
       <AdminPanelLink />
 
       <AccountSection />
+      <section className="mx-4 mb-4 p-4 card-surface" aria-label="Pengaturan tampilan & data">
+        <p className="text-sm font-bold text-navy">Pengaturan</p>
+        <div className="mt-2 flex flex-wrap items-center gap-2">
+          <ThemeToggle withLabel />
+          {savedGuest && (
+            <button
+              type="button"
+              onClick={() => {
+                forgetDevice();
+                setSavedGuest(false);
+                toast.success("Data pesanan, riwayat pesanan, dan kode promo di perangkat ini sudah dihapus.");
+              }}
+              className="inline-flex min-h-11 items-center rounded-full border border-border px-4 text-sm font-bold text-navy"
+            >
+              Hapus data saya
+            </button>
+          )}
+        </div>
+        <p className="mt-2 text-[11px] text-muted-foreground">
+          Mode gelap mengikuti setelan HP sampai Anda memilih sendiri. {savedGuest ? "Data dan riwayat pesanan tersimpan hanya di perangkat ini; hapus bila HP ini dipakai bersama." : ""}
+        </p>
+      </section>
 
       <section id="simpanan" className="scroll-mt-24 py-4">
         <h2 className="px-4 pb-3 text-base font-extrabold">Simpan untuk Nanti</h2>

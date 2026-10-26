@@ -4,6 +4,10 @@ import { Bookmark, Minus, Plus, ShoppingBag, Trash2 } from "lucide-react";
 import { formatIDR } from "@/lib/format";
 import { MAX_LINE_QUANTITY, useCartStore } from "@/stores/cartStore";
 import { ProductThumb } from "@/components/ProductThumb";
+import { CartPromoBox } from "@/components/CartPromoBox";
+import { useQuery } from "@tanstack/react-query";
+import { useServerFn } from "@tanstack/react-start";
+import { getCheckoutModes } from "@/lib/checkout.functions";
 
 export const Route = createFileRoute("/keranjang")({
   head: () => ({
@@ -35,6 +39,9 @@ function CartPage() {
   const moveToCart = useCartStore((s) => s.moveToCart);
 
   const subtotal = items.reduce((sum, i) => sum + Number(i.product.price) * i.quantity, 0);
+  const fetchModes = useServerFn(getCheckoutModes);
+  const modes = useQuery({ queryKey: ["checkout-modes"], queryFn: () => fetchModes(), staleTime: 60_000 });
+  const viaWa = modes.data?.ok === true && modes.data.payment !== "midtrans";
 
   return (
     <div className="pb-40">
@@ -131,6 +138,7 @@ function CartPage() {
           ))}
         </ul>
       )}
+      {items.length > 0 && <CartPromoBox lines={items.map((i) => ({ slug: i.slug, quantity: i.quantity }))} />}
 
       {savedItems.length > 0 && (
         <section className="mt-6 px-4">
@@ -173,7 +181,7 @@ function CartPage() {
               <span className="text-base font-extrabold text-navy">{formatIDR(subtotal)}</span>
             </div>
             <p className="mt-0.5 text-[11px] text-muted-foreground">
-              Ongkir dihitung di langkah pengiriman. Bisa checkout tanpa akun.
+              {viaWa ? "Ongkir dikonfirmasi cabang lewat WhatsApp. Bisa pesan tanpa akun." : "Ongkir dihitung di langkah pengiriman. Bisa checkout tanpa akun."}
             </p>
             <Link
               to="/checkout"
@@ -182,7 +190,7 @@ function CartPage() {
               Checkout
             </Link>
             <p className="mt-2 text-center text-[11px] text-muted-foreground">
-              Alamat → Pengiriman → Pembayaran (QRIS, e-wallet, VA).
+              {viaWa ? "Isi alamat → kirim ke WhatsApp cabang → admin konfirmasi. Cepat, tanpa akun." : "Alamat → Pengiriman → Pembayaran (QRIS, e-wallet, VA)."}
             </p>
           </div>
         </div>
