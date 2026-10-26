@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { MSG_MIDTRANS_OFF, linkGate, notificationAction, paymentLinkWhatsapp, snapItemsFromOrder, type LinkOrder } from "../payment-link";
+import { LINK_REGENERATE_AFTER_HOURS, MSG_MIDTRANS_OFF, linkGate, notificationAction, orderNumberFromSnapId, paymentLinkWhatsapp, snapItemsFromOrder, snapOrderId, type LinkOrder } from "../payment-link";
 
 const order = (over: Partial<LinkOrder> = {}): LinkOrder => ({
   id: "o1", order_number: "VK-1", status: "menunggu_konfirmasi", payment_mode: "whatsapp", shipping_mode: "manual", shipping_cost: 25000,
@@ -23,6 +23,27 @@ describe("link bayar: gerbang", () => {
   });
   it("total nol ditolak", () => {
     expect(linkGate(order({ total: 0 }), true).ok).toBe(false);
+  });
+});
+
+describe("link bayar: masa berlaku dan percobaan", () => {
+  const withLink = { payment_token: "tok", payment_url: "https://pay" };
+  const now = new Date("2026-10-26T12:00:00Z");
+  const ago = (h: number) => new Date(now.getTime() - h * 3_600_000).toISOString();
+  it("link baru dipakai ulang; setelah 25 jam (pasti mati di Midtrans) boleh dibuatkan baru", () => {
+    expect(linkGate(order({ ...withLink, payment_link_at: ago(2) }), true, now)).toEqual({ ok: true, reuse: true });
+    expect(linkGate(order({ ...withLink, payment_link_at: ago(LINK_REGENERATE_AFTER_HOURS - 0.5) }), true, now)).toEqual({ ok: true, reuse: true });
+    expect(linkGate(order({ ...withLink, payment_link_at: ago(LINK_REGENERATE_AFTER_HOURS + 1) }), true, now)).toEqual({ ok: true, reuse: false, regenerate: true });
+  });
+  it("waktu pembuatan tidak diketahui: dipakai ulang, tidak menebak", () => {
+    expect(linkGate(order({ ...withLink, payment_link_at: null }), true, now)).toEqual({ ok: true, reuse: true });
+  });
+  it("order_id Midtrans per percobaan: akhiran 4 karakter, nomor pesanan bisa dipulihkan", () => {
+    const id = snapOrderId("VK-20261026-0007", "a1b2-c3d4-e5");
+    expect(id).toBe("VK-20261026-0007~a1b2");
+    expect(orderNumberFromSnapId(id)).toBe("VK-20261026-0007");
+    expect(orderNumberFromSnapId("VK-1")).toBe("VK-1");
+    expect(snapOrderId("VK-1", "!!")).toBe("VK-1~0000");
   });
 });
 

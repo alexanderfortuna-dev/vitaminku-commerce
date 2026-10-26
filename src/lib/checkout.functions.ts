@@ -30,7 +30,11 @@ async function loadShipData(client: PublicDb, slugs: string[]) {
   const out = new Map<string, import("./shipping-weight").ProductShipData>();
   if (!slugs.length) return out;
   let res = await client.from("products").select("slug,weight_grams,length_cm,width_cm,height_cm").in("slug", slugs);
-  if (res.error) res = (await client.from("products").select("slug,weight_grams").in("slug", slugs)) as unknown as typeof res;
+  if (res.error) {
+    // Normal sebelum migrasi 0018 (kolom ukuran belum ada). Bila bacaan berat saja juga gagal, ongkir memakai berat cadangan: catat.
+    res = (await client.from("products").select("slug,weight_grams").in("slug", slugs)) as unknown as typeof res;
+    if (res.error) console.error("Berat produk tidak terbaca, ongkir memakai berat cadangan:", res.error.message);
+  }
   for (const r of (res.data ?? []) as unknown as Array<Record<string, unknown>>) {
     out.set(String(r["slug"]), {
       weight_grams: r["weight_grams"] as number | null,
@@ -265,7 +269,7 @@ export const createOrder = createServerFn({ method: "POST" })
     const area = data.area ?? { id: "MANUAL", province: "", city: "", district: "", postal_code: "" };
     // Re-fetch rates on the server; the browser only names the courier.
     const shipBranch = await loadShippingBranch(publicClient(), data.branchId);
-    const { mode: shippingMode, rates } = await server.shippingRates({
+    const { mode: shippingMode, rates, instant, fallbackLines } = await server.shippingRates({
       areaId: area.id,
       postalCode: area.postal_code,
       lines: rateLines,
@@ -316,10 +320,14 @@ export const createOrder = createServerFn({ method: "POST" })
       }
     }
     // Pesanan instan: beri tanda untuk staf (alamat tertulis tetap acuan pengantaran; titik lokasi hanya untuk tarif).
-    const staffNote =
-      rate.kind === "instant"
-        ? `${(data.customer.note ?? "").slice(0, 220)} [INSTAN: titik lokasi dibagikan pelanggan, cek alamat sebelum kirim]`.trim()
-        : data.customer.note || null;
+    const marks: string[] = [];
+    if (rate.kind === "instant") {
+      const km = instant.ok ? ` ±${instant.km} km garis lurus dari cabang` : "";
+      marks.push(`[INSTAN: titik lokasi dibagikan pelanggan,${km}. Cocokkan dengan alamat tertulis sebelum kirim]`);
+    }
+    if (shippingMode === "biteship" && fallbackLines > 0) marks.push("[Berat/ukuran produk belum lengkap: ongkir memakai berat cadangan, cek sebelum kirim]");
+    if (fallbackLines > 0 && fallbackLines === rateLines.length) console.error("Semua produk di pesanan memakai berat cadangan:", rateLines.map((l) => l.name).join(", ").slice(0, 200));
+    const staffNote = marks.length ? `${(data.customer.note ?? "").slice(0, 200)} ${marks.join(" ")}`.trim() : data.customer.note || null;
     // Satu panggilan atomik & idempoten: harga dihitung ulang dari tabel products di dalam database,
     // kunci yang sama = pesanan yang sama (kirim ganda tidak membuat pesanan baru).
     const { data: created, error } = await supabaseAdmin.rpc("create_order", {

@@ -6,7 +6,7 @@ import {
   verifyMidtransSignature,
 } from "./checkout-core";
 import { MANUAL_SHIPPING_LABEL } from "./whatsapp-order";
-import { notificationAction } from "./payment-link";
+import { notificationAction, orderNumberFromSnapId } from "./payment-link";
 import { biteshipItems, parseRates, regularRatesBody, type BranchOrigin, type Rate, type RateLineInput } from "./shipping-quote";
 import { instantEligibility, instantRatesBody, isInstantService, parseMaxKm, type InstantDecision, type LatLng } from "./instant-delivery";
 
@@ -151,6 +151,10 @@ export async function shippingRates(input: ShippingRatesInput): Promise<Shipping
 
 export async function createSnapTransaction(input: {
   orderNumber: string;
+  /** order_id di Midtrans bila beda dari nomor pesanan (link buatan staf: per percobaan). */
+  midtransOrderId?: string;
+  /** Masa berlaku link dalam jam; kosong = bawaan Midtrans (alur pelanggan tidak berubah). */
+  expiryHours?: number;
   total: number;
   items: Array<{ id: string; name: string; price: number; quantity: number }>;
   customer: { name: string; phone: string; address: string; city: string; postal_code: string };
@@ -163,7 +167,8 @@ export async function createSnapTransaction(input: {
     method: "POST",
     headers: { authorization: `Basic ${auth}`, "content-type": "application/json", accept: "application/json" },
     body: JSON.stringify({
-      transaction_details: { order_id: input.orderNumber, gross_amount: input.total },
+      transaction_details: { order_id: input.midtransOrderId ?? input.orderNumber, gross_amount: input.total },
+      ...(input.expiryHours ? { expiry: { unit: "hours", duration: input.expiryHours } } : {}),
       item_details: input.items.map((i) => ({ ...i, name: i.name.slice(0, 50) })),
       customer_details: {
         first_name: input.customer.name.slice(0, 50),
@@ -209,7 +214,7 @@ export async function processNotification(n: Record<string, unknown>): Promise<N
   const { data: order, error } = await supabaseAdmin
     .from("orders")
     .select("id,total,payment_mode,payment_token")
-    .eq("order_number", String(n["order_id"]))
+    .eq("order_number", orderNumberFromSnapId(String(n["order_id"])))
     .maybeSingle();
   if (error) return { ok: false, status: 500, error: "lookup failed" };
   if (!order) return { ok: false, status: 404, error: "order not found" };

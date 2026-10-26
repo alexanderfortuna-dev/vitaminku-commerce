@@ -21,20 +21,46 @@ export interface LinkOrder {
   promo_code?: string | null;
   payment_token: string | null;
   payment_url: string | null;
+  payment_link_at?: string | null;
   customer_name: string;
   whatsapp: string;
   items: LinkOrderItem[];
 }
 
-export type LinkGate = { ok: true; reuse: boolean } | { ok: false; message: string };
+export type LinkGate = { ok: true; reuse: boolean; regenerate?: boolean } | { ok: false; message: string };
+
+/** Link Snap kita berlaku 24 jam (dikirim eksplisit ke Midtrans). Setelah 25 jam dipastikan mati: aman dibuatkan yang baru. */
+export const LINK_VALID_HOURS = 24;
+export const LINK_REGENERATE_AFTER_HOURS = 25;
+
+/** order_id Midtrans per percobaan: "<nomor pesanan>~<4 huruf/angka>". Percobaan yatim tidak pernah dilihat staf/pelanggan. */
+export function snapOrderId(orderNumber: string, rand: string): string {
+  return `${orderNumber}~${rand.replace(/[^A-Za-z0-9]/g, "").slice(0, 4).padEnd(4, "0")}`;
+}
+
+/** Nomor pesanan dari order_id Midtrans (dengan atau tanpa akhiran percobaan). */
+export function orderNumberFromSnapId(orderId: string): string {
+  const i = orderId.indexOf("~");
+  return i < 0 ? orderId : orderId.slice(0, i);
+}
 
 export const MSG_MIDTRANS_OFF = "Aktif setelah kunci Midtrans dipasang.";
 
 /** Boleh membuat link? Link yang sudah ada dipakai ulang (satu pesanan = satu token). */
-export function linkGate(o: Pick<LinkOrder, "status" | "payment_token" | "payment_url" | "total">, midtransReady: boolean): LinkGate {
+export function linkGate(
+  o: Pick<LinkOrder, "status" | "payment_token" | "payment_url" | "total"> & { payment_link_at?: string | null },
+  midtransReady: boolean,
+  now: Date = new Date(),
+): LinkGate {
   if (!midtransReady) return { ok: false, message: MSG_MIDTRANS_OFF };
   if (o.status !== "menunggu_konfirmasi" && o.status !== "pending") return { ok: false, message: `Pesanan sudah ${o.status}; link bayar tidak bisa dibuat.` };
-  if (o.payment_token && o.payment_url) return { ok: true, reuse: true };
+  if (o.payment_token && o.payment_url) {
+    // Waktu pembuatan tidak diketahui (data lama / sebelum migrasi): pakai ulang, tidak menebak.
+    const at = o.payment_link_at ? Date.parse(o.payment_link_at) : NaN;
+    const ageH = Number.isFinite(at) ? (now.getTime() - at) / 3_600_000 : 0;
+    if (ageH > LINK_REGENERATE_AFTER_HOURS) return { ok: true, reuse: false, regenerate: true };
+    return { ok: true, reuse: true };
+  }
   if (!(o.total > 0)) return { ok: false, message: "Total pesanan tidak valid." };
   return { ok: true, reuse: false };
 }
