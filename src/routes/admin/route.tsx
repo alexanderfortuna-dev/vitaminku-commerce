@@ -2,7 +2,7 @@ import { createFileRoute, Outlet, redirect, Link, useRouter } from "@tanstack/re
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { Archive, BellRing, BookOpen, Link2, ListChecks, PlusCircle, Store, History, Images, LogOut, Package, Receipt,
-  Tag, Settings, Sheet, ShieldBan, Upload, Users } from "lucide-react";
+  Tag, Settings, Sheet, ShieldBan, Sparkles, Upload, Users } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { getMyAdminRole } from "@/lib/admin.functions";
 import { isAdminOpenPath } from "@/lib/admin-open-paths";
@@ -138,6 +138,7 @@ const NAV = [
   { to: "/admin/cabang-admin", label: "Cabang & Admin", icon: Store, show: canEditCommerce },
   { to: "/admin/tautan", label: "Tautan & Kode QR", icon: Link2, show: canEditCommerce },
   { to: "/admin/pengaturan", label: "Pengaturan Toko", icon: Settings, show: canEditCommerce },
+  { to: "/admin/vita-insight", label: "Wawasan Vita", icon: Sparkles, show: canEditCommerce },
   { to: "/admin/aktivitas", label: "Riwayat Perubahan", icon: History, show: canManageUsers },
   { to: "/admin/pengguna", label: "Akun Staf", icon: Users, show: canManageUsers },
   { to: "/admin/cadangan", label: "Cadangan Data & Gangguan", icon: Archive, show: canManageUsers },

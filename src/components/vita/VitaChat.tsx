@@ -13,6 +13,7 @@ import {
   askFinder,
   getFinderSessionId,
   resolveFinderUrl,
+  sendFinderChosen,
   type FinderCard,
 } from "@/lib/vitamin-finder-client";
 import { FinderCards } from "./FinderCards";
@@ -31,6 +32,8 @@ interface FinderMsg {
   text: string;
   products?: FinderCard[];
   needsHuman?: boolean;
+  quickReplies?: string[];
+  queryHash?: string | null;
 }
 
 const CHIPS = ["Cari protein", "Vitamin daya tahan", "Rekomendasi untuk tidur", "Cek pesanan saya"];
@@ -116,7 +119,7 @@ function ProductCards({ products, onNavigate }: { products: DbProduct[]; onNavig
   );
 }
 
-function WaButton({ url }: { url: string }) {
+function WaButton({ url, label = "Chat admin via WhatsApp" }: { url: string; label?: string }) {
   return (
     <a
       href={url}
@@ -124,7 +127,7 @@ function WaButton({ url }: { url: string }) {
       rel="noopener noreferrer"
       className="mt-2 inline-flex min-h-11 items-center gap-2 rounded-full bg-primary px-4 py-2 text-xs font-bold text-primary-foreground"
     >
-      <MessageCircle className="h-4 w-4" /> Chat admin via WhatsApp
+      <MessageCircle className="h-4 w-4" /> {label}
     </a>
   );
 }
@@ -235,7 +238,10 @@ export default function VitaChat({ open, onClose }: { open: boolean; onClose: ()
     setFinderMsgs((prev) => [...prev, { id, role: "user", text: t }]);
     setFinderBusy(true);
     void askFinder({ url: FINDER_URL, apiKey: FINDER_KEY, sessionId: getFinderSessionId(), message: t, history }).then((r) => {
-      setFinderMsgs((prev) => [...prev, { id: id + 1, role: "assistant", text: r.reply, products: r.products, needsHuman: r.needsHuman }]);
+      setFinderMsgs((prev) => [
+        ...prev,
+        { id: id + 1, role: "assistant", text: r.reply, products: r.products, needsHuman: r.needsHuman, quickReplies: r.quickReplies, queryHash: r.queryHash },
+      ]);
       setFinderBusy(false);
     });
   };
@@ -295,11 +301,11 @@ export default function VitaChat({ open, onClose }: { open: boolean; onClose: ()
       <div className="flex-1 space-y-3 overflow-y-auto overscroll-contain px-4 py-4">
         <div className="max-w-[95%] text-sm">
           <p>
-            Hai, aku <strong>Vita</strong>! Mau cari suplemen apa hari ini? Aku bisa bantu pilih produk yang
-            tersedia, atau cek pesananmu.
+            Halo, saya <strong>Vita</strong>. Ceritakan tujuan Anda (misalnya tambah otot, susah tidur, atau budget
+            tertentu), nanti Vita pilihkan 3 produk dari merek berbeda di katalog.
           </p>
           <p className="mt-1 text-[11px] text-muted-foreground">
-            Vita bukan pengganti dokter. Obrolan tidak disimpan setelah halaman ditutup.
+            Vita bukan pengganti dokter. Obrolan tidak disimpan setelah halaman ditutup; statistik anonim tanpa nama/nomor.
           </p>
         </div>
         {messages.length === 0 && finderMsgs.length === 0 && (
@@ -319,7 +325,7 @@ export default function VitaChat({ open, onClose }: { open: boolean; onClose: ()
         {messages.map((m) => (
           <MessageView key={m.id} m={m} onNavigate={onClose} />
         ))}
-        {finderMsgs.map((m) =>
+        {finderMsgs.map((m, idx) =>
           m.role === "user" ? (
             <div key={m.id} className="ml-auto max-w-[85%] rounded-2xl rounded-br-md bg-navy px-3.5 py-2 text-sm text-navy-foreground">
               <RichText text={m.text} />
@@ -327,8 +333,26 @@ export default function VitaChat({ open, onClose }: { open: boolean; onClose: ()
           ) : (
             <div key={m.id} className="max-w-[95%] text-sm text-foreground">
               <RichText text={m.text} />
-              <FinderCards products={m.products ?? []} onNavigate={onClose} />
-              {m.needsHuman && <WaButton url={vitaWhatsappUrl(summary)} />}
+              <FinderCards
+                products={m.products ?? []}
+                onNavigate={onClose}
+                onChosen={(pid) => FINDER_URL && sendFinderChosen({ url: FINDER_URL, apiKey: FINDER_KEY, productId: pid, queryHash: m.queryHash ?? null })}
+              />
+              {idx === finderMsgs.length - 1 && !busy && (m.quickReplies?.length ?? 0) > 0 && (
+                <div className="mt-2 flex flex-wrap gap-2" aria-label="Pilihan cepat">
+                  {m.quickReplies!.map((c) => (
+                    <button
+                      key={c}
+                      type="button"
+                      onClick={() => send(c)}
+                      className="min-h-11 rounded-full border border-primary bg-primary-soft px-3 py-1.5 text-xs font-bold text-accent-foreground"
+                    >
+                      {c}
+                    </button>
+                  ))}
+                </div>
+              )}
+              <WaButton url={vitaWhatsappUrl(summary)} label={m.needsHuman ? "Tanya admin via WhatsApp" : "Masih ragu? Tanya admin"} />
             </div>
           ),
         )}
