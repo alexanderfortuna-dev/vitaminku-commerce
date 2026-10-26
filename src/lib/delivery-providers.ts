@@ -1,65 +1,37 @@
 /**
- * Delivery provider adapter boundary.
+ * Kurir yang benar-benar aktif, ditentukan dari kunci yang terpasang di server. Tidak ada opsi yang ditampilkan
+ * bila tidak didukung data/kunci nyata. (Menggantikan scaffold lama yang keliru menyebut ongkir dari Shopify.)
  *
- * INACTIVE SCAFFOLD — every third-party provider below is disabled because no
- * merchant credentials or verified API availability exist for this store. The
- * storefront must never offer a selectable paid courier, quote a fee, or show a
- * tracking link that is not backed by real data.
- *
- * Shipping rates the customer actually sees today come from Shopify's own
- * checkout (standard shipping configured in the Shopify admin). Nothing here
- * overrides that.
+ * - manual_whatsapp : tanpa kunci Biteship; cabang mengonfirmasi ongkir lewat WhatsApp (selalu ada).
+ * - biteship_regular: BITESHIP_API_KEY terpasang; ongkir paket dihitung dari berat/ukuran produk dan asal cabang.
+ * - biteship_instant: tambahan INSTANT_DELIVERY_ENABLED=true; hanya muncul per pesanan bila cabang & jarak memenuhi syarat
+ *                     (lihat instant-delivery.ts). Akses Gojek/Grab lewat Biteship harus diuji di sandbox dengan kunci owner.
  */
+export type DeliveryProviderId = "manual_whatsapp" | "biteship_regular" | "biteship_instant";
 
-export type DeliveryProviderId = "shopify_standard" | "gosend" | "grab_express" | "maxim";
-
-export interface DeliveryProviderAdapter {
-  id: DeliveryProviderId;
-  /** Customer-facing name; only shown when enabled is true. */
-  label: string;
-  /** True only when credentials AND official merchant API access are verified. */
-  enabled: boolean;
-  /** Exact secret name(s) the owner must configure to activate this adapter. */
-  requiredSecrets: string[];
-  /** Short, honest note for internal docs — not customer copy. */
-  activationNote: string;
+export interface DeliveryEnv {
+  BITESHIP_API_KEY?: string | undefined;
+  INSTANT_DELIVERY_ENABLED?: string | undefined;
 }
 
-export const DELIVERY_PROVIDERS: DeliveryProviderAdapter[] = [
-  {
-    id: "shopify_standard",
-    label: "Pengiriman standar",
-    enabled: true,
-    requiredSecrets: [],
-    activationNote:
-      "Handled entirely by Shopify checkout using the shipping rates configured in the Shopify admin.",
-  },
-  {
-    id: "gosend",
-    label: "GoSend",
-    enabled: false,
-    requiredSecrets: ["GOSEND_CLIENT_ID", "GOSEND_PASS_KEY"],
-    activationNote:
-      "Requires an approved Gojek/GoSend merchant API account. Not verified for this store.",
-  },
-  {
-    id: "grab_express",
-    label: "GrabExpress",
-    enabled: false,
-    requiredSecrets: ["GRAB_CLIENT_ID", "GRAB_CLIENT_SECRET"],
-    activationNote:
-      "Requires an approved GrabExpress partner account. Not verified for this store.",
-  },
-  {
-    id: "maxim",
-    label: "Maxim",
-    enabled: false,
-    requiredSecrets: ["MAXIM_API_KEY"],
-    activationNote:
-      "No official public merchant delivery API confirmed for this store. Not verified.",
-  },
+export interface DeliveryProviderInfo {
+  id: DeliveryProviderId;
+  label: string;
+  /** Nama secret yang harus dipasang owner agar aktif. */
+  requiredSecrets: string[];
+}
+
+export const DELIVERY_PROVIDERS: DeliveryProviderInfo[] = [
+  { id: "manual_whatsapp", label: "Ongkir dikonfirmasi cabang via WhatsApp", requiredSecrets: [] },
+  { id: "biteship_regular", label: "Kurir paket (JNE, J&T, SiCepat, dll.)", requiredSecrets: ["BITESHIP_API_KEY"] },
+  { id: "biteship_instant", label: "Instan Bali (Gojek/Grab dari cabang)", requiredSecrets: ["BITESHIP_API_KEY", "INSTANT_DELIVERY_ENABLED"] },
 ];
 
-export function enabledDeliveryProviders(): DeliveryProviderAdapter[] {
-  return DELIVERY_PROVIDERS.filter((p) => p.enabled);
+export function enabledDeliveryProviders(env: DeliveryEnv): DeliveryProviderId[] {
+  const out: DeliveryProviderId[] = ["manual_whatsapp"];
+  if (env.BITESHIP_API_KEY?.trim()) {
+    out.push("biteship_regular");
+    if (String(env.INSTANT_DELIVERY_ENABLED ?? "").trim().toLowerCase() === "true") out.push("biteship_instant");
+  }
+  return out;
 }

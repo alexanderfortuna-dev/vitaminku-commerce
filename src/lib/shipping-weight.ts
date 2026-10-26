@@ -6,10 +6,10 @@ export const VOLUMETRIC_DIVISOR = 6000;
 export const FALLBACK_ITEM_WEIGHT_GRAMS = 500;
 
 export interface ProductShipData {
-  weight_grams?: number | string | null;
-  length_cm?: number | string | null;
-  width_cm?: number | string | null;
-  height_cm?: number | string | null;
+  weight_grams?: number | string | null | undefined;
+  length_cm?: number | string | null | undefined;
+  width_cm?: number | string | null | undefined;
+  height_cm?: number | string | null | undefined;
 }
 
 export type WeightSource = "weight" | "volumetric" | "fallback";

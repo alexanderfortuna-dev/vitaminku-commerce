@@ -193,8 +193,9 @@ function CheckoutPage() {
     enabled: debounced.length >= 3 && !area && modes.data?.ok === true && !isManual,
   });
   const rates = useQuery({
-    queryKey: ["rates", area?.id, area?.postal_code, lines],
-    queryFn: () => fetchRates({ data: { lines, area: area! } }),
+    // Cabang & lokasi ikut kunci: asal kiriman berubah mengikuti cabang; opsi instan hanya ada bila pelanggan membagikan lokasi.
+    queryKey: ["rates", area?.id, area?.postal_code, lines, activeBranchId, here?.lat ?? null, here?.lng ?? null],
+    queryFn: () => fetchRates({ data: { lines, area: area!, branchId: activeBranchId, loc: here, locConsent: !!here } }),
     enabled: step >= 1 && !!area,
     retry: false,
   });
@@ -204,6 +205,10 @@ function CheckoutPage() {
   useEffect(() => {
     const only = rates.data?.mode === "manual" ? rates.data.rates[0] : undefined;
     if (only && !rate) setRate(only);
+  }, [rates.data, rate]);
+  // Kurir terpilih yang hilang dari daftar baru (mis. ganti cabang sehingga opsi instan tidak ada) → pilih ulang.
+  useEffect(() => {
+    if (rate && rates.data && rates.data.mode !== "manual" && !rates.data.rates.some((r) => r.company === rate.company && r.service === rate.service)) setRate(null);
   }, [rates.data, rate]);
 
   if (items.length === 0) {
@@ -249,6 +254,8 @@ function CheckoutPage() {
           courier: { company: rate.company, service: rate.service },
           method,
           branchId: activeBranchId,
+          loc: here,
+          locConsent: !!here,
           marketingOptIn: optIn,
         },
       });
@@ -519,7 +526,10 @@ function CheckoutPage() {
                 className={`flex w-full items-center justify-between gap-3 rounded-xl border px-3 py-3 text-left ${active ? "border-primary bg-primary-soft" : "border-border bg-card"}`}
               >
                 <span className="min-w-0">
-                  <span className="block truncate text-sm font-semibold text-navy">{r.label}</span>
+                  <span className="block truncate text-sm font-semibold text-navy">
+                    {r.label}
+                    {r.kind === "instant" && <span className="ml-2 rounded-full bg-primary-soft px-2 py-0.5 text-[11px] font-bold text-primary">Instan</span>}
+                  </span>
                   {r.etd && <span className="block text-xs text-muted-foreground">Estimasi {r.etd}</span>}
                 </span>
                 <span className="shrink-0 text-sm font-bold text-navy">{isManual ? "via WhatsApp" : formatIDR(r.price)}</span>

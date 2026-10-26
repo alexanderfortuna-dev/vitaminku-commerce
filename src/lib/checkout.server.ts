@@ -1,12 +1,15 @@
 // Server-only checkout integrations: Biteship rates/areas, Midtrans Snap, status processing.
 import {
-  DEFAULT_ITEM_WEIGHT_GRAMS,
   DEFAULT_ORIGIN_POSTAL_CODE,
   mapMidtransStatus,
   resolveModes,
   verifyMidtransSignature,
 } from "./checkout-core";
 import { MANUAL_SHIPPING_LABEL } from "./whatsapp-order";
+import { biteshipItems, parseRates, regularRatesBody, type BranchOrigin, type Rate, type RateLineInput } from "./shipping-quote";
+import { instantEligibility, instantRatesBody, isInstantService, parseMaxKm, type InstantDecision, type LatLng } from "./instant-delivery";
+
+export type { Rate } from "./shipping-quote";
 
 export function checkoutEnv() {
   return {
@@ -32,14 +35,6 @@ export interface Area {
   city: string;
   district: string;
   postal_code: string;
-}
-
-export interface Rate {
-  company: string;
-  service: string;
-  label: string;
-  price: number;
-  etd: string;
 }
 
 const BITESHIP = "https://api.biteship.com/v1";
@@ -76,33 +71,81 @@ export async function searchAreas(query: string): Promise<{ mode: "biteship"; ar
   return { mode: "biteship", areas };
 }
 
-export async function shippingRates(
-  areaId: string,
-  postalCode: string,
-  items: Array<{ name: string; value: number; quantity: number }>,
-): Promise<{ mode: "biteship" | "manual"; rates: Rate[] }> {
+export interface ShippingBranch extends BranchOrigin {
+  lat?: number | null;
+  lng?: number | null;
+  instant_delivery?: boolean | null;
+}
+
+export interface ShippingRatesInput {
+  areaId: string;
+  postalCode: string;
+  lines: RateLineInput[];
+  /** Cabang terpilih: asal kiriman dan (bila siap) kurir instan. Kosong = asal toko dari env. */
+  branch?: ShippingBranch | null;
+  /** Lokasi pelanggan hanya dipakai bila ia menyetujui ("Gunakan lokasi saya"). */
+  customer?: LatLng | null;
+  locationConsent?: boolean;
+}
+
+export interface ShippingRatesResult {
+  mode: "biteship" | "manual";
+  rates: Rate[];
+  /** Mengapa opsi instan tidak muncul (untuk log/uji; tidak ditampilkan ke pelanggan). */
+  instant: InstantDecision | { ok: false; reason: "mode_manual" };
+  /** Jumlah baris keranjang yang memakai berat cadangan karena data produk belum lengkap. */
+  fallbackLines: number;
+}
+
+export function instantEnabled(): boolean {
+  return String(process.env["INSTANT_DELIVERY_ENABLED"] ?? "").trim().toLowerCase() === "true";
+}
+
+export async function shippingRates(input: ShippingRatesInput): Promise<ShippingRatesResult> {
   if (modes().shipping === "manual") {
-    return { mode: "manual", rates: [{ company: "manual", service: "admin", label: MANUAL_SHIPPING_LABEL, price: 0, etd: "" }] };
+    return {
+      mode: "manual",
+      rates: [{ company: "manual", service: "admin", label: MANUAL_SHIPPING_LABEL, price: 0, etd: "", kind: "regular" }],
+      instant: { ok: false, reason: "mode_manual" },
+      fallbackLines: 0,
+    };
   }
-  const data = await biteship("/rates/couriers", {
-    method: "POST",
-    body: JSON.stringify({
-      origin_postal_code: Number(originPostalCode()),
-      destination_area_id: areaId,
-      destination_postal_code: Number(postalCode) || undefined,
-      couriers: "jne,jnt,sicepat,anteraja,pos,tiki,ninja,lion,idexpress,sap",
-      items: items.map((i) => ({ ...i, weight: DEFAULT_ITEM_WEIGHT_GRAMS })),
-    }),
+  const { body, fallbackLines } = regularRatesBody({
+    branch: input.branch,
+    envPostal: process.env["SHIPPING_ORIGIN_POSTAL_CODE"],
+    destination: { areaId: input.areaId, postalCode: input.postalCode },
+    lines: input.lines,
   });
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const rates: Rate[] = (data.pricing ?? []).map((p: any) => ({
-    company: String(p.company ?? p.courier_code),
-    service: String(p.type ?? p.courier_service_code),
-    label: `${p.courier_name ?? p.company} ${p.courier_service_name ?? p.type}`,
-    price: Math.round(Number(p.price)),
-    etd: String(p.duration ?? p.shipment_duration_range ?? ""),
-  }));
-  return { mode: "biteship", rates: rates.filter((r) => Number.isFinite(r.price)).sort((a, b) => a.price - b.price) };
+  const data = await biteship("/rates/couriers", { method: "POST", body: JSON.stringify(body) });
+  const rates = parseRates(data, "regular");
+
+  // Instan Bali: hanya bila semua syarat lolos; gagal diam-diam (ongkir reguler tetap tampil) bila Biteship menolak.
+  const instant = instantEligibility({
+    enabled: instantEnabled(),
+    branch: input.branch ? { lat: input.branch.lat ?? null, lng: input.branch.lng ?? null, instant_delivery: input.branch.instant_delivery === true } : null,
+    customer: input.customer ?? null,
+    consent: input.locationConsent === true,
+    maxKm: parseMaxKm(process.env["INSTANT_MAX_KM"]),
+  });
+  if (instant.ok && input.branch && input.customer) {
+    try {
+      const idata = await biteship("/rates/couriers", {
+        method: "POST",
+        body: JSON.stringify(
+          instantRatesBody({
+            from: { lat: input.branch.lat as number, lng: input.branch.lng as number },
+            to: input.customer,
+            items: biteshipItems(input.lines).items,
+          }),
+        ),
+      });
+      rates.push(...parseRates(idata, "instant").filter((r) => isInstantService(r.service)));
+      rates.sort((a, b) => a.price - b.price);
+    } catch (e) {
+      console.error("Tarif instan gagal, ongkir reguler tetap dipakai:", e instanceof Error ? e.message : e);
+    }
+  }
+  return { mode: "biteship", rates, instant, fallbackLines };
 }
 
 export async function createSnapTransaction(input: {
