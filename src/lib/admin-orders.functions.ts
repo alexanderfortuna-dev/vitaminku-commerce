@@ -16,7 +16,7 @@ export const listAdminOrders = createServerFn({ method: "GET" })
     let q = (ctx.supabase as any)
       .from("orders")
       .select(
-        "id,order_number,status,payment_mode,customer_name,whatsapp,city,courier_label,total,stock_shortage,created_at,referral_code,promo_code,discount_total,customer_note,order_items(name,quantity)",
+        "id,order_number,status,payment_mode,customer_name,whatsapp,city,courier_label,total,stock_shortage,created_at,referral_code,promo_code,discount_total,customer_note,shipping_mode,shipping_cost,payment_url,order_items(name,quantity)",
         { count: "exact" },
       );
     if (data.status && data.status !== "ALL") q = q.eq("status", data.status);
@@ -59,5 +59,8 @@ export interface AdminOrderRow {
   promo_code: string | null;
   discount_total: number | null;
   customer_note: string | null;
+  shipping_mode: string;
+  shipping_cost: number;
+  payment_url: string | null;
   order_items: Array<{ name: string; quantity: number }> | null;
 }

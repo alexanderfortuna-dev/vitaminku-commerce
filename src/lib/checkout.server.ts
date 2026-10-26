@@ -6,6 +6,7 @@ import {
   verifyMidtransSignature,
 } from "./checkout-core";
 import { MANUAL_SHIPPING_LABEL } from "./whatsapp-order";
+import { notificationAction } from "./payment-link";
 import { biteshipItems, parseRates, regularRatesBody, type BranchOrigin, type Rate, type RateLineInput } from "./shipping-quote";
 import { instantEligibility, instantRatesBody, isInstantService, parseMaxKm, type InstantDecision, type LatLng } from "./instant-delivery";
 
@@ -207,14 +208,16 @@ export async function processNotification(n: Record<string, unknown>): Promise<N
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
   const { data: order, error } = await supabaseAdmin
     .from("orders")
-    .select("id,total,payment_mode")
+    .select("id,total,payment_mode,payment_token")
     .eq("order_number", String(n["order_id"]))
     .maybeSingle();
   if (error) return { ok: false, status: 500, error: "lookup failed" };
   if (!order) return { ok: false, status: 404, error: "order not found" };
-  if (order.payment_mode !== "midtrans") return { ok: false, status: 409, error: "payment mode mismatch" };
+  // Pesanan Midtrans biasa: semua status. Pesanan WhatsApp yang punya link bayar buatan staf: hanya "paid".
+  const action = notificationAction(order, status);
+  if (action === "reject_mode") return { ok: false, status: 409, error: "payment mode mismatch" };
   if (Math.round(Number(n["gross_amount"])) !== order.total) return { ok: false, status: 400, error: "amount mismatch" };
-  if (!status) return { ok: true, result: "ignored" };
+  if (action === "ignore" || !status) return { ok: true, result: "ignored" };
   const { data: result, error: rpcError } = await supabaseAdmin.rpc("apply_order_payment_status", {
     _order_id: order.id,
     _status: status,
