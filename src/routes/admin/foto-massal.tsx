@@ -93,7 +93,7 @@ function FotoMassalPage() {
         <h1 className="text-base font-extrabold text-navy">Unggah Foto Massal</h1>
         <p className="mt-1 text-xs text-muted-foreground">
           ZIP berisi foto bernama SKU: <b>SKU.jpg</b> = foto utama, <b>SKU_2.jpg</b> … <b>SKU_9.jpg</b> = foto berikutnya.
-          Foto dikompres (WebP, maks 1200px) sebelum diunggah. Foto ditambahkan setelah foto yang sudah ada.
+          Foto otomatis dikecilkan (WebP, maks 1200px) dan diberi watermark logo VitaminKu. Simpan file aslimu sendiri: watermark tidak bisa dicabut dari foto yang sudah tersimpan. Foto ditambahkan setelah foto yang sudah ada.
         </p>
       </div>
       <button type="button" disabled={busy} onClick={() => inputRef.current?.click()}

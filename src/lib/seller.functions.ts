@@ -308,11 +308,15 @@ export const createVariant = createServerFn({ method: "POST" })
 
 const BUCKET = "product-images";
 
-export async function storeProductImage(productId: string, bytes: Uint8Array, contentType: string) {
-  const ext = contentType.includes("png") ? "png" : contentType.includes("webp") ? "webp" : "jpg";
-  const path = `${productId}/${Date.now()}-${Math.random().toString(36).slice(2, 6)}.${ext}`;
+export async function storeProductImage(productId: string, bytes: Uint8Array, _contentType: string) {
+  // Semua foto yang masuk lewat jalur ini diberi watermark VitaminKu dan disimpan sebagai WebP (maks 1200 px).
+  const { processUpload } = await import("./photo-process.server");
+  const stamped = await processUpload(bytes);
+  const path = `${productId}/${Date.now()}-${Math.random().toString(36).slice(2, 6)}.webp`;
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-  const { error } = await supabaseAdmin.storage.from(BUCKET).upload(path, bytes, { contentType, upsert: false });
+  const { error } = await supabaseAdmin.storage
+    .from(BUCKET)
+    .upload(path, stamped, { contentType: "image/webp", upsert: false });
   if (error) throw new Error(`Upload gambar gagal: ${error.message}`);
   const { data: signed, error: signError } = await supabaseAdmin.storage
     .from(BUCKET)
