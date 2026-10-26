@@ -163,12 +163,12 @@ export async function createSnapTransaction(input: {
   const m = modes();
   const base = m.isProduction ? "https://app.midtrans.com" : "https://app.sandbox.midtrans.com";
   const auth = btoa(`${process.env["MIDTRANS_SERVER_KEY"]!}:`);
-  const res = await fetch(`${base}/snap/v1/transactions`, {
+  const send = (withExpiry: boolean) => fetch(`${base}/snap/v1/transactions`, {
     method: "POST",
     headers: { authorization: `Basic ${auth}`, "content-type": "application/json", accept: "application/json" },
     body: JSON.stringify({
       transaction_details: { order_id: input.midtransOrderId ?? input.orderNumber, gross_amount: input.total },
-      ...(input.expiryHours ? { expiry: { unit: "hours", duration: input.expiryHours } } : {}),
+      ...(withExpiry && input.expiryHours ? { expiry: { unit: "hour", duration: input.expiryHours } } : {}),
       item_details: input.items.map((i) => ({ ...i, name: i.name.slice(0, 50) })),
       customer_details: {
         first_name: input.customer.name.slice(0, 50),
@@ -187,7 +187,14 @@ export async function createSnapTransaction(input: {
       callbacks: { finish: input.finishUrl },
     }),
   });
-  const text = await res.text();
+  let res = await send(true);
+  let text = await res.text();
+  // Parameter masa berlaku ditolak Midtrans (ejaan satuan belum terbukti di sandbox): ulangi tanpa itu. Bawaan Snap juga 24 jam.
+  if (res.status === 400 && input.expiryHours && /expiry/i.test(text)) {
+    console.error("Midtrans menolak parameter expiry, diulang tanpa expiry:", text.slice(0, 200));
+    res = await send(false);
+    text = await res.text();
+  }
   if (!res.ok) {
     console.error(`Midtrans Snap failed [${res.status}]: ${text}`);
     throw new Error("Pembayaran gagal disiapkan. Coba lagi sebentar.");

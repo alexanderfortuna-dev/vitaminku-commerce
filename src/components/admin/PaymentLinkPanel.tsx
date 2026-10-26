@@ -4,6 +4,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
 import { Copy, Link2, MessageCircle } from "lucide-react";
 import { formatIDR } from "@/lib/format";
+import { LINK_REGENERATE_AFTER_HOURS } from "@/lib/payment-link";
 import { getCheckoutModes } from "@/lib/checkout.functions";
 import { createPaymentLink } from "@/lib/payment-link.functions";
 import type { AdminOrderRow } from "@/lib/admin-orders.functions";
@@ -37,6 +38,9 @@ export function PaymentLinkPanel({ order }: { order: AdminOrderRow }) {
     return <p className="mt-2 text-[11px] text-muted-foreground">Link bayar (QRIS, e-wallet, VA): aktif setelah kunci Midtrans dipasang.</p>;
   }
   const existing = result?.url ?? order.payment_url;
+  // Link lama pasti sudah mati di Midtrans setelah 25 jam: staf boleh membuat ulang (jumlah tetap sama).
+  const at = order.payment_link_at ? Date.parse(order.payment_link_at) : NaN;
+  const stale = !result && !!order.payment_url && Number.isFinite(at) && (Date.now() - at) / 3_600_000 > LINK_REGENERATE_AFTER_HOURS;
   return (
     <div className="mt-2 rounded-xl border border-border bg-secondary/40 p-2">
       {!open && !existing && (
@@ -70,7 +74,15 @@ export function PaymentLinkPanel({ order }: { order: AdminOrderRow }) {
           </button>
         </div>
       )}
-      {existing && (
+      {existing && stale && (
+        <div className="space-y-2">
+          <p className="text-xs font-semibold text-destructive">Link bayar sudah kedaluwarsa.</p>
+          <button type="button" disabled={mutate.isPending} onClick={() => mutate.mutate()} className="min-h-11 w-full rounded-full border border-primary px-3 py-2 text-xs font-bold text-primary disabled:opacity-50">
+            {mutate.isPending ? "Membuat…" : "Buat ulang link"}
+          </button>
+        </div>
+      )}
+      {existing && !stale && (
         <div className="space-y-2">
           <p className="text-xs font-semibold text-navy">Link bayar {result ? `· total ${formatIDR(result.total)}` : ""}</p>
           <p className="break-all rounded-lg bg-card px-2 py-1 text-[11px] text-muted-foreground">{existing}</p>
