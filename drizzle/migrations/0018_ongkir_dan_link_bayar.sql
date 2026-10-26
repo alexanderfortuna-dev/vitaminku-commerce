@@ -41,3 +41,47 @@ BEGIN
 END $$;
 REVOKE ALL ON FUNCTION public.staff_set_shipping(uuid, integer) FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.staff_set_shipping(uuid, integer) TO authenticated;
+
+-- 4) Batalkan impor terakhir juga memulihkan ukuran, hanya bila cadangan impor itu memuat ukuran (cadangan lama tidak punya kuncinya).
+CREATE OR REPLACE FUNCTION public.undo_product_import(_import_id uuid)
+RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER SET search_path = public
+AS $$
+DECLARE imp public.product_imports%ROWTYPE; r record; restored int := 0; archived int := 0;
+BEGIN
+  IF NOT public.has_permission(auth.uid(), 'uploads_use') THEN RAISE EXCEPTION 'forbidden' USING ERRCODE = '42501'; END IF;
+  SELECT * INTO imp FROM public.product_imports WHERE id = _import_id FOR UPDATE;
+  IF NOT FOUND THEN RAISE EXCEPTION 'Impor tidak ditemukan'; END IF;
+  IF imp.undone_at IS NOT NULL THEN RAISE EXCEPTION 'Impor ini sudah dibatalkan'; END IF;
+  IF EXISTS (SELECT 1 FROM public.product_imports x WHERE x.undone_at IS NULL AND x.created_at > imp.created_at) THEN
+    RAISE EXCEPTION 'Hanya impor terakhir yang bisa dibatalkan';
+  END IF;
+  FOR r IN SELECT * FROM public.product_import_rows WHERE import_id = _import_id LOOP
+    IF r.existed THEN
+      UPDATE public.products p SET
+        name = coalesce(r.before->>'name', p.name), brand = coalesce(r.before->>'brand', p.brand),
+        category = coalesce(r.before->>'category', p.category), subcategory = coalesce(r.before->>'subcategory', p.subcategory),
+        size = r.before->>'size', pack_count = r.before->>'pack_count', servings = r.before->>'servings',
+        dose = r.before->>'dose', flavor = r.before->>'flavor', description = r.before->>'description',
+        price = (r.before->>'price')::numeric, compare_at_price = (r.before->>'compare_at_price')::numeric,
+        stock = coalesce((r.before->>'stock')::int, p.stock), weight_grams = (r.before->>'weight_grams')::int,
+        length_cm = CASE WHEN r.before ? 'length_cm' THEN (r.before->>'length_cm')::numeric ELSE p.length_cm END,
+        width_cm  = CASE WHEN r.before ? 'width_cm'  THEN (r.before->>'width_cm')::numeric  ELSE p.width_cm  END,
+        height_cm = CASE WHEN r.before ? 'height_cm' THEN (r.before->>'height_cm')::numeric ELSE p.height_cm END,
+        bpom_number = r.before->>'bpom_number',
+        images = coalesce(ARRAY(SELECT jsonb_array_elements_text(r.before->'images')), p.images),
+        variant_group = r.before->>'variant_group',
+        is_active = coalesce((r.before->>'is_active')::boolean, p.is_active)
+      WHERE p.sku = r.sku;
+      restored := restored + 1;
+    ELSE
+      UPDATE public.products SET is_active = false WHERE sku = r.sku;
+      archived := archived + 1;
+    END IF;
+  END LOOP;
+  UPDATE public.product_imports SET undone_at = now() WHERE id = _import_id;
+  INSERT INTO public.admin_audit_log(user_id, action, payload)
+    VALUES (auth.uid(), 'import_undo', jsonb_build_object('import_id', _import_id, 'restored', restored, 'archived', archived));
+  RETURN jsonb_build_object('restored', restored, 'archived', archived);
+END $$;
+REVOKE ALL ON FUNCTION public.undo_product_import(uuid) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.undo_product_import(uuid) TO authenticated;

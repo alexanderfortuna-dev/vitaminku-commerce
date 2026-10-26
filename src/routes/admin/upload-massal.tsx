@@ -68,13 +68,14 @@ function UploadMassalPage() {
       const { products } = await fetchExport();
       const rows = products.map((p) => [
         p.sku, p.name, p.brand, p.category, p.description ?? "", p.price ?? "", p.stock, p.weight_grams ?? "",
+        p.length_cm ?? "", p.width_cm ?? "", p.height_cm ?? "",
         p.bpom_number ?? "", "", "", "", "", "", "", "", "", "", p.status,
       ]);
       const date = new Date().toISOString().slice(0, 10);
       if (kind === "csv") downloadBlob(`template-produk-${date}.csv`, csvBlob(FULL_HEADERS, rows));
       else
         await downloadXlsx(`template-produk-${date}.xlsx`, "Produk", FULL_HEADERS, rows,
-          [18, 44, 18, 24, 40, 12, 8, 11, 16, ...Array(9).fill(28), 10]);
+          [18, 44, 18, 24, 40, 12, 8, 11, 11, 11, 11, 16, ...Array(9).fill(28), 10]);
       toast.success(`${products.length} produk di template. Kolom Foto kosong = foto lama tetap.`);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Gagal mengunduh template");
@@ -195,7 +196,7 @@ function UploadMassalPage() {
     const rows = issues.map((i) => {
       const r = bySku.get(i.sku);
       return [r?.sku ?? i.sku, r?.nama ?? "", r?.brand ?? "", r?.kategori ?? "", r?.deskripsi ?? "", r?.harga ?? "",
-        r?.stok ?? "", r?.berat ?? "", r?.bpom ?? "", ...(r?.fotos ?? Array(9).fill("")), r?.status ?? "", i.row, i.reason];
+        r?.stok ?? "", r?.berat ?? "", r?.panjang ?? "", r?.lebar ?? "", r?.tinggi ?? "", r?.bpom ?? "", ...(r?.fotos ?? Array(9).fill("")), r?.status ?? "", i.row, i.reason];
     });
     downloadBlob("laporan-error-upload.csv", csvBlob([...FULL_HEADERS, "Baris", "Alasan"], rows));
   }

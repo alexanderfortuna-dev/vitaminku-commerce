@@ -24,6 +24,9 @@ export const SNAPSHOT_KEYS = [
 ] as const;
 
 /** Daftar kolom untuk .select() — id & sku dibutuhkan untuk mencocokkan baris. */
+/** Ukuran kemasan (migrasi 0018): ikut dicadangkan hanya bila kolomnya ada pada baris yang dibaca. */
+export const SNAPSHOT_DIM_KEYS = ["length_cm", "width_cm", "height_cm"] as const;
+
 export const SNAPSHOT_SELECT = `id,sku,${SNAPSHOT_KEYS.join(",")}`;
 
 export interface SnapshotRow {
@@ -37,6 +40,7 @@ export interface SnapshotRow {
 export function pickBefore(row: Record<string, unknown>): Record<string, unknown> {
   const out: Record<string, unknown> = {};
   for (const k of SNAPSHOT_KEYS) out[k] = row[k] === undefined ? null : row[k];
+  for (const k of SNAPSHOT_DIM_KEYS) if (row[k] !== undefined) out[k] = row[k];
   return out;
 }
 

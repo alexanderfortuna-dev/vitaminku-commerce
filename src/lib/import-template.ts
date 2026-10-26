@@ -20,11 +20,11 @@ export function templateSampleRows(): Array<Array<string | number>> {
   return [
     [
       `${SAMPLE_SKU_PREFIX}-001`, "Nama produk lengkap, misalnya Vitamin C 1000 mg isi 60", "Nama merek", cat,
-      "Deskripsi singkat produk (boleh dikosongkan)", 125000, 20, 150, "", "https://contoh.com/foto-produk.jpg", ...blankPhotos, "Draf",
+      "Deskripsi singkat produk (boleh dikosongkan)", 125000, 20, 150, "", "", "", "", "https://contoh.com/foto-produk.jpg", ...blankPhotos, "Draf",
     ],
     [
       `${SAMPLE_SKU_PREFIX}-002`, "Contoh produk kedua (hapus baris CONTOH sebelum diunggah)", "Nama merek", cat,
-      "", 89000, 0, 250, "", "", ...blankPhotos, "Draf",
+      "", 89000, 0, 250, "", "", "", "", "", ...blankPhotos, "Draf",
     ],
   ];
 }
@@ -51,6 +51,7 @@ export function templateInstructionLines(): string[] {
     "Harga : rupiah, angka saja, contoh 125000. Harus lebih dari 0.",
     "Stok : jumlah barang, angka bulat, contoh 10. Boleh 0.",
     "Berat_gram : berat kemasan dalam gram, contoh 250. Harus lebih dari 0.",
+    "Panjang_cm, Lebar_cm, Tinggi_cm : ukuran kemasan dalam cm, contoh 30 / 20 / 10. Kosongkan bila belum diukur, jangan menebak. Isi ketiganya bersama. Dipakai menghitung ongkir dari berat volume (p×l×t÷6000 kg).",
     "BPOM : nomor izin edar bila produk punya. Kosongkan bila belum ada; jangan diisi dugaan.",
     `Foto_1 sampai Foto_${MAX_PHOTOS} : tautan foto yang diawali https://. Kosong = foto lama tetap. Foto diunduh lalu disimpan ulang di toko.`,
     "Status : Live (tampil di toko) atau Draf (disimpan dulu). Kosong = status tidak diubah.",
