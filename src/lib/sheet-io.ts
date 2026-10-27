@@ -85,7 +85,7 @@ export async function downloadImportTemplateXlsx(name: string) {
   ws.addRow([...FULL_HEADERS]);
   ws.addRows(templateSampleRows());
   ws.getRow(1).font = { bold: true };
-  [18, 44, 18, 26, 40, 12, 8, 11, 16, ...Array(9).fill(28), 10].forEach((w, i) => (ws.getColumn(i + 1).width = w));
+  [18, 44, 18, 26, 40, 12, 8, 11, 11, 11, 11, 16, ...Array(9).fill(28), 10].forEach((w, i) => (ws.getColumn(i + 1).width = w));
   ws.getRows(2, 2)?.forEach((r) => (r.font = { italic: true, color: { argb: "FF6B7280" } }));
 
   const lists = wb.addWorksheet(TEMPLATE_LISTS_SHEET, { state: "hidden" });

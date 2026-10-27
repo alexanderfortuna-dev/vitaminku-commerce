@@ -37,6 +37,8 @@ export const MSG = {
   priceZero: "Harga tidak boleh 0. Isi harga jual dalam rupiah, contoh 125000.",
   stockFraction: "Stok harus bilangan bulat (tanpa koma). Contoh: 10.",
   weightZero: "Berat_gram harus lebih dari 0. Isi berat dalam gram, contoh 250.",
+  dimBad: (col: string) => `${col} tidak terbaca. Isi angka cm lebih dari 0 dan maksimal 300, contoh 30 atau 12,5. Kosongkan bila belum diukur.`,
+  dimPartial: "Ukuran harus lengkap: isi Panjang_cm, Lebar_cm, dan Tinggi_cm sekaligus, atau kosongkan ketiganya.",
   maxPhotos: (max: number) => `Foto terlalu banyak. Maksimal ${max} foto per produk (kolom Foto_1 sampai Foto_${max}).`,
   status: (raw: string) =>
     `Status "${clip(raw)}" tidak dikenal. Isi Live (tampil di toko) atau Draf (disimpan dulu), atau kosongkan.`,

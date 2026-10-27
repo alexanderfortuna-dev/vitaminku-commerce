@@ -257,6 +257,7 @@ export type Database = {
           payment_mode: string
           payment_token: string | null
           payment_url: string | null
+          payment_link_at: string | null
           postal_code: string
           promo_code: string | null
           province: string
@@ -298,6 +299,7 @@ export type Database = {
           payment_mode: string
           payment_token?: string | null
           payment_url?: string | null
+          payment_link_at?: string | null
           postal_code: string
           promo_code?: string | null
           province: string
@@ -339,6 +341,7 @@ export type Database = {
           payment_mode?: string
           payment_token?: string | null
           payment_url?: string | null
+          payment_link_at?: string | null
           postal_code?: string
           promo_code?: string | null
           province?: string
@@ -435,6 +438,9 @@ export type Database = {
           updated_at: string
           variant_group: string | null
           weight_grams: number | null
+          length_cm: number | null
+          width_cm: number | null
+          height_cm: number | null
         }
         Insert: {
           blocked_reason?: string | null
@@ -467,6 +473,9 @@ export type Database = {
           updated_at?: string
           variant_group?: string | null
           weight_grams?: number | null
+          length_cm?: number | null
+          width_cm?: number | null
+          height_cm?: number | null
         }
         Update: {
           blocked_reason?: string | null
@@ -499,6 +508,9 @@ export type Database = {
           updated_at?: string
           variant_group?: string | null
           weight_grams?: number | null
+          length_cm?: number | null
+          width_cm?: number | null
+          height_cm?: number | null
         }
         Relationships: []
       }
@@ -650,6 +662,9 @@ export type Database = {
           lat: number | null
           lng: number | null
           maps_url: string | null
+          postal_code: string | null
+          area_id: string | null
+          instant_delivery: boolean
           name: string
           updated_at: string
           whatsapp: string
@@ -666,6 +681,9 @@ export type Database = {
           lat?: number | null
           lng?: number | null
           maps_url?: string | null
+          postal_code?: string | null
+          area_id?: string | null
+          instant_delivery?: boolean
           name: string
           updated_at?: string
           whatsapp: string
@@ -682,6 +700,9 @@ export type Database = {
           lat?: number | null
           lng?: number | null
           maps_url?: string | null
+          postal_code?: string | null
+          area_id?: string | null
+          instant_delivery?: boolean
           name?: string
           updated_at?: string
           whatsapp?: string

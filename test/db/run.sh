@@ -23,3 +23,7 @@ su postgres -c "$P -f $ROOT/test/db/40_orders_assertions.sql"
 su postgres -c "$P -f $ROOT/test/db/50_price_audit_assertions.sql"
 su postgres -c "$P -f $ROOT/test/db/60_shopee_review_assertions.sql"
 su postgres -c "$P -f $ROOT/test/db/70_vita_assertions.sql"
+su postgres -c "$P -f $ROOT/test/db/80_ongkir_assertions.sql"
+# Laporan cakupan data ongkir (baris 10-11 cek-database.sql) harus bisa dijalankan setelah semua migrasi.
+su postgres -c "$P -tAq -F '|' -f $ROOT/supabase/operasi/cek-database.sql" | grep -E '^1[0-3]\.' | tee /tmp/vk-cakupan.txt
+test "$(wc -l < /tmp/vk-cakupan.txt)" = 4 || { echo "GAGAL: baris cakupan ongkir tidak lengkap"; exit 1; }

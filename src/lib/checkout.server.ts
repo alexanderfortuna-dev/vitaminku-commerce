@@ -1,12 +1,16 @@
 // Server-only checkout integrations: Biteship rates/areas, Midtrans Snap, status processing.
 import {
-  DEFAULT_ITEM_WEIGHT_GRAMS,
   DEFAULT_ORIGIN_POSTAL_CODE,
   mapMidtransStatus,
   resolveModes,
   verifyMidtransSignature,
 } from "./checkout-core";
 import { MANUAL_SHIPPING_LABEL } from "./whatsapp-order";
+import { notificationAction, orderNumberFromSnapId } from "./payment-link";
+import { biteshipItems, parseRates, regularRatesBody, type BranchOrigin, type Rate, type RateLineInput } from "./shipping-quote";
+import { instantEligibility, instantRatesBody, isInstantService, parseMaxKm, type InstantDecision, type LatLng } from "./instant-delivery";
+
+export type { Rate } from "./shipping-quote";
 
 export function checkoutEnv() {
   return {
@@ -32,14 +36,6 @@ export interface Area {
   city: string;
   district: string;
   postal_code: string;
-}
-
-export interface Rate {
-  company: string;
-  service: string;
-  label: string;
-  price: number;
-  etd: string;
 }
 
 const BITESHIP = "https://api.biteship.com/v1";
@@ -76,37 +72,89 @@ export async function searchAreas(query: string): Promise<{ mode: "biteship"; ar
   return { mode: "biteship", areas };
 }
 
-export async function shippingRates(
-  areaId: string,
-  postalCode: string,
-  items: Array<{ name: string; value: number; quantity: number }>,
-): Promise<{ mode: "biteship" | "manual"; rates: Rate[] }> {
+export interface ShippingBranch extends BranchOrigin {
+  lat?: number | null;
+  lng?: number | null;
+  instant_delivery?: boolean | null;
+}
+
+export interface ShippingRatesInput {
+  areaId: string;
+  postalCode: string;
+  lines: RateLineInput[];
+  /** Cabang terpilih: asal kiriman dan (bila siap) kurir instan. Kosong = asal toko dari env. */
+  branch?: ShippingBranch | null;
+  /** Lokasi pelanggan hanya dipakai bila ia menyetujui ("Gunakan lokasi saya"). */
+  customer?: LatLng | null;
+  locationConsent?: boolean;
+}
+
+export interface ShippingRatesResult {
+  mode: "biteship" | "manual";
+  rates: Rate[];
+  /** Mengapa opsi instan tidak muncul (untuk log/uji; tidak ditampilkan ke pelanggan). */
+  instant: InstantDecision | { ok: false; reason: "mode_manual" };
+  /** Jumlah baris keranjang yang memakai berat cadangan karena data produk belum lengkap. */
+  fallbackLines: number;
+}
+
+export function instantEnabled(): boolean {
+  return String(process.env["INSTANT_DELIVERY_ENABLED"] ?? "").trim().toLowerCase() === "true";
+}
+
+export async function shippingRates(input: ShippingRatesInput): Promise<ShippingRatesResult> {
   if (modes().shipping === "manual") {
-    return { mode: "manual", rates: [{ company: "manual", service: "admin", label: MANUAL_SHIPPING_LABEL, price: 0, etd: "" }] };
+    return {
+      mode: "manual",
+      rates: [{ company: "manual", service: "admin", label: MANUAL_SHIPPING_LABEL, price: 0, etd: "", kind: "regular" }],
+      instant: { ok: false, reason: "mode_manual" },
+      fallbackLines: 0,
+    };
   }
-  const data = await biteship("/rates/couriers", {
-    method: "POST",
-    body: JSON.stringify({
-      origin_postal_code: Number(originPostalCode()),
-      destination_area_id: areaId,
-      destination_postal_code: Number(postalCode) || undefined,
-      couriers: "jne,jnt,sicepat,anteraja,pos,tiki,ninja,lion,idexpress,sap",
-      items: items.map((i) => ({ ...i, weight: DEFAULT_ITEM_WEIGHT_GRAMS })),
-    }),
+  const { body, fallbackLines } = regularRatesBody({
+    branch: input.branch,
+    envPostal: process.env["SHIPPING_ORIGIN_POSTAL_CODE"],
+    destination: { areaId: input.areaId, postalCode: input.postalCode },
+    lines: input.lines,
   });
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const rates: Rate[] = (data.pricing ?? []).map((p: any) => ({
-    company: String(p.company ?? p.courier_code),
-    service: String(p.type ?? p.courier_service_code),
-    label: `${p.courier_name ?? p.company} ${p.courier_service_name ?? p.type}`,
-    price: Math.round(Number(p.price)),
-    etd: String(p.duration ?? p.shipment_duration_range ?? ""),
-  }));
-  return { mode: "biteship", rates: rates.filter((r) => Number.isFinite(r.price)).sort((a, b) => a.price - b.price) };
+  const data = await biteship("/rates/couriers", { method: "POST", body: JSON.stringify(body) });
+  const rates = parseRates(data, "regular");
+
+  // Instan Bali: hanya bila semua syarat lolos; gagal diam-diam (ongkir reguler tetap tampil) bila Biteship menolak.
+  const instant = instantEligibility({
+    enabled: instantEnabled(),
+    branch: input.branch ? { lat: input.branch.lat ?? null, lng: input.branch.lng ?? null, instant_delivery: input.branch.instant_delivery === true } : null,
+    customer: input.customer ?? null,
+    consent: input.locationConsent === true,
+    maxKm: parseMaxKm(process.env["INSTANT_MAX_KM"]),
+  });
+  if (instant.ok && input.branch && input.customer) {
+    try {
+      const idata = await biteship("/rates/couriers", {
+        method: "POST",
+        body: JSON.stringify(
+          instantRatesBody({
+            from: { lat: input.branch.lat as number, lng: input.branch.lng as number },
+            to: input.customer,
+            items: biteshipItems(input.lines).items,
+          }),
+        ),
+      });
+      rates.push(...parseRates(idata, "instant").filter((r) => isInstantService(r.service)));
+      rates.sort((a, b) => a.price - b.price);
+    } catch (e) {
+      console.error("Tarif instan gagal, ongkir reguler tetap dipakai:", e instanceof Error ? e.message : e);
+    }
+  }
+  return { mode: "biteship", rates, instant, fallbackLines };
 }
 
 export async function createSnapTransaction(input: {
   orderNumber: string;
+  /** order_id di Midtrans bila beda dari nomor pesanan (link buatan staf: per percobaan). */
+  midtransOrderId?: string;
+  /** Masa berlaku link dalam jam; kosong = bawaan Midtrans (alur pelanggan tidak berubah). */
+  expiryHours?: number;
   total: number;
   items: Array<{ id: string; name: string; price: number; quantity: number }>;
   customer: { name: string; phone: string; address: string; city: string; postal_code: string };
@@ -115,11 +163,12 @@ export async function createSnapTransaction(input: {
   const m = modes();
   const base = m.isProduction ? "https://app.midtrans.com" : "https://app.sandbox.midtrans.com";
   const auth = btoa(`${process.env["MIDTRANS_SERVER_KEY"]!}:`);
-  const res = await fetch(`${base}/snap/v1/transactions`, {
+  const send = (withExpiry: boolean) => fetch(`${base}/snap/v1/transactions`, {
     method: "POST",
     headers: { authorization: `Basic ${auth}`, "content-type": "application/json", accept: "application/json" },
     body: JSON.stringify({
-      transaction_details: { order_id: input.orderNumber, gross_amount: input.total },
+      transaction_details: { order_id: input.midtransOrderId ?? input.orderNumber, gross_amount: input.total },
+      ...(withExpiry && input.expiryHours ? { expiry: { unit: "hour", duration: input.expiryHours } } : {}),
       item_details: input.items.map((i) => ({ ...i, name: i.name.slice(0, 50) })),
       customer_details: {
         first_name: input.customer.name.slice(0, 50),
@@ -138,7 +187,14 @@ export async function createSnapTransaction(input: {
       callbacks: { finish: input.finishUrl },
     }),
   });
-  const text = await res.text();
+  let res = await send(true);
+  let text = await res.text();
+  // Parameter masa berlaku ditolak Midtrans (ejaan satuan belum terbukti di sandbox): ulangi tanpa itu. Bawaan Snap juga 24 jam.
+  if (res.status === 400 && input.expiryHours && /expiry/i.test(text)) {
+    console.error("Midtrans menolak parameter expiry, diulang tanpa expiry:", text.slice(0, 200));
+    res = await send(false);
+    text = await res.text();
+  }
   if (!res.ok) {
     console.error(`Midtrans Snap failed [${res.status}]: ${text}`);
     throw new Error("Pembayaran gagal disiapkan. Coba lagi sebentar.");
@@ -164,14 +220,16 @@ export async function processNotification(n: Record<string, unknown>): Promise<N
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
   const { data: order, error } = await supabaseAdmin
     .from("orders")
-    .select("id,total,payment_mode")
-    .eq("order_number", String(n["order_id"]))
+    .select("id,total,payment_mode,payment_token")
+    .eq("order_number", orderNumberFromSnapId(String(n["order_id"])))
     .maybeSingle();
   if (error) return { ok: false, status: 500, error: "lookup failed" };
   if (!order) return { ok: false, status: 404, error: "order not found" };
-  if (order.payment_mode !== "midtrans") return { ok: false, status: 409, error: "payment mode mismatch" };
+  // Pesanan Midtrans biasa: semua status. Pesanan WhatsApp yang punya link bayar buatan staf: hanya "paid".
+  const action = notificationAction(order, status);
+  if (action === "reject_mode") return { ok: false, status: 409, error: "payment mode mismatch" };
   if (Math.round(Number(n["gross_amount"])) !== order.total) return { ok: false, status: 400, error: "amount mismatch" };
-  if (!status) return { ok: true, result: "ignored" };
+  if (action === "ignore" || !status) return { ok: true, result: "ignored" };
   const { data: result, error: rpcError } = await supabaseAdmin.rpc("apply_order_payment_status", {
     _order_id: order.id,
     _status: status,

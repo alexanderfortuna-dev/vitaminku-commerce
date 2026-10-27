@@ -20,6 +20,40 @@ const linesSchema = z
 
 const promoCodeSchema = z.string().trim().max(32).optional().nullable();
 
+// Lokasi pelanggan (hanya setelah ia menekan "Gunakan lokasi saya"): dipakai menghitung tarif instan, tidak disimpan.
+const locationSchema = z.object({ lat: z.number().min(-90).max(90), lng: z.number().min(-180).max(180) });
+
+type PublicDb = ReturnType<typeof publicClient>;
+
+/** Berat & ukuran per slug untuk ongkir. Kolom ukuran baru ada setelah migrasi 0018: bila belum ada, pakai berat saja. */
+async function loadShipData(client: PublicDb, slugs: string[]) {
+  const out = new Map<string, import("./shipping-weight").ProductShipData>();
+  if (!slugs.length) return out;
+  let res = await client.from("products").select("slug,weight_grams,length_cm,width_cm,height_cm").in("slug", slugs);
+  if (res.error) {
+    // Normal sebelum migrasi 0018 (kolom ukuran belum ada). Bila bacaan berat saja juga gagal, ongkir memakai berat cadangan: catat.
+    res = (await client.from("products").select("slug,weight_grams").in("slug", slugs)) as unknown as typeof res;
+    if (res.error) console.error("Berat produk tidak terbaca, ongkir memakai berat cadangan:", res.error.message);
+  }
+  for (const r of (res.data ?? []) as unknown as Array<Record<string, unknown>>) {
+    out.set(String(r["slug"]), {
+      weight_grams: r["weight_grams"] as number | null,
+      length_cm: r["length_cm"] as number | null | undefined,
+      width_cm: r["width_cm"] as number | null | undefined,
+      height_cm: r["height_cm"] as number | null | undefined,
+    });
+  }
+  return out;
+}
+
+/** Data cabang untuk asal kiriman & kurir instan. Kolom baru (0018) opsional: sebelum dipasang hanya lat/lng. */
+async function loadShippingBranch(client: PublicDb, branchId: string | null | undefined) {
+  if (!branchId) return null;
+  let res = await client.from("store_branches").select("id,lat,lng,postal_code,area_id,instant_delivery").eq("id", branchId).eq("is_active", true).maybeSingle();
+  if (res.error) res = (await client.from("store_branches").select("id,lat,lng").eq("id", branchId).eq("is_active", true).maybeSingle()) as typeof res;
+  return (res.data ?? null) as import("./checkout.server").ShippingBranch | null;
+}
+
 async function quoteLines(lines: Array<{ slug: string; quantity: number }>, promoCode?: string | null) {
   const { quoteOrderLines } = await import("./order-pricing");
   const { normalizePromoCode } = await import("./promo");
@@ -46,7 +80,9 @@ async function quoteLines(lines: Array<{ slug: string; quantity: number }>, prom
   const quote = quoteOrderLines(lines, (rows ?? []) as never, promo);
   if (promo && !quote.promoCode) promoError = "Kode diskon tidak berlaku untuk produk di keranjang.";
   const bySlug = new Map((rows ?? []).map((r) => [r.slug, r]));
-  return { quote, bySlug, promoError, promoLabel: quote.promoCode ? promo!.label : null };
+  const shipData = await loadShipData(client, quote.lines.map((l) => l.slug));
+  const rateLines = quote.lines.map((l) => ({ name: l.name, value: l.unitPrice, quantity: l.quantity, ship: shipData.get(l.slug) }));
+  return { quote, bySlug, promoError, promoLabel: quote.promoCode ? promo!.label : null, rateLines };
 }
 
 function rejectionMessage(reason: string) {
@@ -91,16 +127,33 @@ const areaSchema = z.object({
 });
 
 export const getShippingRates = createServerFn({ method: "POST" })
-  .inputValidator((d: unknown) => z.object({ lines: linesSchema, area: areaSchema }).parse(d))
+  .inputValidator((d: unknown) =>
+    z
+      .object({
+        lines: linesSchema,
+        area: areaSchema,
+        branchId: z.string().uuid().nullable().optional(),
+        // Lokasi pelanggan + persetujuannya: hanya untuk tarif instan. Tanpa keduanya, opsi instan tidak ada.
+        loc: locationSchema.nullable().optional(),
+        locConsent: z.boolean().optional(),
+      })
+      .parse(d),
+  )
   .handler(async ({ data }) => {
     const { shippingRates } = await import("./checkout.server");
-    const { quote } = await quoteLines(data.lines);
+    const { quote, rateLines } = await quoteLines(data.lines);
     if (quote.rejected.length) throw new Error("Ada produk di keranjang yang tidak bisa dibeli.");
-    return shippingRates(
-      data.area.id,
-      data.area.postal_code,
-      quote.lines.map((l) => ({ name: l.name, value: l.unitPrice, quantity: l.quantity })),
-    );
+    const branch = await loadShippingBranch(publicClient(), data.branchId);
+    const res = await shippingRates({
+      areaId: data.area.id,
+      postalCode: data.area.postal_code,
+      lines: rateLines,
+      branch,
+      customer: data.loc ?? null,
+      locationConsent: data.locConsent === true,
+    });
+    // Alasan teknis (instant/fallbackLines) tidak dikirim ke browser.
+    return { mode: res.mode, rates: res.rates };
   });
 
 async function optionalUserId(): Promise<string | null> {
@@ -183,6 +236,9 @@ export const createOrder = createServerFn({ method: "POST" })
         courier: z.object({ company: z.string().min(1).max(50), service: z.string().min(1).max(50) }),
         method: z.enum(["midtrans", "whatsapp"]).default("whatsapp"),
         branchId: z.string().uuid().nullable().optional(),
+        // Lokasi pelanggan + persetujuannya (hanya untuk kurir instan; tidak disimpan di pesanan).
+        loc: locationSchema.nullable().optional(),
+        locConsent: z.boolean().optional(),
         // Kotak centang opsional (default tidak tercentang): info promo lewat WhatsApp.
         marketingOptIn: z.boolean().optional(),
         // Dibuat browser sekali per percobaan pesan; kirim ganda dengan kunci sama = satu pesanan.
@@ -201,7 +257,7 @@ export const createOrder = createServerFn({ method: "POST" })
     if (data.method === "midtrans" && m.payment !== "midtrans") throw new Error("Pembayaran online belum tersedia. Pesan via WhatsApp.");
     const method = data.method;
 
-    const { quote, bySlug, promoError } = await quoteLines(data.lines, data.promoCode);
+    const { quote, bySlug, promoError, rateLines } = await quoteLines(data.lines, data.promoCode);
     if (data.promoCode && promoError) throw new Error(promoError);
     if (quote.rejected.length) {
       const r = quote.rejected[0]!;
@@ -212,11 +268,15 @@ export const createOrder = createServerFn({ method: "POST" })
     if (m.shipping !== "manual" && !data.area) throw new Error("Pilih kecamatan/kota tujuan.");
     const area = data.area ?? { id: "MANUAL", province: "", city: "", district: "", postal_code: "" };
     // Re-fetch rates on the server; the browser only names the courier.
-    const { mode: shippingMode, rates } = await server.shippingRates(
-      area.id,
-      area.postal_code,
-      quote.lines.map((l) => ({ name: l.name, value: l.unitPrice, quantity: l.quantity })),
-    );
+    const shipBranch = await loadShippingBranch(publicClient(), data.branchId);
+    const { mode: shippingMode, rates, instant, fallbackLines } = await server.shippingRates({
+      areaId: area.id,
+      postalCode: area.postal_code,
+      lines: rateLines,
+      branch: shipBranch,
+      customer: data.loc ?? null,
+      locationConsent: data.locConsent === true,
+    });
     const rate = rates.find((r) => r.company === data.courier.company && r.service === data.courier.service);
     if (!rate) throw new Error("Ongkir berubah. Pilih kurir lagi.");
 
@@ -259,13 +319,22 @@ export const createOrder = createServerFn({ method: "POST" })
         console.error("branch admin routing failed", e instanceof Error ? e.message : "unknown");
       }
     }
+    // Pesanan instan: beri tanda untuk staf (alamat tertulis tetap acuan pengantaran; titik lokasi hanya untuk tarif).
+    const marks: string[] = [];
+    if (rate.kind === "instant") {
+      const km = instant.ok ? ` ±${instant.km} km garis lurus dari cabang` : "";
+      marks.push(`[INSTAN: titik lokasi dibagikan pelanggan,${km}. Cocokkan dengan alamat tertulis sebelum kirim]`);
+    }
+    if (shippingMode === "biteship" && fallbackLines > 0) marks.push("[Berat/ukuran produk belum lengkap: ongkir memakai berat cadangan, cek sebelum kirim]");
+    if (fallbackLines > 0 && fallbackLines === rateLines.length) console.error("Semua produk di pesanan memakai berat cadangan:", rateLines.map((l) => l.name).join(", ").slice(0, 200));
+    const staffNote = marks.length ? `${(data.customer.note ?? "").slice(0, 200)} ${marks.join(" ")}`.trim() : data.customer.note || null;
     // Satu panggilan atomik & idempoten: harga dihitung ulang dari tabel products di dalam database,
     // kunci yang sama = pesanan yang sama (kirim ganda tidak membuat pesanan baru).
     const { data: created, error } = await supabaseAdmin.rpc("create_order", {
       idempotency_key: data.idempotencyKey,
       payload: {
         lines: quote.lines.map((l) => ({ slug: l.slug, quantity: l.quantity })),
-        customer: { name: data.customer.name, whatsapp, address: data.customer.address, note: data.customer.note || null },
+        customer: { name: data.customer.name, whatsapp, address: data.customer.address, note: staffNote },
         area: { id: area.id, province: area.province, city: area.city, district: area.district, postal_code: area.postal_code },
         payment_mode: method,
         shipping: { mode: shippingMode, company: rate.company, service: rate.service, label: rate.label, cost: rate.price },

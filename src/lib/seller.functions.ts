@@ -458,12 +458,24 @@ export const lookupSkus = createServerFn({ method: "POST" })
 // ---------- Upload Massal ----------
 
 const FULL_COLS = "id,sku,name,brand,category,description,price,stock,weight_grams,bpom_number,images,is_active,is_blocked";
+const DIM_COLS = "length_cm,width_cm,height_cm";
+const MSG_DIMS_NOT_READY = "Ukuran belum bisa disimpan: pembaruan database 0018 belum dipasang (jalankan mode pasang-database).";
+
+// Kolom ukuran baru ada setelah migrasi 0018. Sebelum itu impor tetap jalan tanpa ukuran (cek sekali per menit).
+let dimsProbe: { at: number; ok: boolean } | null = null;
+async function dimsSupported(ctx: Ctx): Promise<boolean> {
+  if (dimsProbe && Date.now() - dimsProbe.at < 60_000) return dimsProbe.ok;
+  const { error } = await db(ctx).from("products").select("length_cm").limit(1);
+  dimsProbe = { at: Date.now(), ok: !error };
+  return dimsProbe.ok;
+}
 
 async function loadBySku(ctx: Ctx, skus: string[]): Promise<ExistingProduct[]> {
   const out: ExistingProduct[] = [];
   const unique = [...new Set(skus.filter(Boolean))];
+  const cols = (await dimsSupported(ctx)) ? `${FULL_COLS},${DIM_COLS}` : FULL_COLS;
   for (let i = 0; i < unique.length; i += 200) {
-    const { data, error } = await db(ctx).from("products").select(FULL_COLS).in("sku", unique.slice(i, i + 200));
+    const { data, error } = await db(ctx).from("products").select(cols).in("sku", unique.slice(i, i + 200));
     if (error) throw new Error(`Gagal membaca produk: ${error.message}`);
     out.push(...((data ?? []) as ExistingProduct[]));
   }
@@ -523,8 +535,9 @@ export const exportFullTemplate = createServerFn({ method: "GET" })
     const ctx = asCtx(context);
     await requireRole(ctx, "admin");
     const out: Array<ExistingProduct> = [];
+    const cols = (await dimsSupported(ctx)) ? `${FULL_COLS},${DIM_COLS}` : FULL_COLS;
     for (let offset = 0; offset < 20000; offset += 1000) {
-      const { data, error } = await db(ctx).from("products").select(FULL_COLS).order("sku").range(offset, offset + 999);
+      const { data, error } = await db(ctx).from("products").select(cols).order("sku").range(offset, offset + 999);
       if (error) throw new Error(error.message);
       out.push(...((data ?? []) as ExistingProduct[]));
       if (!data || data.length < 1000) break;
@@ -539,6 +552,9 @@ export const exportFullTemplate = createServerFn({ method: "GET" })
         price: p.price == null ? null : Number(p.price),
         stock: p.stock,
         weight_grams: p.weight_grams,
+        length_cm: p.length_cm == null ? null : Number(p.length_cm),
+        width_cm: p.width_cm == null ? null : Number(p.width_cm),
+        height_cm: p.height_cm == null ? null : Number(p.height_cm),
         bpom_number: p.bpom_number,
         // Our own signed links are long; re-uploading them is pointless, so leave photo cells empty.
         photoCount: (p.images ?? []).length,
@@ -593,8 +609,9 @@ async function ensureImportRecord(ctx: Ctx, input: FullInput, importId: string |
 async function writeImportSnapshot(importId: string, ctx: Ctx, planned: PlannedRow[]) {
   const ids = planned.filter((r) => r.kind === "update" && r.id).map((r) => r.id as string);
   const beforeById = new Map<string, Record<string, unknown>>();
+  const snapCols = (await dimsSupported(ctx)) ? `${SNAPSHOT_SELECT},${DIM_COLS}` : SNAPSHOT_SELECT;
   for (let i = 0; i < ids.length; i += 200) {
-    const { data, error } = await db(ctx).from("products").select(SNAPSHOT_SELECT).in("id", ids.slice(i, i + 200));
+    const { data, error } = await db(ctx).from("products").select(snapCols).in("id", ids.slice(i, i + 200));
     if (error) throw new Error("Gagal membuat cadangan sebelum impor. Tidak ada produk yang diubah.");
     for (const p of (data ?? []) as Array<Record<string, unknown>>) beforeById.set(String(p["id"]), p);
   }
@@ -721,9 +738,15 @@ export const applyFullImportChunk = createServerFn({ method: "POST" })
             },
             wantsLiveNow ? { is_active: true } : {},
           );
+          if (r.patch.length_cm !== undefined) {
+            if (!(await dimsSupported(ctx))) throw new Error(MSG_DIMS_NOT_READY);
+            const { error: dErr } = await db(ctx).from("products").update({ length_cm: r.patch.length_cm, width_cm: r.patch.width_cm, height_cm: r.patch.height_cm }).eq("id", id!);
+            if (dErr) throw new Error(`Ukuran gagal disimpan: ${dErr.message}`);
+          }
           created++;
         } else {
           const patch: Record<string, unknown> = { ...r.patch };
+          if (patch["length_cm"] !== undefined && !(await dimsSupported(ctx))) throw new Error(MSG_DIMS_NOT_READY);
           if (r.publish === false) patch["is_active"] = false;
           if (wantsLiveNow) patch["is_active"] = true;
           if (Object.keys(patch).length) {

@@ -111,8 +111,11 @@ describe("order status normalization", () => {
 });
 
 describe("delivery providers", () => {
-  it("only exposes Shopify standard shipping until a provider is verified", () => {
-    expect(enabledDeliveryProviders().map((p) => p.id)).toEqual(["shopify_standard"]);
+  it("tanpa kunci hanya ongkir via WhatsApp; kurir paket butuh kunci Biteship; instan butuh kunci DAN saklar", () => {
+    expect(enabledDeliveryProviders({})).toEqual(["manual_whatsapp"]);
+    expect(enabledDeliveryProviders({ BITESHIP_API_KEY: "  " , INSTANT_DELIVERY_ENABLED: "true" })).toEqual(["manual_whatsapp"]);
+    expect(enabledDeliveryProviders({ BITESHIP_API_KEY: "k" })).toEqual(["manual_whatsapp", "biteship_regular"]);
+    expect(enabledDeliveryProviders({ BITESHIP_API_KEY: "k", INSTANT_DELIVERY_ENABLED: "TRUE" })).toEqual(["manual_whatsapp", "biteship_regular", "biteship_instant"]);
   });
 });
 

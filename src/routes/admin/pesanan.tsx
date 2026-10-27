@@ -7,6 +7,7 @@ import { formatIDR } from "@/lib/format";
 import { listAdminOrders, updateAdminOrder, type OrderStatusFilter } from "@/lib/admin-orders.functions";
 import { canEditCommerce } from "@/lib/admin-roles";
 import { useAdminRole } from "./route";
+import { PaymentLinkPanel } from "@/components/admin/PaymentLinkPanel";
 
 export const Route = createFileRoute("/admin/pesanan")({
   head: () => ({
@@ -128,6 +129,7 @@ function AdminOrdersPage() {
                 </button>
               </div>
             )}
+            {o.payment_mode === "whatsapp" && (o.status === "menunggu_konfirmasi" || o.status === "pending") && <PaymentLinkPanel order={o} />}
             {o.stock_shortage && <p className="mt-1 text-xs font-bold text-destructive">Stok kurang saat dibayar — cek manual.</p>}
           </li>
         ))}

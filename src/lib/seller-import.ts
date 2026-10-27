@@ -12,6 +12,9 @@ export const FULL_HEADERS = [
   "Harga",
   "Stok",
   "Berat_gram",
+  "Panjang_cm",
+  "Lebar_cm",
+  "Tinggi_cm",
   "BPOM",
   "Foto_1",
   "Foto_2",
@@ -37,6 +40,10 @@ export interface FullRow {
   harga: RawCell;
   stok: RawCell;
   berat: RawCell;
+  /** Ukuran kemasan (cm). Kolom opsional di template; kosong = tidak diubah. */
+  panjang?: RawCell;
+  lebar?: RawCell;
+  tinggi?: RawCell;
   bpom: RawCell;
   fotos: RawCell[];
   status: RawCell;
@@ -52,6 +59,10 @@ export interface ExistingProduct {
   price: number | null;
   stock: number;
   weight_grams: number | null;
+  /** Hanya ada setelah migrasi 0018 dipasang (undefined = kolom belum ada). */
+  length_cm?: number | string | null;
+  width_cm?: number | string | null;
+  height_cm?: number | string | null;
   bpom_number: string | null;
   images: string[];
   is_active: boolean;
@@ -68,6 +79,9 @@ export interface ProductPatch {
   price?: number;
   stock?: number;
   weight_grams?: number;
+  length_cm?: number;
+  width_cm?: number;
+  height_cm?: number;
   bpom_number?: string;
 }
 
@@ -107,6 +121,15 @@ export function parseStatus(c: RawCell): boolean | null | "invalid" {
   return "invalid";
 }
 
+/** Ukuran dalam cm: "30", "12.5" atau "12,5" (satu desimal, > 0, maks 300). Titik di sini desimal, bukan pemisah ribuan. */
+export function parseCm(c: RawCell): { kind: "empty" } | { kind: "ok"; value: number } | { kind: "bad" } {
+  const s = text(c).replace(/\s*cm$/i, "").replace(",", ".");
+  if (!s) return { kind: "empty" };
+  if (!/^\d{1,3}(\.\d{1,2})?$/.test(s)) return { kind: "bad" };
+  const v = Math.round(Number(s) * 10) / 10;
+  return v > 0 && v <= 300 ? { kind: "ok", value: v } : { kind: "bad" };
+}
+
 export function isPhotoUrl(s: string) {
   return /^https?:\/\/[^\s]+$/i.test(s) && s.length <= 1000;
 }
@@ -141,7 +164,7 @@ export function planFullImport(
 
   input.forEach((r, index) => {
     const sku = text(r.sku);
-    const cells = [r.nama, r.brand, r.kategori, r.deskripsi, r.harga, r.stok, r.berat, r.bpom, r.status, ...r.fotos];
+    const cells = [r.nama, r.brand, r.kategori, r.deskripsi, r.harga, r.stok, r.berat, r.panjang, r.lebar, r.tinggi, r.bpom, r.status, ...r.fotos];
     if (!sku && cells.every((c) => text(c) === "")) return;
     plan.totalRows++;
     if (!sku) return void plan.errors.push({ row: r.row, sku: "", reason: MSG.skuEmpty });
@@ -167,6 +190,11 @@ export function planFullImport(
     if (stock.kind === "ok" && !Number.isInteger(stock.value)) reasons.push(MSG.stockFraction);
     if (weightBad) reasons.push(weightBad);
     if (weight.kind === "ok" && !(Math.round(weight.value) > 0)) reasons.push(MSG.weightZero);
+    const dims = [parseCm(r.panjang), parseCm(r.lebar), parseCm(r.tinggi)];
+    const dimLabels = ["Panjang_cm", "Lebar_cm", "Tinggi_cm"];
+    dims.forEach((d, i) => { if (d.kind === "bad") reasons.push(MSG.dimBad(dimLabels[i]!)); });
+    const dimsFilled = dims.filter((d) => d.kind === "ok").length;
+    if (!dims.some((d) => d.kind === "bad") && dimsFilled > 0 && dimsFilled < 3) reasons.push(MSG.dimPartial);
     const status = parseStatus(r.status);
     if (status === "invalid") reasons.push(MSG.status(text(r.status)));
 
@@ -202,6 +230,17 @@ export function planFullImport(
     take("price", price.kind === "ok" ? Math.round(price.value) : undefined, cur?.price == null ? null : Number(cur.price), cur?.price == null);
     take("stock", stock.kind === "ok" ? stock.value : undefined, cur?.stock, !cur || cur.stock === 0);
     take("weight_grams", weight.kind === "ok" ? Math.round(weight.value) : undefined, cur?.weight_grams, cur?.weight_grams == null);
+    if (dimsFilled === 3) {
+      // Tiga ukuran satu paket: dalam mode isi-yang-kosong, ditulis hanya bila produk belum punya ukuran sama sekali.
+      const curDims = [cur?.length_cm, cur?.width_cm, cur?.height_cm].map((v) => (v == null ? null : Number(v)));
+      const none = curDims.every((v) => v === null);
+      const same = curDims.every((v, i) => v === (dims[i] as { value: number }).value);
+      if (!(cur && mode === "fill" && !none) && !(cur && same)) {
+        patch.length_cm = (dims[0] as { value: number }).value;
+        patch.width_cm = (dims[1] as { value: number }).value;
+        patch.height_cm = (dims[2] as { value: number }).value;
+      }
+    }
 
     const hasPhotos = (cur?.images.length ?? 0) > 0;
     const newPhotos =
@@ -260,6 +299,9 @@ export function gridToFullRows(grid: RawCell[][]): FullRow[] {
     harga: at(cells, "Harga"),
     stok: at(cells, "Stok"),
     berat: at(cells, "Berat_gram"),
+    panjang: at(cells, "Panjang_cm") ?? at(cells, "Panjang"),
+    lebar: at(cells, "Lebar_cm") ?? at(cells, "Lebar"),
+    tinggi: at(cells, "Tinggi_cm") ?? at(cells, "Tinggi"),
     bpom: at(cells, "BPOM"),
     fotos: Array.from({ length: MAX_PHOTOS }, (_, i) => at(cells, `Foto_${i + 1}`)),
     status: at(cells, "Status"),

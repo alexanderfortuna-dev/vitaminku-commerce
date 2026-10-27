@@ -21,6 +21,9 @@ export interface Branch {
   code: string | null;
   address: string | null;
   opening_hours: string | null;
+  /** Hanya ada setelah migrasi 0018 (undefined = kolom belum ada, bagian ongkir cabang disembunyikan di Pengaturan). */
+  postal_code?: string | null;
+  instant_delivery?: boolean;
 }
 export interface StoreSettings {
   store_name: string;
@@ -53,10 +56,13 @@ export const getAdminStore = createServerFn({ method: "GET" })
     await requireRole(ctx, "admin");
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const db = ctx.supabase as any;
-    const [b, s] = await Promise.all([
-      db.from("store_branches").select("id,name,area,whatsapp,is_active,display_order,lat,lng,maps_url,code,address,opening_hours").order("display_order").order("name"),
+    const BASE = "id,name,area,whatsapp,is_active,display_order,lat,lng,maps_url,code,address,opening_hours";
+    let [b, s] = await Promise.all([
+      db.from("store_branches").select(`${BASE},postal_code,instant_delivery`).order("display_order").order("name"),
       db.from("store_settings").select("store_name,logo_url,hero_title,hero_subtitle,free_shipping_note,operating_hours").eq("id", 1).maybeSingle(),
     ]);
+    // Sebelum migrasi 0018 kolom ongkir cabang belum ada: baca tanpa kolom itu.
+    if (b.error) b = await db.from("store_branches").select(BASE).order("display_order").order("name");
     if (b.error) throw new Error(b.error.message);
     return { branches: (b.data ?? []) as Branch[], settings: (s.data ?? null) as StoreSettings | null };
   });
@@ -74,6 +80,8 @@ const branchSchema = z.object({
   code: z.string().trim().toUpperCase().regex(/^([A-Z0-9_-]{2,24})?$/, "Kode cabang: 2-24 huruf/angka (boleh - dan _), tanpa spasi").nullable().optional(),
   address: z.string().trim().max(300).nullable().optional(),
   opening_hours: z.string().trim().max(120).nullable().optional(),
+  postal_code: z.string().trim().regex(/^(\d{5})?$/, "Kode pos 5 angka").nullable().optional(),
+  instant_delivery: z.boolean().optional(),
 });
 
 export const saveBranch = createServerFn({ method: "POST" })
@@ -96,7 +104,15 @@ export const saveBranch = createServerFn({ method: "POST" })
       ({ lat, lng } = p);
     }
     if ((lat == null) !== (lng == null)) throw new Error("Isi lat dan lng keduanya, atau kosongkan keduanya.");
-    const row = { lat, lng, maps_url, code: data.code || null, address: data.address || null, opening_hours: data.opening_hours || null, name: data.name, area: data.area, whatsapp, is_active: data.is_active, display_order: data.display_order, updated_at: new Date().toISOString() };
+    if (data.instant_delivery === true) {
+      // Kurir instan hanya untuk cabang dengan titik di Bali; tidak ada tebakan lokasi.
+      const { inBali } = await import("./instant-delivery");
+      if (lat == null || lng == null || !inBali({ lat, lng })) throw new Error("Kurir instan butuh titik lokasi cabang (lat/lng) di Bali. Isi dulu link Google Maps cabang.");
+    }
+    const row = { lat, lng, maps_url, code: data.code || null, address: data.address || null, opening_hours: data.opening_hours || null, name: data.name, area: data.area, whatsapp, is_active: data.is_active, display_order: data.display_order, updated_at: new Date().toISOString(),
+      // Kolom ongkir hanya ditulis bila formulir membawanya (artinya migrasi 0018 sudah ada).
+      ...(data.postal_code !== undefined ? { postal_code: data.postal_code || null } : {}),
+      ...(data.instant_delivery !== undefined ? { instant_delivery: data.instant_delivery } : {}) };
     const res = data.id
       ? await db.from("store_branches").update(row).eq("id", data.id).select("id").single()
       : await db.from("store_branches").insert(row).select("id").single();

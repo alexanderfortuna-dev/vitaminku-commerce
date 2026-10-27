@@ -12,15 +12,17 @@ export const listAdminOrders = createServerFn({ method: "GET" })
     const ctx = context as unknown as Ctx;
     await requireRole(ctx, "admin");
     const offset = Math.max(0, data.offset ?? 0);
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    let q = (ctx.supabase as any)
-      .from("orders")
-      .select(
-        "id,order_number,status,payment_mode,customer_name,whatsapp,city,courier_label,total,stock_shortage,created_at,referral_code,promo_code,discount_total,customer_note,order_items(name,quantity)",
-        { count: "exact" },
-      );
-    if (data.status && data.status !== "ALL") q = q.eq("status", data.status);
-    const { data: rows, count, error } = await q.order("created_at", { ascending: false }).range(offset, offset + 29);
+    const COLS =
+      "id,order_number,status,payment_mode,customer_name,whatsapp,city,courier_label,total,stock_shortage,created_at,referral_code,promo_code,discount_total,customer_note,shipping_mode,shipping_cost,payment_url,order_items(name,quantity)";
+    const fetchPage = (cols: string) => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      let q = (ctx.supabase as any).from("orders").select(cols, { count: "exact" });
+      if (data.status && data.status !== "ALL") q = q.eq("status", data.status);
+      return q.order("created_at", { ascending: false }).range(offset, offset + 29);
+    };
+    // payment_link_at baru ada setelah migrasi 0018: sebelum itu daftar tetap tampil tanpa kolom itu.
+    let { data: rows, count, error } = await fetchPage(`${COLS},payment_link_at`);
+    if (error && /payment_link_at/.test(error.message)) ({ data: rows, count, error } = await fetchPage(COLS));
     if (error) throw new Error(`Pesanan gagal dimuat: ${error.message}`);
     return { orders: (rows ?? []) as AdminOrderRow[], total: count ?? 0, nextOffset: (rows?.length ?? 0) === 30 ? offset + 30 : null };
   });
@@ -59,5 +61,9 @@ export interface AdminOrderRow {
   promo_code: string | null;
   discount_total: number | null;
   customer_note: string | null;
+  shipping_mode: string;
+  shipping_cost: number;
+  payment_url: string | null;
+  payment_link_at?: string | null;
   order_items: Array<{ name: string; quantity: number }> | null;
 }

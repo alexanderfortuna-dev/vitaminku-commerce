@@ -117,6 +117,16 @@ function PengaturanPage() {
               <label className="text-xs font-semibold text-navy">Kode cabang<input className={field} value={d.code ?? ""} onChange={(e) => set(i, { code: e.target.value.toUpperCase().replace(/[^A-Z0-9_-]/g, "") })} maxLength={24} placeholder="mis. SANUR" /></label>
               <label className="col-span-2 text-xs font-semibold text-navy">Alamat lengkap (opsional)<input className={field} value={d.address ?? ""} onChange={(e) => set(i, { address: e.target.value })} /></label>
               <label className="col-span-2 text-xs font-semibold text-navy">Jam buka (opsional)<input className={field} value={d.opening_hours ?? ""} onChange={(e) => set(i, { opening_hours: e.target.value })} placeholder="mis. Setiap hari 09.00-21.00" /></label>
+              {d.postal_code !== undefined && (
+                <>
+                  <label className="text-xs font-semibold text-navy">Kode pos cabang (asal ongkir)<input className={field} inputMode="numeric" maxLength={5} value={d.postal_code ?? ""} onChange={(e) => set(i, { postal_code: e.target.value.replace(/\D/g, "").slice(0, 5) })} placeholder="mis. 80228" /></label>
+                  <label className="flex items-center gap-2 text-xs font-semibold text-navy">
+                    <input type="checkbox" checked={d.instant_delivery === true} onChange={(e) => set(i, { instant_delivery: e.target.checked })} />
+                    Kurir instan (Gojek/Grab) dari cabang ini
+                  </label>
+                  <p className="col-span-2 text-[11px] text-muted-foreground">Instan hanya muncul untuk pelanggan di Bali yang membagikan lokasi, dalam jarak dekat, dan hanya bila kunci Biteship serta saklar instan di server sudah aktif. Wajib ada titik lokasi cabang.</p>
+                </>
+              )}
               <label className="text-xs font-semibold text-navy">Urutan<input className={field} inputMode="numeric" value={d.display_order} onChange={(e) => set(i, { display_order: Number(e.target.value.replace(/\D/g, "")) || 0 })} /></label>
             </div>
             <div className="flex items-center gap-2">
