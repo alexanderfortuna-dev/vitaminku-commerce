@@ -48,4 +48,13 @@ UNION ALL SELECT '11. Data ongkir: ukuran', 'INFO',
     THEN (xpath('/row/n/text()', query_to_xml(
       'SELECT count(*) FILTER (WHERE length_cm > 0 AND width_cm > 0 AND height_cm > 0) || '' dari '' || count(*) || '' produk bisa-dibeli punya ukuran lengkap''
          AS n FROM public.products WHERE is_active AND NOT is_blocked AND price > 0', false, true, '')))[1]::text
-    ELSE 'kolom ukuran belum ada (migrasi 0018 belum dipasang)' END;
+    ELSE 'kolom ukuran belum ada (migrasi 0018 belum dipasang)' END
+UNION ALL SELECT '12. Vita cerdas (migrasi 0017)', 'INFO',
+  CASE WHEN EXISTS (SELECT 1 FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace WHERE n.nspname = 'public' AND p.proname = 'vita_search')
+        AND to_regclass('public.vita_events') IS NOT NULL
+       THEN 'terpasang: pencarian vita_search dan tabel statistik ada' ELSE 'belum terpasang' END
+UNION ALL SELECT '13. Ongkir & link bayar (migrasi 0018)', 'INFO',
+  CASE WHEN EXISTS (SELECT 1 FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace WHERE n.nspname = 'public' AND p.proname = 'staff_set_shipping')
+        AND EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'store_branches' AND column_name = 'instant_delivery')
+        AND EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'orders' AND column_name = 'payment_link_at')
+       THEN 'terpasang: fungsi ongkir staf, kolom cabang, dan kolom link bayar ada' ELSE 'belum terpasang' END;

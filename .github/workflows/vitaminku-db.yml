@@ -266,9 +266,10 @@ jobs:
           else echo "peramban|INFO|unduh Chromium gagal/macet, pakai Chrome bawaan runner"; tail -3 /tmp/pw-install.log; export PW_CHANNEL=chrome; fi
           cp scripts/uji-situs-ponsel.mjs scripts/uji-belanja.mjs /tmp/pw/ && (cd /tmp/pw && SITE="$SITE" node uji-situs-ponsel.mjs) | tee -a /tmp/situs.txt; f2=${PIPESTATUS[0]}
           (cd /tmp/pw && SITE="$SITE" node uji-belanja.mjs) | tee -a /tmp/situs.txt; f3=${PIPESTATUS[0]}
+          SITE="$SITE" node scripts/uji-vita-live.mjs | tee -a /tmp/situs.txt; f4=${PIPESTATUS[0]}
           { echo "### Uji situs ($SITE)"; echo "| Uji | Hasil | Detail |"; echo "|---|---|---|"
             while IFS='|' read -r a b c; do echo "| $a | $b | $c |"; done < /tmp/situs.txt; } >> "$GITHUB_STEP_SUMMARY"
-          [ "$f1" = 0 ] && [ "$f2" = 0 ] && [ "$f3" = 0 ]
+          [ "$f1" = 0 ] && [ "$f2" = 0 ] && [ "$f3" = 0 ] && [ "$f4" = 0 ]
 
       - name: Siapkan bun untuk bukti watermark
         if: ${{ !cancelled() && inputs.mode == 'cek-saja' && inputs.bukti_ref != '' }}
