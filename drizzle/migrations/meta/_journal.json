@@ -120,6 +120,20 @@
       "when": 1791800006000,
       "tag": "0016_rate_limit_and_unblock_functions",
       "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1791800007000,
+      "tag": "0017_vita_cerdas",
+      "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1791800008000,
+      "tag": "0018_ongkir_dan_link_bayar",
+      "breakpoints": true
     }
   ]
 }

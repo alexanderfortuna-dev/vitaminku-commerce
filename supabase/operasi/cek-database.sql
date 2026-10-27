@@ -37,4 +37,24 @@ UNION ALL SELECT '7. Owner aktif', CASE WHEN o.n >= 1 THEN 'LULUS' ELSE 'INFO' E
   o.n || ' owner' || CASE WHEN o.n = 0 THEN ' (normal sebelum mode aktifkan-peran)' ELSE '' END FROM o
 UNION ALL SELECT '8. Pesanan lewat create_order', CASE WHEN co.ada AND co.anon_tertutup THEN 'LULUS' ELSE 'GAGAL' END,
   CASE WHEN NOT co.ada THEN 'fungsi belum ada' WHEN NOT co.anon_tertutup THEN 'tamu masih bisa menulis langsung' ELSE 'tercatat aman' END FROM co
-UNION ALL SELECT '9. Antrean tinjau foto Shopee', CASE WHEN sp.ada THEN 'LULUS' ELSE 'GAGAL' END, CASE WHEN sp.ada THEN 'siap' ELSE 'belum ada' END FROM sp;
+UNION ALL SELECT '9. Antrean tinjau foto Shopee', CASE WHEN sp.ada THEN 'LULUS' ELSE 'GAGAL' END, CASE WHEN sp.ada THEN 'siap' ELSE 'belum ada' END FROM sp
+-- Cakupan data ongkir (INFO, bukan syarat lulus): produk yang bisa dibeli = aktif, tidak diblokir, berharga.
+UNION ALL SELECT '10. Data ongkir: berat', 'INFO',
+  (SELECT count(*) FILTER (WHERE weight_grams > 0) || ' dari ' || count(*) || ' produk bisa-dibeli punya berat ('
+    || coalesce(round(100.0 * count(*) FILTER (WHERE weight_grams > 0) / nullif(count(*), 0), 1)::text, '0') || '%); sisanya dihitung 500 g cadangan'
+   FROM public.products WHERE is_active AND NOT is_blocked AND price > 0)
+UNION ALL SELECT '11. Data ongkir: ukuran', 'INFO',
+  CASE WHEN EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'products' AND column_name = 'length_cm')
+    THEN (xpath('/row/n/text()', query_to_xml(
+      'SELECT count(*) FILTER (WHERE length_cm > 0 AND width_cm > 0 AND height_cm > 0) || '' dari '' || count(*) || '' produk bisa-dibeli punya ukuran lengkap''
+         AS n FROM public.products WHERE is_active AND NOT is_blocked AND price > 0', false, true, '')))[1]::text
+    ELSE 'kolom ukuran belum ada (migrasi 0018 belum dipasang)' END
+UNION ALL SELECT '12. Vita cerdas (migrasi 0017)', 'INFO',
+  CASE WHEN EXISTS (SELECT 1 FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace WHERE n.nspname = 'public' AND p.proname = 'vita_search')
+        AND to_regclass('public.vita_events') IS NOT NULL
+       THEN 'terpasang: pencarian vita_search dan tabel statistik ada' ELSE 'belum terpasang' END
+UNION ALL SELECT '13. Ongkir & link bayar (migrasi 0018)', 'INFO',
+  CASE WHEN EXISTS (SELECT 1 FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace WHERE n.nspname = 'public' AND p.proname = 'staff_set_shipping')
+        AND EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'store_branches' AND column_name = 'instant_delivery')
+        AND EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'orders' AND column_name = 'payment_link_at')
+       THEN 'terpasang: fungsi ongkir staf, kolom cabang, dan kolom link bayar ada' ELSE 'belum terpasang' END;
