@@ -57,4 +57,11 @@ UNION ALL SELECT '13. Ongkir & link bayar (migrasi 0018)', 'INFO',
   CASE WHEN EXISTS (SELECT 1 FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace WHERE n.nspname = 'public' AND p.proname = 'staff_set_shipping')
         AND EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'store_branches' AND column_name = 'instant_delivery')
         AND EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'orders' AND column_name = 'payment_link_at')
-       THEN 'terpasang: fungsi ongkir staf, kolom cabang, dan kolom link bayar ada' ELSE 'belum terpasang' END;
+       THEN 'terpasang: fungsi ongkir staf, kolom cabang, dan kolom link bayar ada' ELSE 'belum terpasang' END
+UNION ALL SELECT '14. Data cabang aktif', 'INFO',
+  (SELECT count(*) || ' cabang aktif; ' || count(*) FILTER (WHERE postal_code IS NOT NULL) || ' punya kode pos, '
+     || count(*) FILTER (WHERE lat IS NOT NULL AND lng IS NOT NULL) || ' punya titik peta, '
+     || count(*) FILTER (WHERE instant_delivery) || ' menyalakan kurir instan'
+   FROM public.store_branches WHERE is_active)
+UNION ALL SELECT '15. Peran aktif (jumlah saja)', 'INFO',
+  coalesce((SELECT string_agg(role || ' ' || n, ', ' ORDER BY role) FROM (SELECT role::text AS role, count(*) AS n FROM public.user_roles WHERE is_active GROUP BY role) r), 'belum ada peran aktif');
