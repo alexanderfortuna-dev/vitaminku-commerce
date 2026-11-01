@@ -8,7 +8,10 @@ import { defineConfig } from "@lovable.dev/vite-tanstack-config";
 import { mcpPlugin } from "@lovable.dev/mcp-js/stacks/tanstack/vite";
 
 export default defineConfig({
-  plugins: [mcpPlugin()],
+  // The generator compares Vite's slash-normalized root with native paths,
+  // which rejects every Windows project. The generated routes are checked in;
+  // keep using them locally, and regenerate normally on the Linux deploy host.
+  plugins: process.platform === "win32" ? [] : [mcpPlugin()],
   tanstackStart: {
     // Redirect TanStack Start's bundled server entry to src/server.ts (our SSR error wrapper).
     // nitro/vite builds from this

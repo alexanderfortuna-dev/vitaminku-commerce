@@ -1,3 +1,4 @@
+import { CatalogError } from "@/components/CatalogError";
 import { Link, createFileRoute } from "@tanstack/react-router";
 import { useInfiniteQuery } from "@tanstack/react-query";
 import { PackageSearch } from "lucide-react";
@@ -29,9 +30,16 @@ export const Route = createFileRoute("/merek/$brand")({
 function BrandPage() {
   const { brand: raw } = Route.useParams();
   const brand = decodeURIComponent(raw);
-  const { data, isPending, hasNextPage, isFetchingNextPage, fetchNextPage } = useInfiniteQuery(
-    productsInfiniteQueryOptions({ brand, sort: "name" }),
-  );
+  const {
+    data,
+    isPending,
+    isError,
+    isFetching,
+    refetch,
+    hasNextPage,
+    isFetchingNextPage,
+    fetchNextPage,
+  } = useInfiniteQuery(productsInfiniteQueryOptions({ brand, sort: "name" }));
   const products = dedupeProducts((data?.pages ?? []).flatMap((p) => p.products));
   const total = data?.pages[0]?.total ?? null;
 
@@ -49,11 +57,17 @@ function BrandPage() {
         </nav>
         <h1 className="mt-2 text-lg font-extrabold">{brand}</h1>
         <p className="text-sm text-muted-foreground">
-          {isPending ? "Memuat…" : `${total ?? products.length} produk`}
+          {isError && !data
+            ? "Produk belum dapat dimuat."
+            : isPending
+              ? "Memuat…"
+              : `${total ?? products.length} produk`}
         </p>
       </div>
 
-      {isPending ? (
+      {isError && products.length === 0 ? (
+        <CatalogError onRetry={() => void refetch()} isFetching={isFetching} />
+      ) : isPending ? (
         <ProductGrid products={[]} isLoading />
       ) : products.length > 0 ? (
         <>

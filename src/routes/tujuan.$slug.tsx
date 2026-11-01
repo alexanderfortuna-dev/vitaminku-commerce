@@ -1,3 +1,4 @@
+import { CatalogError } from "@/components/CatalogError";
 import { Link, createFileRoute, notFound } from "@tanstack/react-router";
 import { useInfiniteQuery } from "@tanstack/react-query";
 import { PackageSearch } from "lucide-react";
@@ -49,7 +50,16 @@ export const Route = createFileRoute("/tujuan/$slug")({
 function GoalPage() {
   const { slug } = Route.useParams();
   const goal = getGoal(slug);
-  const { data, isPending, hasNextPage, isFetchingNextPage, fetchNextPage } = useInfiniteQuery({
+  const {
+    data,
+    isPending,
+    isError,
+    isFetching,
+    refetch,
+    hasNextPage,
+    isFetchingNextPage,
+    fetchNextPage,
+  } = useInfiniteQuery({
     ...productsInfiniteQueryOptions({ subcategories: goal?.subcategories ?? [], sort: "name" }),
     enabled: Boolean(goal),
   });
@@ -88,7 +98,9 @@ function GoalPage() {
         ))}
       </div>
 
-      {isPending ? (
+      {isError && products.length === 0 ? (
+        <CatalogError onRetry={() => void refetch()} isFetching={isFetching} />
+      ) : isPending ? (
         <ProductGrid products={[]} isLoading />
       ) : products.length > 0 ? (
         <>

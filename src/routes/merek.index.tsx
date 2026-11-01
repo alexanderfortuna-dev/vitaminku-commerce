@@ -1,3 +1,4 @@
+import { CatalogError } from "@/components/CatalogError";
 import { Link, createFileRoute } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { brandSlug } from "@/lib/catalog";
@@ -24,7 +25,13 @@ export const Route = createFileRoute("/merek/")({
 });
 
 function BrandIndex() {
-  const { data: brands = [], isPending } = useQuery(brandsQueryOptions());
+  const {
+    data: brands = [],
+    isPending,
+    isError,
+    isFetching,
+    refetch,
+  } = useQuery(brandsQueryOptions());
 
   const groups = new Map<string, typeof brands>();
   for (const entry of brands) {
@@ -39,8 +46,14 @@ function BrandIndex() {
     <div className="px-4 py-4 pb-8">
       <h1 className="text-lg font-extrabold">Semua Merek</h1>
       <p className="mt-1 text-sm text-muted-foreground">
-        {isPending ? "Memuat merek…" : `${brands.length} merek dalam katalog.`}
+        {isError
+          ? "Merek belum dapat dimuat."
+          : isPending
+            ? "Memuat merek…"
+            : `${brands.length} merek dalam katalog.`}
       </p>
+
+      {isError && <CatalogError onRetry={() => void refetch()} isFetching={isFetching} />}
 
       {letters.length > 0 && (
         <div className="mt-3 flex flex-wrap gap-1.5">
