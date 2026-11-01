@@ -1,3 +1,4 @@
+import { CatalogError } from "@/components/CatalogError";
 import { Link, createFileRoute, notFound } from "@tanstack/react-router";
 import { useInfiniteQuery } from "@tanstack/react-query";
 import { useState } from "react";
@@ -58,7 +59,16 @@ function CategoryPage() {
   const [sort, setSort] = useState<CatalogSort>("name");
   const [subcategory, setSubcategory] = useState<string | null>(null);
 
-  const { data, isPending, hasNextPage, isFetchingNextPage, fetchNextPage } = useInfiniteQuery({
+  const {
+    data,
+    isPending,
+    isError,
+    isFetching,
+    refetch,
+    hasNextPage,
+    isFetchingNextPage,
+    fetchNextPage,
+  } = useInfiniteQuery({
     ...productsInfiniteQueryOptions({
       category: category?.category ?? "",
       subcategories: subcategory ? [subcategory] : undefined,
@@ -113,7 +123,11 @@ function CategoryPage() {
 
       <div className="flex flex-wrap items-center justify-between gap-2 px-4 pb-3">
         <p className="text-xs text-muted-foreground">
-          {isPending ? "Memuat…" : `${total ?? products.length} produk`}
+          {isError && !data
+            ? "Produk belum dapat dimuat."
+            : isPending
+              ? "Memuat…"
+              : `${total ?? products.length} produk`}
         </p>
         <label className="text-xs">
           <span className="sr-only">Urutkan</span>
@@ -131,7 +145,9 @@ function CategoryPage() {
         </label>
       </div>
 
-      {isPending ? (
+      {isError && products.length === 0 ? (
+        <CatalogError onRetry={() => void refetch()} isFetching={isFetching} />
+      ) : isPending ? (
         <ProductGrid products={[]} isLoading />
       ) : products.length > 0 ? (
         <>

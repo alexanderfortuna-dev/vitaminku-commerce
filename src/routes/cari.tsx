@@ -1,3 +1,4 @@
+import { CatalogError } from "@/components/CatalogError";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useInfiniteQuery } from "@tanstack/react-query";
 import { useState } from "react";
@@ -15,7 +16,7 @@ import { POPULAR_SEARCHES } from "@/lib/catalog";
 
 export const Route = createFileRoute("/cari")({
   validateSearch: (search: Record<string, unknown>) => ({
-    q: typeof search["q"] === "string" ? (search["q"] as string) : "",
+    q: typeof search["q"] === "string" ? search["q"].trim() : "",
   }),
   head: () => ({
     meta: [
@@ -41,7 +42,16 @@ export const Route = createFileRoute("/cari")({
 function SearchPage() {
   const { q } = Route.useSearch();
   const [sort, setSort] = useState<CatalogSort>("name");
-  const { data, isPending, hasNextPage, isFetchingNextPage, fetchNextPage } = useInfiniteQuery({
+  const {
+    data,
+    isPending,
+    isError,
+    isFetching,
+    refetch,
+    hasNextPage,
+    isFetchingNextPage,
+    fetchNextPage,
+  } = useInfiniteQuery({
     ...productsInfiniteQueryOptions({ search: q, sort }),
     enabled: q.trim().length > 0,
   });
@@ -59,7 +69,11 @@ function SearchPage() {
         <>
           <div className="flex flex-wrap items-center justify-between gap-2 px-4 pb-3">
             <p className="min-w-0 flex-1 truncate text-sm text-muted-foreground">
-              {isPending ? "Memuat…" : `${total ?? products.length} hasil untuk `}
+              {isError && !data
+                ? "Hasil belum dapat dimuat untuk "
+                : isPending
+                  ? "Memuat…"
+                  : `${total ?? products.length} hasil untuk `}
               <span className="font-semibold text-navy">“{q}”</span>
             </p>
             <label className="shrink-0 text-xs">
@@ -78,7 +92,9 @@ function SearchPage() {
             </label>
           </div>
 
-          {isPending ? (
+          {isError && products.length === 0 ? (
+            <CatalogError onRetry={() => void refetch()} isFetching={isFetching} />
+          ) : isPending ? (
             <ProductGrid products={[]} isLoading />
           ) : products.length > 0 ? (
             <>

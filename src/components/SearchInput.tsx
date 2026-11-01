@@ -1,7 +1,8 @@
 import { Link, useNavigate } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { Search, X } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
+import { CatalogError } from "./CatalogError";
 import { POPULAR_SEARCHES } from "@/lib/catalog";
 import { hasPrice, productSlug, productsQueryOptions } from "@/lib/catalog-db";
 import { ProductThumb } from "@/components/ProductThumb";
@@ -13,6 +14,13 @@ export function SearchInput({ initialValue = "" }: { initialValue?: string }) {
   const [debounced, setDebounced] = useState(initialValue);
   const [open, setOpen] = useState(false);
   const wrapRef = useRef<HTMLDivElement>(null);
+  const inputId = useId();
+
+  useEffect(() => {
+    setValue(initialValue);
+    setDebounced(initialValue.trim());
+    setOpen(false);
+  }, [initialValue]);
 
   useEffect(() => {
     const id = setTimeout(() => setDebounced(value.trim()), 250);
@@ -27,7 +35,7 @@ export function SearchInput({ initialValue = "" }: { initialValue?: string }) {
     return () => document.removeEventListener("mousedown", onClick);
   }, []);
 
-  const { data } = useQuery({
+  const { data, isFetching, isError, refetch } = useQuery({
     ...productsQueryOptions({ search: debounced, sort: "name", limit: 6 }),
     enabled: debounced.length > 1 && open,
   });
@@ -47,16 +55,19 @@ export function SearchInput({ initialValue = "" }: { initialValue?: string }) {
           submit(value.trim());
         }}
       >
-        <label className="sr-only" htmlFor="site-search">
+        <label className="sr-only" htmlFor={inputId}>
           Cari produk
         </label>
         <div className="flex items-center gap-2 rounded-full border border-border bg-secondary px-4 py-2.5">
           <Search className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden />
           <input
-            id="site-search"
+            id={inputId}
             value={value}
             onFocus={() => setOpen(true)}
             onChange={(e) => setValue(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Escape") setOpen(false);
+            }}
             placeholder="Cari vitamin, protein, merek…"
             className="min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground"
             inputMode="search"
@@ -78,7 +89,13 @@ export function SearchInput({ initialValue = "" }: { initialValue?: string }) {
       {open && (
         <div className="absolute left-0 right-0 top-full z-50 mt-2 overflow-hidden card-surface">
           {debounced.length > 1 ? (
-            suggestions.length > 0 ? (
+            isError ? (
+              <CatalogError onRetry={() => void refetch()} isFetching={isFetching} />
+            ) : isFetching || value.trim() !== debounced ? (
+              <p role="status" className="p-4 text-sm text-muted-foreground">
+                Memuat produk…
+              </p>
+            ) : suggestions.length > 0 ? (
               <ul className="max-h-80 divide-y divide-border overflow-auto">
                 {suggestions.map((product) => (
                   <li key={product.id}>

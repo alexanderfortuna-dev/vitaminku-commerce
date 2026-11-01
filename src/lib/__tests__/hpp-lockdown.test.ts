@@ -9,7 +9,7 @@ function walk(dir: string, out: string[] = []) {
   for (const f of readdirSync(dir)) {
     const p = join(dir, f);
     if (statSync(p).isDirectory()) walk(p, out);
-    else if (/\.(ts|tsx)$/.test(f)) out.push(p);
+    else if (/\.(ts|tsx)$/.test(f)) out.push(p.replace(/\\/g, "/"));
   }
   return out;
 }
@@ -17,7 +17,12 @@ function walk(dir: string, out: string[] = []) {
 describe("HPP tidak terjangkau dari kode aplikasi", () => {
   it("tidak ada pemakaian `hpp` selain tipe generate, komentar, dan tes", () => {
     const offenders = walk("src")
-      .filter((f) => !f.endsWith("integrations/supabase/types.ts") && !f.endsWith("lib/backup.functions.ts") && !f.includes("__tests__"))
+      .filter(
+        (f) =>
+          !f.endsWith("integrations/supabase/types.ts") &&
+          !f.endsWith("lib/backup.functions.ts") &&
+          !f.includes("__tests__"),
+      )
       .filter((f) =>
         readFileSync(f, "utf8")
           .split("\n")
