@@ -1,5 +1,4 @@
 import { createServerFn } from "@tanstack/react-start";
-import { getRequestHeader } from "@tanstack/react-start/server";
 import { timingSafeEqual } from "node:crypto";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import {
@@ -684,11 +683,8 @@ export const activateStaffAccount = createServerFn({ method: "POST" })
     return input;
   })
   .handler(async ({ data }) => {
-    const ip = bootstrapClientIp();
-    const limitKey = `${ip}|${data.email.trim().toLowerCase()}`; // IP+email: ember "unknown" tidak memblokir semua orang
-    if (bootstrapRateLimited(limitKey, staffAttempts)) {
-      throw new Error("Terlalu banyak percobaan. Coba lagi dalam 15 menit.");
-    }
+    const { enforceActivationLimit } = await import("./activation-limit.server");
+    await enforceActivationLimit("staff");
     const { StaffActivationError, runStaffActivation } = await import("./staff-activation.server");
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const admin = supabaseAdmin.auth.admin;
@@ -724,11 +720,9 @@ export const activateStaffAccount = createServerFn({ method: "POST" })
         },
         { secret: process.env["STAFF_ACTIVATION_SECRET"], email: data.email, password: data.password, code: data.code, displayName: data.displayName },
       );
-      staffAttempts.delete(limitKey);
       return result;
     } catch (error) {
       if (error instanceof StaffActivationError) {
-        if (error.kind === "code") recordBootstrapFailure(limitKey, staffAttempts);
         throw new Error(error.message);
       }
       console.error("[staff-activation] galat tak terduga", error instanceof Error ? error.message : "tidak diketahui");
@@ -737,45 +731,6 @@ export const activateStaffAccount = createServerFn({ method: "POST" })
   });
 
 /* ------------------------------ bootstrap ------------------------------- */
-
-// In-process rate limiter: max 5 failed attempts per 15 minutes per IP.
-const BOOTSTRAP_WINDOW_MS = 15 * 60 * 1000;
-const BOOTSTRAP_MAX_FAILURES = 5;
-const bootstrapAttempts = new Map<string, { count: number; firstAt: number }>();
-const staffAttempts = new Map<string, { count: number; firstAt: number }>(); // terpisah dari bootstrap owner
-
-function bootstrapClientIp(): string {
-  try {
-    const forwarded = getRequestHeader("x-forwarded-for");
-    if (forwarded) return forwarded.split(",")[0]!.trim();
-    return getRequestHeader("cf-connecting-ip") ?? getRequestHeader("x-real-ip") ?? "unknown";
-  } catch {
-    return "unknown";
-  }
-}
-
-function bootstrapRateLimited(ip: string, attempts = bootstrapAttempts): boolean {
-  const entry = attempts.get(ip);
-  if (!entry) return false;
-  if (Date.now() - entry.firstAt > BOOTSTRAP_WINDOW_MS) {
-    attempts.delete(ip);
-    return false;
-  }
-  return entry.count >= BOOTSTRAP_MAX_FAILURES;
-}
-
-function recordBootstrapFailure(ip: string, attempts = bootstrapAttempts) {
-  if (attempts.size > 2000) {
-    for (const [key, value] of attempts) if (Date.now() - value.firstAt > BOOTSTRAP_WINDOW_MS) attempts.delete(key);
-    if (attempts.size > 2000) attempts.clear();
-  }
-  const entry = attempts.get(ip);
-  if (!entry || Date.now() - entry.firstAt > BOOTSTRAP_WINDOW_MS) {
-    attempts.set(ip, { count: 1, firstAt: Date.now() });
-    return;
-  }
-  entry.count += 1;
-}
 
 function constantTimeEqual(a: string, b: string): boolean {
   const bufA = Buffer.from(a, "utf8");
@@ -799,16 +754,10 @@ export const activateBootstrapOwner = createServerFn({ method: "POST" })
     return input;
   })
   .handler(async ({ data }) => {
-    const ip = bootstrapClientIp();
-    if (bootstrapRateLimited(ip)) {
-      throw new Error("Terlalu banyak percobaan. Coba lagi dalam 15 menit.");
-    }
-
-    const secret = process.env["ADMIN_BOOTSTRAP_SECRET"];
-    if (!secret) {
-      recordBootstrapFailure(ip);
-      throw new Error("Aktivasi owner tidak tersedia.");
-    }
+    const { enforceActivationLimit } = await import("./activation-limit.server");
+    const { assertBootstrapSecret, rejectMismatchedBootstrap } = await import("./activation-limit");
+    await enforceActivationLimit("owner");
+    const secret = assertBootstrapSecret(process.env["ADMIN_BOOTSTRAP_SECRET"]);
 
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { data: existing } = await supabaseAdmin
@@ -823,10 +772,7 @@ export const activateBootstrapOwner = createServerFn({ method: "POST" })
     const bootstrap = process.env["ADMIN_BOOTSTRAP_EMAIL"]?.toLowerCase();
     const emailOk = !!bootstrap && bootstrap === data.email.trim().toLowerCase();
     const codeOk = constantTimeEqual(data.code.trim(), secret);
-    if (!emailOk || !codeOk) {
-      recordBootstrapFailure(ip);
-      throw new Error("Email atau kode aktivasi tidak cocok.");
-    }
+    rejectMismatchedBootstrap(emailOk, codeOk);
 
     const { data: created, error } = await supabaseAdmin.auth.admin.createUser({
       email: bootstrap!,
@@ -840,6 +786,5 @@ export const activateBootstrapOwner = createServerFn({ method: "POST" })
       .from("user_roles")
       .upsert({ user_id: created.user.id, role: "owner", is_active: true });
     if (roleError) throw new Error(`Gagal menyimpan peran owner: ${roleError.message}`);
-    bootstrapAttempts.delete(ip);
     return { ok: true };
   });
