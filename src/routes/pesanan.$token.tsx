@@ -1,10 +1,11 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
+import { useState } from "react";
 import { CheckCircle2, Clock, Copy, XCircle } from "lucide-react";
 import { toast } from "sonner";
 import { formatIDR } from "@/lib/format";
-import { getOrderByToken, getOrderContacts } from "@/lib/checkout.functions";
+import { getOrderByToken, getOrderContacts, retryOrderPayment } from "@/lib/checkout.functions";
 import { whatsappOrderUrl } from "@/lib/whatsapp-order";
 import { WHATSAPP_NUMBER } from "@/components/WhatsAppButton";
 
@@ -50,6 +51,8 @@ function OrderPage() {
     retry: false,
     staleTime: 60_000,
   });
+  const retryPay = useServerFn(retryOrderPayment);
+  const [retrying, setRetrying] = useState(false);
 
   if (isPending) return <p className="p-4 text-sm text-muted-foreground">Memuat pesanan…</p>;
   if (isError || !order) {
@@ -74,6 +77,19 @@ function OrderPage() {
   const otherAdmins = contacts.data?.others ?? [];
   const canSave = contacts.data?.canSave === true;
   const manual = order.shipping_mode === "manual";
+  const orphanOnline = order.status === "pending" && order.payment_mode === "midtrans" && !order.payment_url;
+  async function payAgain() {
+    setRetrying(true);
+    try {
+      const res = await retryPay({ data: { token } });
+      if (res.paymentUrl) window.location.assign(res.paymentUrl);
+      else toast.error("Tautan pembayaran belum siap. Coba lagi, atau lanjut via WhatsApp.");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Tautan pembayaran gagal dibuat.");
+    } finally {
+      setRetrying(false);
+    }
+  }
 
   return (
     <div className="space-y-4 px-4 py-5 pb-28">
@@ -106,6 +122,31 @@ function OrderPage() {
         <a href={order.payment_url} className="block rounded-full bg-primary px-4 py-3 text-center text-sm font-bold text-primary-foreground">
           Lanjutkan Pembayaran
         </a>
+      )}
+      {orphanOnline && (
+        <div className="space-y-2">
+          <p className="rounded-xl bg-primary-soft px-3 py-2 text-xs text-accent-foreground">
+            Tautan pembayaran belum siap. Bayar ulang, atau lanjutkan pesanan ini lewat WhatsApp.
+          </p>
+          {!manual && (
+            <button
+              type="button"
+              disabled={retrying}
+              onClick={() => void payAgain()}
+              className="block w-full rounded-full bg-primary px-4 py-3 text-center text-sm font-bold text-primary-foreground disabled:opacity-50"
+            >
+              {retrying ? "Menyiapkan pembayaran…" : "Bayar ulang"}
+            </button>
+          )}
+          <a
+            href={whatsappOrderUrl(waNumber, { ...order, note: order.customer_note ?? null })}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="block rounded-full border border-primary px-4 py-3 text-center text-sm font-bold text-primary"
+          >
+            Lanjut via WhatsApp
+          </a>
+        </div>
       )}
       <ul className="space-y-1 rounded-2xl border border-border bg-card p-4 text-sm">
         {order.items.map((i) => (

@@ -19,6 +19,11 @@ import { nearestBranch, haversineKm } from "@/lib/geo";
 import { readReferral, readBranchCode, clearBranchCode, matchBranchByCode } from "@/lib/referral";
 import { getMyCustomer } from "@/lib/customer.functions";
 import { MANUAL_SHIPPING_LABEL, buildFallbackWhatsappUrl } from "@/lib/whatsapp-order";
+import {
+  ESTIMATED_SHIPPING_NOTICE,
+  PAYMENT_LINK_FAILED_MESSAGE,
+  checkoutAttemptFingerprint,
+} from "@/lib/checkout-messages";
 import { OFFICIAL_WHATSAPP_MAIN } from "@/lib/official-contacts";
 import { reportClientError } from "@/lib/client-error-report";
 
@@ -184,6 +189,8 @@ function CheckoutPage() {
 
   const isManual = modes.data?.ok === true && modes.data.shipping === "manual";
   const hasMidtrans = modes.data?.ok === true && modes.data.payment === "midtrans";
+  // Ongkir manual belum pasti (tarif 0). Jangan tawarkan bayar online sebelum cabang mengonfirmasi.
+  const canPayOnline = hasMidtrans && !isManual;
   // Manual shipping: the branch confirms the address/ongkir via WhatsApp, so no area is needed.
   const area: Area | null = isManual ? null : pickedArea;
 
@@ -240,7 +247,18 @@ function CheckoutPage() {
     setSubmitting(true);
     // Open the WhatsApp tab during the tap so pop-up blockers allow it.
     const waTab = method === "whatsapp" ? window.open("", "_blank") : null;
-    const fp = JSON.stringify([lines, name, whatsapp, address, activeBranchId, method, quote.data?.promoCode ?? null]);
+    const fp = checkoutAttemptFingerprint({
+      lines,
+      name,
+      whatsapp,
+      address,
+      branchId: activeBranchId,
+      method,
+      promoCode: quote.data?.promoCode ?? null,
+      courier: { company: rate.company, service: rate.service },
+      area: area ? { id: area.id, postal_code: area.postal_code } : null,
+      note,
+    });
     if (idemRef.current?.fp !== fp) idemRef.current = { fp, key: `${crypto.randomUUID()}-${Date.now().toString(36)}` };
     try {
       const res = await submitOrder({
@@ -259,6 +277,7 @@ function CheckoutPage() {
           marketingOptIn: optIn,
         },
       });
+      if (method === "midtrans" && !res.paymentUrl) throw new Error(PAYMENT_LINK_FAILED_MESSAGE);
       saveDetails({ name, whatsapp, address, branchId: activeBranchId });
       writePendingPromo(null);
       clearCart();
@@ -516,6 +535,9 @@ function CheckoutPage() {
           {rates.isPending && <p className="text-sm text-muted-foreground">Menghitung ongkir…</p>}
           {rates.isError && <p className="text-sm text-destructive">{(rates.error as Error).message}</p>}
           {rates.data?.rates.length === 0 && <p className="text-sm text-muted-foreground">Belum ada kurir ke alamat ini.</p>}
+          {rates.data?.estimated && (
+            <p className="rounded-xl bg-primary-soft px-3 py-2 text-xs text-accent-foreground">{ESTIMATED_SHIPPING_NOTICE}</p>
+          )}
           {rates.data?.rates.map((r) => {
             const active = rate?.company === r.company && rate?.service === r.service;
             return (
@@ -545,7 +567,7 @@ function CheckoutPage() {
           {renderConsent()}
           <div className="rounded-xl border border-border bg-card p-3 text-xs text-muted-foreground">
             <p className="text-sm font-bold text-navy">Metode pembayaran</p>
-            {hasMidtrans ? (
+            {canPayOnline ? (
               <>
                 <p className="mt-1">QRIS (semua e-wallet & m-banking) · GoPay · ShopeePay · Virtual Account BCA/BNI/BRI/Mandiri/Permata</p>
                 <p className="mt-1">Dipilih di halaman pembayaran Midtrans yang aman. Atau pesan lewat WhatsApp.</p>
@@ -589,7 +611,7 @@ function CheckoutPage() {
           )}
           {(step === 2 || isManual) && (
             <>
-              {hasMidtrans && (
+              {canPayOnline && (
                 <button
                   type="button"
                   disabled={submitting || !rate || rejected.length > 0}
@@ -604,10 +626,10 @@ function CheckoutPage() {
                 type="button"
                 disabled={submitting || !rate || rejected.length > 0 || !modes.data?.ok}
                 onClick={() => void pay("whatsapp")}
-                className={`mt-2 flex w-full items-center justify-center gap-2 rounded-full px-4 py-3 text-sm font-bold disabled:opacity-50 ${hasMidtrans ? "border border-primary text-primary" : "bg-primary text-primary-foreground"}`}
+                className={`mt-2 flex w-full items-center justify-center gap-2 rounded-full px-4 py-3 text-sm font-bold disabled:opacity-50 ${canPayOnline ? "border border-primary text-primary" : "bg-primary text-primary-foreground"}`}
               >
-                {submitting && !hasMidtrans && <Loader2 className="h-4 w-4 animate-spin" />}
-                {submitting && !hasMidtrans ? "Membuat pesanan…" : "Pesan via WhatsApp"}
+                {submitting && !canPayOnline && <Loader2 className="h-4 w-4 animate-spin" />}
+                {submitting && !canPayOnline ? "Membuat pesanan…" : "Pesan via WhatsApp"}
               </button>
             </>
           )}

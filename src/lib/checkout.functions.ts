@@ -114,6 +114,8 @@ export const quoteCart = createServerFn({ method: "POST" })
 export const searchShippingAreas = createServerFn({ method: "GET" })
   .inputValidator((d: unknown) => z.object({ q: z.string().trim().min(3).max(80) }).parse(d))
   .handler(async ({ data }) => {
+    const { enforceShippingLookupLimit } = await import("./rate-limit.server");
+    await enforceShippingLookupLimit("ship-area");
     const { searchAreas } = await import("./checkout.server");
     return searchAreas(data.q);
   });
@@ -140,6 +142,8 @@ export const getShippingRates = createServerFn({ method: "POST" })
       .parse(d),
   )
   .handler(async ({ data }) => {
+    const { enforceShippingLookupLimit } = await import("./rate-limit.server");
+    await enforceShippingLookupLimit("ship-rate");
     const { shippingRates } = await import("./checkout.server");
     const { quote, rateLines } = await quoteLines(data.lines);
     if (quote.rejected.length) throw new Error("Ada produk di keranjang yang tidak bisa dibeli.");
@@ -152,8 +156,8 @@ export const getShippingRates = createServerFn({ method: "POST" })
       customer: data.loc ?? null,
       locationConsent: data.locConsent === true,
     });
-    // Alasan teknis (instant/fallbackLines) tidak dikirim ke browser.
-    return { mode: res.mode, rates: res.rates };
+    // Alasan teknis instan tidak dikirim. `estimated` hanya menandai ongkir perkiraan ke pelanggan.
+    return { mode: res.mode, rates: res.rates, estimated: res.estimated };
   });
 
 async function optionalUserId(): Promise<string | null> {
@@ -163,27 +167,10 @@ async function optionalUserId(): Promise<string | null> {
   return data.user?.id ?? null;
 }
 
-/** Batas laju per IP+UA lewat RPC chat_rate_hit. Gagal-terbuka bila RPC/IP tidak tersedia (jangan kunci pelanggan sungguhan). */
-async function enforceOrderRateLimit(core: typeof import("./checkout-core")) {
-  try {
-    const req = getRequest();
-    const ip = req ? core.clientIpFrom(req.headers) : null;
-    if (!ip) return;
-    const visitor = await core.orderVisitorHash(ip, req!.headers.get("user-agent") ?? "");
-    const { data: allowed, error } = await publicClient().rpc("chat_rate_hit", {
-      _visitor: visitor,
-      _limit: core.ORDER_RATE_LIMIT,
-      _window_minutes: core.ORDER_RATE_WINDOW_MINUTES,
-    });
-    if (error) {
-      console.error("order rate limit", error.message);
-      return;
-    }
-    if (allowed === false) throw new Error(core.ORDER_RATE_LIMIT_MESSAGE);
-  } catch (e) {
-    if (e instanceof Error && e.message === core.ORDER_RATE_LIMIT_MESSAGE) throw e;
-    console.error("order rate limit failed", e instanceof Error ? e.message : "unknown");
-  }
+/** Batas laju per IP tepercaya. Tanpa IP atau bila RPC gagal, permintaan ditolak (gagal-tertutup). */
+async function enforceOrderRateLimit() {
+  const { enforceOrderRateLimit: limit } = await import("./rate-limit.server");
+  await limit();
 }
 
 interface CreatedOrder {
@@ -250,7 +237,8 @@ export const createOrder = createServerFn({ method: "POST" })
     const core = await import("./checkout-core");
     const { normalizeWhatsapp } = core;
     const server = await import("./checkout.server");
-    await enforceOrderRateLimit(core);
+    const messages = await import("./checkout-messages");
+    await enforceOrderRateLimit();
     const m = server.modes();
     const whatsapp = normalizeWhatsapp(data.customer.whatsapp);
     if (!whatsapp) throw new Error("Nomor WhatsApp tidak valid.");
@@ -279,6 +267,7 @@ export const createOrder = createServerFn({ method: "POST" })
     });
     const rate = rates.find((r) => r.company === data.courier.company && r.service === data.courier.service);
     if (!rate) throw new Error("Ongkir berubah. Pilih kurir lagi.");
+    messages.assertOnlinePaymentAllowed(method, shippingMode);
 
     const { cleanReferral } = await import("./referral");
     const referralCode = cleanReferral(data.referralCode);
@@ -325,7 +314,9 @@ export const createOrder = createServerFn({ method: "POST" })
       const km = instant.ok ? ` ±${instant.km} km garis lurus dari cabang` : "";
       marks.push(`[INSTAN: titik lokasi dibagikan pelanggan,${km}. Cocokkan dengan alamat tertulis sebelum kirim]`);
     }
-    if (shippingMode === "biteship" && fallbackLines > 0) marks.push("[Berat/ukuran produk belum lengkap: ongkir memakai berat cadangan, cek sebelum kirim]");
+    if (shippingMode === "biteship" && fallbackLines > 0) {
+      marks.push(`[${messages.ESTIMATED_SHIPPING_NOTICE} Berat/ukuran produk belum lengkap, cek sebelum kirim]`);
+    }
     if (fallbackLines > 0 && fallbackLines === rateLines.length) console.error("Semua produk di pesanan memakai berat cadangan:", rateLines.map((l) => l.name).join(", ").slice(0, 200));
     const staffNote = marks.length ? `${(data.customer.note ?? "").slice(0, 200)} ${marks.join(" ")}`.trim() : data.customer.note || null;
     // Satu panggilan atomik & idempoten: harga dihitung ulang dari tabel products di dalam database,
@@ -377,9 +368,57 @@ export const createOrder = createServerFn({ method: "POST" })
       });
     };
     const total = order.total;
+    const snapInput = () => ({
+      orderNumber,
+      total,
+      items: [
+        ...quote.lines.map((l) => ({ id: bySlug.get(l.slug)!.sku, name: l.name, price: l.unitPrice, quantity: l.quantity })),
+        { id: "ONGKIR", name: `Ongkir ${rate.label}`, price: rate.price, quantity: 1 },
+        ...(quote.discount > 0 ? [{ id: "DISKON", name: `Diskon ${quote.promoCode}`, price: -quote.discount, quantity: 1 }] : []),
+      ],
+      customer: { name: data.customer.name, phone: whatsapp, address: data.customer.address, city: area.city, postal_code: area.postal_code },
+      finishUrl: `${new URL(getRequest()!.url).origin}/pesanan/${accessToken}`,
+    });
+    const attachPaymentLink = async (existingUrl: string | null) => {
+      const link = await messages.ensureSnapLink({
+        existingUrl,
+        createSnap: () => server.createSnapTransaction(snapInput()),
+      });
+      if (!existingUrl) {
+        const { error: saveError } = await supabaseAdmin
+          .from("orders")
+          .update({ payment_token: link.token, payment_url: link.url })
+          .eq("id", order.order_id);
+        if (saveError) console.error("payment url save failed", saveError.message);
+      }
+      return link.url;
+    };
     if (order.duplicate) {
-      // Kirim ulang dengan kunci sama: pesanan yang sama, tanpa efek samping lagi.
-      return { orderNumber, accessToken, paymentUrl: order.payment_url, paymentMode: method, total, waUrl: await buildWaUrl() };
+      // Kirim ulang dengan kunci sama: hanya bila isi pesanan sama. Tanpa tautan bayar, buat ulang.
+      const { data: stored, error: readError } = await supabaseAdmin
+        .from("orders")
+        .select("courier_company,courier_service,area_id,postal_code,payment_mode,customer_note,shipping_mode")
+        .eq("id", order.order_id)
+        .maybeSingle();
+      if (readError || !stored) throw new Error(messages.PAYMENT_LINK_FAILED_MESSAGE);
+      const agrees = messages.checkoutPayloadAgrees(
+        { ...stored, items: order.items },
+        {
+          courier: { company: rate.company, service: rate.service },
+          areaId: area.id,
+          postalCode: area.postal_code,
+          paymentMode: method,
+          note: data.customer.note || null,
+          lines: quote.lines.map((l) => ({ slug: l.slug, quantity: l.quantity })),
+        },
+      );
+      if (!agrees) throw new Error(messages.ORDER_CONTENT_CHANGED_MESSAGE);
+      let paymentUrl = order.payment_url;
+      if (method === "midtrans") {
+        if (stored.shipping_mode === "manual") throw new Error(messages.MANUAL_ONLINE_PAYMENT_MESSAGE);
+        paymentUrl = await attachPaymentLink(paymentUrl);
+      }
+      return { orderNumber, accessToken, paymentUrl, paymentMode: method, total, waUrl: await buildWaUrl() };
     }
 
     // Pelanggan (tamu maupun login): satu panggilan per pesanan. Gagal di sini tidak boleh menggagalkan pesanan.
@@ -400,20 +439,8 @@ export const createOrder = createServerFn({ method: "POST" })
 
     let paymentUrl: string | null = null;
     if (method === "midtrans") {
-      const origin = new URL(getRequest()!.url).origin;
-      const snap = await server.createSnapTransaction({
-        orderNumber,
-        total,
-        items: [
-          ...quote.lines.map((l) => ({ id: bySlug.get(l.slug)!.sku, name: l.name, price: l.unitPrice, quantity: l.quantity })),
-          { id: "ONGKIR", name: `Ongkir ${rate.label}`, price: rate.price, quantity: 1 },
-          ...(quote.discount > 0 ? [{ id: "DISKON", name: `Diskon ${quote.promoCode}`, price: -quote.discount, quantity: 1 }] : []),
-        ],
-        customer: { name: data.customer.name, phone: whatsapp, address: data.customer.address, city: area.city, postal_code: area.postal_code },
-        finishUrl: `${origin}/pesanan/${accessToken}`,
-      });
-      paymentUrl = snap.redirect_url;
-      await supabaseAdmin.from("orders").update({ payment_token: snap.token, payment_url: paymentUrl }).eq("id", order.order_id);
+      // Gagal Snap melempar: klien tidak mengosongkan keranjang. Kirim ulang (kunci sama) membuat tautan lagi.
+      paymentUrl = await attachPaymentLink(null);
     }
     const waUrl = await buildWaUrl();
     return { orderNumber, accessToken, paymentUrl, paymentMode: method, total, waUrl };
@@ -454,6 +481,55 @@ export const getOrderByToken = createServerFn({ method: "GET" })
     const { data: order, error } = await supabaseAdmin.rpc("get_order_by_token", { _token: data.token });
     if (error) throw new Error("Pesanan tidak bisa dibaca.");
     return (order ?? null) as unknown as PublicOrder | null;
+  });
+
+/** Pesanan pending Midtrans tanpa tautan: buat ulang Snap. Ongkir manual tidak boleh ditagih online. */
+export const retryOrderPayment = createServerFn({ method: "POST" })
+  .inputValidator((d: unknown) => z.object({ token: z.string().regex(/^[a-f0-9]{48}$/) }).parse(d))
+  .handler(async ({ data }) => {
+    const { enforceOrderRateLimit: limit } = await import("./rate-limit.server");
+    await limit();
+    const messages = await import("./checkout-messages");
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: order, error } = await supabaseAdmin.rpc("get_order_by_token", { _token: data.token });
+    if (error || !order) throw new Error("Pesanan tidak ditemukan.");
+    const row = order as unknown as PublicOrder;
+    if (row.payment_url) return { paymentUrl: row.payment_url };
+    if (row.payment_mode !== "midtrans" || row.status !== "pending") {
+      throw new Error("Pesanan ini tidak menunggu pembayaran online.");
+    }
+    if (row.shipping_mode === "manual") throw new Error(messages.MANUAL_ONLINE_PAYMENT_MESSAGE);
+    const server = await import("./checkout.server");
+    const link = await messages.ensureSnapLink({
+      existingUrl: null,
+      createSnap: () =>
+        server.createSnapTransaction({
+          orderNumber: row.order_number,
+          total: row.total,
+          items: [
+            ...row.items.map((i) => ({ id: i.slug, name: i.name, price: i.unit_price, quantity: i.quantity })),
+            ...(row.shipping_cost > 0 ? [{ id: "ONGKIR", name: `Ongkir ${row.courier_label}`, price: row.shipping_cost, quantity: 1 }] : []),
+            ...(row.discount_total ? [{ id: "DISKON", name: "Diskon", price: -row.discount_total, quantity: 1 }] : []),
+          ],
+          customer: {
+            name: row.customer_name,
+            phone: row.whatsapp,
+            address: row.address,
+            city: row.city,
+            postal_code: row.postal_code,
+          },
+          finishUrl: `${new URL(getRequest()!.url).origin}/pesanan/${data.token}`,
+        }),
+    });
+    const { data: saved } = await supabaseAdmin
+      .from("orders")
+      .update({ payment_token: link.token, payment_url: link.url })
+      .eq("access_token", data.token)
+      .eq("status", "pending")
+      .select("id")
+      .maybeSingle();
+    if (!saved) console.error("payment url retry save missed", row.order_number);
+    return { paymentUrl: link.url };
   });
 
 

@@ -8,6 +8,7 @@ import {
   runFinder,
   sanitizeProducts,
   validateFinderOutput,
+  finderClientIp,
   validateInput,
   type CallModel,
   type ContentBlock,
@@ -308,6 +309,13 @@ describe("Vitamin Finder: skema, retry, batas", () => {
     expect(
       validateFinderOutput({ status: "ok", idempotency_key: "k", result: { reply_text: "a".repeat(701), product_ids: [] }, confidence: 0.5, needs_human: false }).ok,
     ).toBe(false);
+  });
+
+  it("cf-connecting-ip tidak mengalahkan IP Vercel kecuali Cloudflare dipercaya", () => {
+    const h = { get: (name: string) => ({ "cf-connecting-ip": "5.6.7.8", "x-vercel-forwarded-for": "9.9.9.9" })[name] ?? null };
+    expect(finderClientIp(h, false)).toBe("9.9.9.9");
+    expect(finderClientIp(h, true)).toBe("5.6.7.8");
+    expect(finderClientIp({ get: () => null }, false)).toBe("unknown");
   });
 
   it("paritas dengan src/lib/vita-safety.ts", () => {

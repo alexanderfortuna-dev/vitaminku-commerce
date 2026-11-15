@@ -79,16 +79,6 @@ function clean(input: string) {
   return input.replace(/[%_&|!():*'"\\<>=,.]/g, " ").replace(/\s+/g, " ").trim();
 }
 
-async function visitorHash(request: Request) {
-  const ip =
-    request.headers.get("cf-connecting-ip") ??
-    request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ??
-    "unknown";
-  const ua = request.headers.get("user-agent") ?? "";
-  const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(`vita:${ip}:${ua}`));
-  return Array.from(new Uint8Array(buf), (b) => b.toString(16).padStart(2, "0")).join("");
-}
-
 function textOf(m: UIMessage) {
   return m.parts.map((p) => (p.type === "text" ? p.text : "")).join(" ");
 }
@@ -128,19 +118,20 @@ export async function handleVitaChat(request: Request): Promise<Response> {
     return cannedReply(`Pesannya terlalu panjang. Coba ringkas di bawah ${VITA_MAX_CHARS} karakter, ya.`);
   }
 
-  const supabase = anonClient();
-  const { data: allowed, error: rlErr } = await supabase.rpc("chat_rate_hit", {
-    _visitor: await visitorHash(request),
-    _limit: VITA_RATE_LIMIT,
-    _window_minutes: VITA_RATE_WINDOW_MINUTES,
-  });
-  if (rlErr) console.error("vita rate limit", rlErr.message);
-  if (allowed === false) {
-    return Response.json(
-      { error: "Kamu sudah mengirim banyak pesan. Coba lagi dalam beberapa menit, atau chat admin via WhatsApp." },
-      { status: 429 },
-    );
+  const { enforcePurposeLimit } = await import("./rate-limit.server");
+  try {
+    await enforcePurposeLimit({
+      purpose: "vita",
+      limit: VITA_RATE_LIMIT,
+      windowMinutes: VITA_RATE_WINDOW_MINUTES,
+      deniedMessage: "Kamu sudah mengirim banyak pesan. Coba lagi dalam beberapa menit, atau chat admin via WhatsApp.",
+      headers: request.headers,
+    });
+  } catch (e) {
+    const message = e instanceof Error ? e.message : "Coba lagi sebentar.";
+    return Response.json({ error: message }, { status: message.includes("banyak pesan") ? 429 : 503 });
   }
+  const supabase = anonClient();
 
   // Server-side block: forbidden products never reach the model.
   if (isForbiddenRequest(lastText)) return cannedReply(FORBIDDEN_REPLY);

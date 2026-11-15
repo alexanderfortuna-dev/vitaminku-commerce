@@ -1,6 +1,7 @@
 // Edge Function `vitamin-finder` (Deno) — hanya glue: CORS, parse, batas laju, ambil produk, panggil core.
 // Rahasia: ANTHROPIC_API_KEY (Edge secret). SUPABASE_URL & SUPABASE_ANON_KEY disediakan platform.
-// JANGAN pakai service_role: RLS (aktif & tidak diblokir) harus tetap berlaku.
+// Pembacaan produk tetap kunci anon supaya RLS (aktif & tidak diblokir) berlaku.
+// chat_rate_hit boleh memakai service_role, hanya untuk RPC batas laju itu.
 import {
   AGENT_ID,
   RATE_LIMIT,
@@ -13,6 +14,7 @@ import {
   rateLimitedOutput,
   runFinder,
   validateInput,
+  finderClientIp,
   visitorHash,
   type FinderOutput,
   type SearchArgs,
@@ -39,26 +41,32 @@ function restHeaders(anon: string): Record<string, string> {
   return { apikey: anon, authorization: `Bearer ${anon}`, "content-type": "application/json" };
 }
 
-/** Batas laju via RPC chat_rate_hit. Gagal-terbuka: error teknis tidak memblokir pelanggan. */
+/** Batas laju via RPC chat_rate_hit. Gagal-tertutup: tanpa IP tepercaya atau RPC error = ditolak. */
 async function rateAllowed(req: Request, base: string, anon: string): Promise<boolean> {
   try {
-    const ip =
-      req.headers.get("cf-connecting-ip") ?? req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? req.headers.get("x-real-ip");
-    if (!ip) return true;
-    const visitor = await visitorHash(ip, req.headers.get("user-agent") ?? "");
-    const res = await fetch(`${base}/rest/v1/rpc/chat_rate_hit`, {
-      method: "POST",
-      headers: restHeaders(anon),
-      body: JSON.stringify({ _visitor: visitor, _limit: RATE_LIMIT, _window_minutes: RATE_WINDOW_MINUTES }),
-    });
-    if (!res.ok) {
-      console.error("vitamin-finder rate limit rpc", res.status);
-      return true;
+    const trust = String(Deno.env.get("TRUST_CLOUDFLARE_IP") ?? "").trim().toLowerCase() === "true";
+    const ip = finderClientIp(req.headers, trust);
+    const ua = ip === "unknown" ? "" : (req.headers.get("user-agent") ?? "");
+    const visitor = await visitorHash(ip, ua);
+    const service = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+    const keys = service ? [service, anon] : [anon];
+    let lastStatus = 0;
+    for (const key of keys) {
+      const res = await fetch(`${base}/rest/v1/rpc/chat_rate_hit`, {
+        method: "POST",
+        headers: restHeaders(key),
+        body: JSON.stringify({ _visitor: visitor, _limit: RATE_LIMIT, _window_minutes: RATE_WINDOW_MINUTES }),
+      });
+      if (res.ok) return (await res.json()) === true;
+      lastStatus = res.status;
+      // Sebelum migrasi 0019, service_role belum di-grant: coba kunci anon sekali.
+      if (res.status !== 401 && res.status !== 403) break;
     }
-    return (await res.json()) !== false;
+    console.error("vitamin-finder rate limit rpc", lastStatus);
+    return false;
   } catch (e) {
     console.error("vitamin-finder rate limit failed", e instanceof Error ? e.message : "unknown");
-    return true;
+    return false;
   }
 }
 
