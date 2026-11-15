@@ -51,6 +51,11 @@ export function productsQueryOptions(input: ListInput) {
     queryKey: ["db-products", input],
     queryFn: () => listProducts({ data: input }),
     staleTime: 60_000,
+    // Galat tetap galat sampai tombol "Coba lagi". retryOnMount default-nya mengulang
+    // kueri yang gagal saat komponen dipasang, dan SSR sempat merender "Memuat…".
+    retry: false,
+    retryOnMount: false,
+    refetchOnMount: false,
   };
 }
 
@@ -62,6 +67,9 @@ export function productsInfiniteQueryOptions(input: Omit<ListInput, "offset">) {
     initialPageParam: 0,
     getNextPageParam: (last: ProductPage) => last.nextOffset ?? undefined,
     staleTime: 60_000,
+    retry: false,
+    retryOnMount: false,
+    refetchOnMount: false,
   };
 }
 

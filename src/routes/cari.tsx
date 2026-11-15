@@ -13,11 +13,17 @@ import {
   type CatalogSort,
 } from "@/lib/catalog-db";
 import { POPULAR_SEARCHES } from "@/lib/catalog";
+import { prefetchFirstPage } from "@/lib/catalog-ssr";
 
 export const Route = createFileRoute("/cari")({
   validateSearch: (search: Record<string, unknown>) => ({
     q: typeof search["q"] === "string" ? search["q"].trim() : "",
   }),
+  loaderDeps: ({ search }) => ({ q: search.q }),
+  loader: async ({ context, deps }) => {
+    if (deps.q) await prefetchFirstPage(context.queryClient, { search: deps.q, sort: "name" });
+    return { q: deps.q };
+  },
   head: () => ({
     meta: [
       { title: "Cari Vitamin & Suplemen — VitaminKu" },

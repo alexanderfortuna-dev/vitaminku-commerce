@@ -4,6 +4,7 @@ import { ArrowRight, MapPin, PackageSearch, ShieldCheck, Truck, Wallet } from "l
 import { ProductRail } from "@/components/ProductRail";
 import { CATEGORIES, GOALS, brandSlug } from "@/lib/catalog";
 import { brandsQueryOptions, productsQueryOptions } from "@/lib/catalog-db";
+import { HOME_BROWSE, HOME_HERO, HOME_NEWEST, prefetchHomeCatalog } from "@/lib/catalog-ssr";
 import { useServerFn } from "@tanstack/react-start";
 import { getPublicStore } from "@/lib/store.functions";
 
@@ -15,6 +16,7 @@ const TRUST = [
 ];
 
 export const Route = createFileRoute("/")({
+  loader: ({ context }) => prefetchHomeCatalog(context.queryClient),
   head: () => ({
     meta: [
       { title: "VitaminKu — E-commerce Vitamin Terlengkap Indonesia" },
@@ -59,9 +61,9 @@ function Home() {
     isPending,
     isError,
     refetch,
-  } = useQuery(productsQueryOptions({ sort: "newest", limit: 10, purchasableOnly: true }));
-  const { data: browsePage } = useQuery(productsQueryOptions({ sort: "name", limit: 10, purchasableOnly: true }));
-  const { data: heroPage } = useQuery(productsQueryOptions({ heroOnly: true, purchasableOnly: true, limit: 10 }));
+  } = useQuery(productsQueryOptions(HOME_NEWEST));
+  const { data: browsePage } = useQuery(productsQueryOptions(HOME_BROWSE));
+  const { data: heroPage } = useQuery(productsQueryOptions(HOME_HERO));
   const { data: brands = [] } = useQuery(brandsQueryOptions());
   const fetchStore = useServerFn(getPublicStore);
   const { data: store } = useQuery({ queryKey: ["public-store"], queryFn: () => fetchStore(), staleTime: 60_000 });

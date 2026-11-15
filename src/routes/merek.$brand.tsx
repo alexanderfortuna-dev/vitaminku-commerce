@@ -5,8 +5,14 @@ import { PackageSearch } from "lucide-react";
 import { ProductGrid } from "@/components/ProductRail";
 import { LoadMore } from "@/components/LoadMore";
 import { dedupeProducts, productsInfiniteQueryOptions } from "@/lib/catalog-db";
+import { prefetchFirstPage } from "@/lib/catalog-ssr";
 
 export const Route = createFileRoute("/merek/$brand")({
+  loader: async ({ context, params }) => {
+    const brand = decodeURIComponent(params.brand);
+    await prefetchFirstPage(context.queryClient, { brand, sort: "name" });
+    return { brand };
+  },
   head: ({ params }) => {
     const brand = decodeURIComponent(params.brand);
     const title = `${brand} — VitaminKu`;
