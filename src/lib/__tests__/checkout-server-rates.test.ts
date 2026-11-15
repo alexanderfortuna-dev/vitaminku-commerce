@@ -103,5 +103,6 @@ describe("shippingRates: kurir instan hanya bila saklar server menyala", () => {
     expect(calls[0]!.body).toMatchObject({ origin_postal_code: 80111 });
     expect((calls[0]!.body["items"] as Array<Record<string, number>>)[0]!["weight"]).toBe(500);
     expect(r.fallbackLines).toBe(1);
+    expect(r.estimated).toBe(true);
   });
 });

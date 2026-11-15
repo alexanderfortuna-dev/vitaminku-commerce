@@ -159,19 +159,50 @@ export interface HeaderReader {
   get(name: string): string | null;
 }
 
-/** IP klien dari header proxy; null bila tidak diketahui (jangan membatasi semua orang sekaligus). */
-export function clientIpFrom(h: HeaderReader): string | null {
-  for (const name of ["cf-connecting-ip", "x-vercel-forwarded-for", "x-forwarded-for", "x-real-ip"]) {
+/** Ember bersama bila IP tepercaya tidak terbaca. Semua permintaan tanpa IP berbagi batas ini. */
+export const UNKNOWN_IP_BUCKET = "unknown";
+
+/**
+ * `cf-connecting-ip` hanya dipercaya bila situs memang di belakang Cloudflare.
+ * Di Vercel header itu bisa dipalsukan klien, jadi `x-vercel-forwarded-for` lebih dulu.
+ * Bila `env` diisi, process.env tidak dibaca (supaya tes tidak tergantung lingkungan).
+ */
+export function trustCloudflareIp(env?: { TRUST_CLOUDFLARE_IP?: string | undefined }): boolean {
+  const raw = env ? env.TRUST_CLOUDFLARE_IP : typeof process !== "undefined" ? process.env["TRUST_CLOUDFLARE_IP"] : undefined;
+  return String(raw ?? "").trim().toLowerCase() === "true";
+}
+
+/** IP klien dari header proxy; null bila tidak diketahui. */
+export function clientIpFrom(h: HeaderReader, env?: { TRUST_CLOUDFLARE_IP?: string | undefined }): string | null {
+  const names = trustCloudflareIp(env)
+    ? ["cf-connecting-ip", "x-vercel-forwarded-for", "x-forwarded-for", "x-real-ip"]
+    : ["x-vercel-forwarded-for", "x-forwarded-for", "x-real-ip"];
+  for (const name of names) {
     const v = h.get(name)?.split(",")[0]?.trim();
     if (v) return v;
   }
   return null;
 }
 
+/** Subjek batas laju. Tanpa IP tepercaya, semua orang berbagi satu ember (tidak lolos tanpa batas). */
+export function rateLimitSubject(
+  h: HeaderReader | null,
+  env?: { TRUST_CLOUDFLARE_IP?: string | undefined },
+): { ip: string; userAgent: string } {
+  const ip = (h && clientIpFrom(h, env)) || UNKNOWN_IP_BUCKET;
+  const userAgent = ip === UNKNOWN_IP_BUCKET ? "" : (h?.get("user-agent") ?? "");
+  return { ip, userAgent };
+}
+
+/** Hash 64 hex (SHA-256) dari tujuan + IP + user-agent, cocok untuk RPC chat_rate_hit. */
+export async function purposeVisitorHash(purpose: string, ip: string, userAgent: string): Promise<string> {
+  const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(`${purpose}:${ip}:${userAgent}`));
+  return Array.from(new Uint8Array(buf), (b) => b.toString(16).padStart(2, "0")).join("");
+}
+
 /** Hash 64 hex (SHA-256) dari IP + user-agent, cocok untuk RPC chat_rate_hit. */
 export async function orderVisitorHash(ip: string, userAgent: string): Promise<string> {
-  const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(`order:${ip}:${userAgent}`));
-  return Array.from(new Uint8Array(buf), (b) => b.toString(16).padStart(2, "0")).join("");
+  return purposeVisitorHash("order", ip, userAgent);
 }
 
 export const ORDER_RATE_LIMIT_MESSAGE =

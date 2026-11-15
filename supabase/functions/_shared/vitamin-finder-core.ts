@@ -206,6 +206,20 @@ export function truncateReply(s: string, max = MAX_REPLY_CHARS): string {
   return t.length <= max ? t : `${t.slice(0, max - 1).trimEnd()}…`;
 }
 
+export const FINDER_UNKNOWN_IP = "unknown";
+
+/** IP tepercaya. cf-connecting-ip hanya bila TRUST_CLOUDFLARE_IP; kalau tidak, header itu bisa dipalsukan. */
+export function finderClientIp(h: { get(name: string): string | null }, trustCloudflare: boolean): string {
+  const names = trustCloudflare
+    ? ["cf-connecting-ip", "x-vercel-forwarded-for", "x-forwarded-for", "x-real-ip"]
+    : ["x-vercel-forwarded-for", "x-forwarded-for", "x-real-ip"];
+  for (const name of names) {
+    const v = h.get(name)?.split(",")[0]?.trim();
+    if (v) return v;
+  }
+  return FINDER_UNKNOWN_IP;
+}
+
 /** Hash 64 hex (SHA-256) dari IP + user-agent untuk RPC chat_rate_hit. */
 export async function visitorHash(ip: string, userAgent: string): Promise<string> {
   const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(`vitamin-finder:${ip}:${userAgent}`));

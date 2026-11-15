@@ -66,8 +66,9 @@ INSERT INTO r SELECT 'anon TIDAK bisa fungsi staf', pg_temp.try_as('anon', $q$ S
 INSERT INTO r SELECT 'anon TIDAK bisa admin_get_product_hpp', pg_temp.try_as('anon', $q$ SELECT public.admin_get_product_hpp(ARRAY[gen_random_uuid()])::text $q$) LIKE 'ERR 42501%', '';
 INSERT INTO r SELECT 'anon TIDAK bisa membaca chat_rate_hits', pg_temp.try_as('anon', $q$ SELECT count(*)::text FROM public.chat_rate_hits $q$) LIKE 'ERR 42501%', '';
 INSERT INTO r SELECT 'chat_rate_hits punya kebijakan tolak eksplisit', EXISTS (SELECT 1 FROM pg_policies WHERE tablename='chat_rate_hits' AND policyname='deny direct access'), '';
-INSERT INTO r SELECT 'anon masih bisa chat_rate_hit & public_branch_contacts', pg_temp.try_as('anon', $q$ SELECT public.chat_rate_hit(repeat('a',64),20,10)::text $q$) = 'true'
-  AND pg_temp.try_as('anon', $q$ SELECT count(*)::text FROM public.public_branch_contacts() $q$) NOT LIKE 'ERR%', '';
+INSERT INTO r SELECT 'anon TIDAK bisa chat_rate_hit', pg_temp.try_as('anon', $q$ SELECT public.chat_rate_hit(repeat('b',64),20,10)::text $q$) LIKE 'ERR 42501%', '';
+INSERT INTO r SELECT 'service_role bisa chat_rate_hit', pg_temp.try_as('service_role', $q$ SELECT public.chat_rate_hit(repeat('c',64),20,10)::text $q$) = 'true', '';
+INSERT INTO r SELECT 'anon masih bisa public_branch_contacts', pg_temp.try_as('anon', $q$ SELECT count(*)::text FROM public.public_branch_contacts() $q$) NOT LIKE 'ERR%', '';
 
 -- token pendek tidak pernah cocok; token benar cocok (server)
 INSERT INTO r SELECT 'get_order_by_token: token pendek -> kosong', pg_temp.try_as('service_role', $q$ SELECT coalesce(public.get_order_by_token('abc')::text,'NULL') $q$) = 'NULL', '';

@@ -91,7 +91,8 @@ describe("batas laju pesanan", () => {
   const h = (m: Record<string, string>) => ({ get: (k: string) => m[k] ?? null });
   it("mengambil IP dari header proxy, null bila tidak ada", () => {
     expect(clientIpFrom(h({ "x-forwarded-for": "1.2.3.4, 10.0.0.1" }))).toBe("1.2.3.4");
-    expect(clientIpFrom(h({ "cf-connecting-ip": "5.6.7.8", "x-forwarded-for": "1.2.3.4" }))).toBe("5.6.7.8");
+    expect(clientIpFrom(h({ "cf-connecting-ip": "5.6.7.8", "x-vercel-forwarded-for": "9.9.9.9", "x-forwarded-for": "1.2.3.4" }), {})).toBe("9.9.9.9");
+    expect(clientIpFrom(h({ "cf-connecting-ip": "5.6.7.8", "x-forwarded-for": "1.2.3.4" }), { TRUST_CLOUDFLARE_IP: "true" })).toBe("5.6.7.8");
     expect(clientIpFrom(h({}))).toBeNull();
   });
   it("hash 64 hex, stabil, dan beda untuk IP/UA berbeda", async () => {

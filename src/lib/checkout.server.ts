@@ -96,6 +96,8 @@ export interface ShippingRatesResult {
   instant: InstantDecision | { ok: false; reason: "mode_manual" };
   /** Jumlah baris keranjang yang memakai berat cadangan karena data produk belum lengkap. */
   fallbackLines: number;
+  /** true bila tarif memakai berat cadangan. Pelanggan harus melihat peringatan, bukan angka diam-diam. */
+  estimated: boolean;
 }
 
 export function instantEnabled(): boolean {
@@ -109,6 +111,7 @@ export async function shippingRates(input: ShippingRatesInput): Promise<Shipping
       rates: [{ company: "manual", service: "admin", label: MANUAL_SHIPPING_LABEL, price: 0, etd: "", kind: "regular" }],
       instant: { ok: false, reason: "mode_manual" },
       fallbackLines: 0,
+      estimated: false,
     };
   }
   const { body, fallbackLines } = regularRatesBody({
@@ -146,7 +149,7 @@ export async function shippingRates(input: ShippingRatesInput): Promise<Shipping
       console.error("Tarif instan gagal, ongkir reguler tetap dipakai:", e instanceof Error ? e.message : e);
     }
   }
-  return { mode: "biteship", rates, instant, fallbackLines };
+  return { mode: "biteship", rates, instant, fallbackLines, estimated: fallbackLines > 0 };
 }
 
 export async function createSnapTransaction(input: {
