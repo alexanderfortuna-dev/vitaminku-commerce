@@ -6,11 +6,13 @@ import { ProductGrid } from "@/components/ProductRail";
 import { LoadMore } from "@/components/LoadMore";
 import { GOALS, getGoal } from "@/lib/catalog";
 import { dedupeProducts, productsInfiniteQueryOptions } from "@/lib/catalog-db";
+import { prefetchFirstPage } from "@/lib/catalog-ssr";
 
 export const Route = createFileRoute("/tujuan/$slug")({
-  loader: ({ params }) => {
+  loader: async ({ context, params }) => {
     const goal = getGoal(params.slug);
     if (!goal) throw notFound();
+    await prefetchFirstPage(context.queryClient, { subcategories: goal.subcategories, sort: "name" });
     return { name: goal.name, description: goal.description };
   },
   head: ({ loaderData, params }) => {

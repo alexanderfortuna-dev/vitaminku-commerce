@@ -12,11 +12,13 @@ import {
   productsInfiniteQueryOptions,
   type CatalogSort,
 } from "@/lib/catalog-db";
+import { prefetchFirstPage } from "@/lib/catalog-ssr";
 
 export const Route = createFileRoute("/kategori/$slug")({
-  loader: ({ params }) => {
+  loader: async ({ context, params }) => {
     const category = getCategory(params.slug);
     if (!category) throw notFound();
+    await prefetchFirstPage(context.queryClient, { category: category.category, sort: "name" });
     return { name: category.name, blurb: category.blurb };
   },
   head: ({ loaderData, params }) => {
