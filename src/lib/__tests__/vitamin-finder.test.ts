@@ -298,7 +298,7 @@ describe("Vitamin Finder: skema, retry, batas", () => {
   });
 
   it("sanitizeProducts hanya mengembalikan 7 kolom dan membuang harga <=0 / terlarang", () => {
-    const rows = sanitizeProducts([...DB_ROWS, { id: "z", name: "Gratis", brand: "", price: 0, slug: "z" }, { id: "y", name: "DHEA 50", brand: "", price: 10000, slug: "y" }]);
+    const rows = sanitizeProducts([...DB_ROWS, { id: "z", name: "Gratis", brand: "", price: 0, slug: "z" }, { id: "y", name: "DHEA 50", brand: "", price: 10000, slug: "y" }, { id: "c", name: "Clenbuterol 40mcg", brand: "", price: 10000, slug: "c" }]);
     expect(rows.map((r) => r.id)).toEqual(["p1", "p2", "p3"]);
     expect(Object.keys(rows[0]!).sort()).toEqual(["brand", "id", "image", "name", "price", "size", "slug"]);
   });

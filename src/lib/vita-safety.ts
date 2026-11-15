@@ -1,4 +1,5 @@
 import { OFFICIAL_WHATSAPP_MAIN } from "./official-contacts";
+import { isCatalogForbidden } from "../../supabase/functions/_shared/forbidden-catalog";
 // Pure, browser-safe rules for the Vita assistant (also unit-tested).
 
 export const VITA_RATE_LIMIT = 20; // messages per visitor
@@ -7,26 +8,9 @@ export const VITA_MAX_MESSAGES = 30; // whole conversation (user + assistant)
 export const VITA_MAX_CHARS = 800; // per user message
 export const VITA_MAX_CARDS = 3;
 
-// Mirrors the forbidden categories enforced in the database blocklist.
-const FORBIDDEN = [
-  /\bobat\s*keras\b/i,
-  /\bresep\s*dokter\b/i,
-  /\bsarms?\b/i,
-  /\bostarine\b/i,
-  /\bligandrol\b/i,
-  /\brad[\s-]?140\b/i,
-  /\bmk[\s-]?677\b/i,
-  /\bmk[\s-]?2866\b/i,
-  /\bcardarine\b/i,
-  /\bgw[\s-]?501516\b/i,
-  /\bmodafinil\b/i,
-  /\barmodafinil\b/i,
-  /\byohimb/i,
-  /\bdhea\b/i,
-];
-
+/** Katalog: daftar yang sama dengan product_blocklist. */
 export function isForbiddenRequest(text: string): boolean {
-  return FORBIDDEN.some((re) => re.test(text));
+  return isCatalogForbidden(text);
 }
 
 export const FORBIDDEN_REPLY =
