@@ -3,7 +3,7 @@ import { extractOrderToken, isForbiddenRequest, VITA_RATE_LIMIT, VITA_RATE_WINDO
 
 describe("Vita safety rules", () => {
   it("refuses forbidden product requests", () => {
-    for (const q of ["jual modafinil?", "ada SARMs ostarine", "yohimbine fat burner", "DHEA 50mg", "obat keras buat tidur", "RAD-140"])
+    for (const q of ["jual modafinil?", "ada SARMs ostarine", "yohimbine fat burner", "DHEA 50mg", "obat keras buat tidur", "RAD-140", "Clenbuterol 40mcg", "enobosarm"])
       expect(isForbiddenRequest(q)).toBe(true);
   });
   it("allows normal supplement requests", () => {

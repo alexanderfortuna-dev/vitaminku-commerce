@@ -1,8 +1,9 @@
 // Taksonomi Vita (berversi): bahasa pelanggan Indonesia → tujuan, jenis produk, budget, bentuk, batasan.
 // Murni & deterministik (tanpa AI). Ubah VERSION setiap kali kamus/aturan berubah; tambahkan kasus di evals/vita-golden.json.
 import type { HistoryItem } from "../../../supabase/functions/_shared/vitamin-finder-core";
+import { isCatalogForbidden } from "../../../supabase/functions/_shared/forbidden-catalog";
 
-export const TAXONOMY_VERSION = "2026-10-21.1";
+export const TAXONOMY_VERSION = "2026-11-15.1";
 
 // ---------- Jenis produk (tag) dari nama/subkategori produk ----------
 export type Tag =
@@ -478,6 +479,7 @@ export const VITA_EXCLUDED_NAME =
 const TOPICAL = /\b(serum|cream|krim|toner|lotion|cleanser|sunscreen|facial wash|masker|mask|salep|ointment|essence)\b/i;
 
 export function isVitaExcluded(r: TaggableRow & { category?: string | null }, profile?: Pick<Profile, "normalized">): boolean {
+  if (isCatalogForbidden(`${r.name} ${r.brand ?? ""}`)) return true;
   if (r.subcategory && VITA_EXCLUDED_SUBCATEGORIES.has(r.subcategory)) return true;
   if (r.category && /aksesoris|lain-lain/i.test(r.category)) return true;
   if (VITA_EXCLUDED_NAME.test(`${r.name} ${r.brand}`)) return true;

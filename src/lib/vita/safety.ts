@@ -8,19 +8,22 @@ import {
   type HistoryItem,
 } from "../../../supabase/functions/_shared/vitamin-finder-core";
 
-const EXTRA_FORBIDDEN: RegExp[] = [
+/**
+ * Lebih luas dari blocklist katalog. Jangan dipindah ke katalog tanpa keputusan owner:
+ * testo/testosteron, tribulus, dan tongkat ali bisa merujuk dukungan alami yang sah;
+ * "peptida" terlalu luas (misalnya kolagen). Lihat .claude/state/KEPUTUSAN-testosteron-alami.md.
+ */
+export const CHAT_ONLY_PENDING_OWNER: RegExp[] = [
   /\btesto\w*\b/i,
   /\btestosteron\w*\b/i,
   /\btribulus\b/i,
   /\btongkat\s*ali\b/i,
-  /\b(trenbolone|nandrolone|deca|dianabol|anavar|winstrol|oxandrolone|hgh|growth\s*hormone|peptida|bpc[\s-]?157)\b/i,
-  /\b(sibutramin\w*|efedrin\w*|ephedr\w*|dnp|dmaa|phentermine)\b/i,
-  /\b(obat\s*keras|resep\s*dokter|prescription)\b/i,
-  /\b(viagra|sildenafil|tadalafil|cialis)\b/i,
+  /\bpeptida\b/i,
+  /\bprescription\b/i,
 ];
 
 export function isForbidden(text: string): boolean {
-  return isForbiddenText(text) || EXTRA_FORBIDDEN.some((re) => re.test(text));
+  return isForbiddenText(text) || CHAT_ONLY_PENDING_OWNER.some((re) => re.test(text));
 }
 
 // Kondisi yang wajib diarahkan ke dokter/apoteker (tanpa saran dosis).

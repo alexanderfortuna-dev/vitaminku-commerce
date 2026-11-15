@@ -1,6 +1,7 @@
 // Logika murni Vitamin Finder (LA_AGENT_01_VITAMIN_FINDER).
 // TANPA import Deno/URL supaya bisa diuji vitest. Dipakai oleh supabase/functions/vitamin-finder/index.ts.
 // Aturan keras: tidak ada hpp/stok/pesanan/data pelanggan; produk hanya dari hasil search_products.
+import { isCatalogForbidden } from "./forbidden-catalog.ts";
 
 export const AGENT_ID = "LA_AGENT_01_VITAMIN_FINDER";
 export const MODEL = "claude-haiku-5-5";
@@ -76,31 +77,9 @@ export type CallModel = (req: ModelRequest) => Promise<ModelResponse>;
 export type LogFn = (payload: Record<string, unknown>) => void;
 
 // ---------- Deteksi ----------
-// Cermin src/lib/vita-safety.ts (FORBIDDEN) + beberapa tambahan sejenis. Diuji paritasnya.
-const FORBIDDEN: RegExp[] = [
-  /\bobat\s*keras\b/i,
-  /\bresep\s*dokter\b/i,
-  /\bsarms?\b/i,
-  /\bostarine\b/i,
-  /\bligandrol\b/i,
-  /\brad[\s-]?140\b/i,
-  /\bmk[\s-]?677\b/i,
-  /\bmk[\s-]?2866\b/i,
-  /\bcardarine\b/i,
-  /\bgw[\s-]?501516\b/i,
-  /\bmodafinil\b/i,
-  /\barmodafinil\b/i,
-  /\byohimb/i,
-  /\bdhea\b/i,
-  // tambahan
-  /\blgd[\s-]?4033\b/i,
-  /\btestolone\b/i,
-  /\bandarine\b/i,
-  /\bclenbuterol\b/i,
-  /\bsteroid\s*anabolik\b/i,
-];
+// Satu daftar dengan katalog dan src/lib/vita-safety.ts. Diuji paritasnya terhadap product_blocklist.
 export function isForbiddenText(text: string): boolean {
-  return FORBIDDEN.some((re) => re.test(text));
+  return isCatalogForbidden(text);
 }
 
 const MEDICAL: RegExp[] = [
