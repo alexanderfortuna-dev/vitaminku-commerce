@@ -70,7 +70,7 @@ async function flow(theme, label, opts = {}) {
   const tap = async (locator, name) => { await locator.first().click({ timeout: 20000 }); taps++; return name; };
   const t0 = Date.now();
   try {
-    await page.goto(SITE + "/", { waitUntil: "domcontentloaded", timeout: 45000 });
+    await page.goto(SITE + (opts.brand ? `/cari?q=${encodeURIComponent(opts.brand)}` : "/"), { waitUntil: "domcontentloaded", timeout: 45000 });
     const dark = await page.evaluate(() => document.documentElement.classList.contains("dark"));
     row(`${label}: tema terpasang sebelum render`, dark === (theme === "dark"), `kelas dark=${dark}`);
     await page.waitForLoadState("networkidle").catch(() => {});
@@ -133,7 +133,11 @@ async function bannerPromo() {
   try {
     await page.goto(SITE + "/", { waitUntil: "networkidle", timeout: 45000 });
     const t = await page.evaluate(() => document.body.innerText);
-    return t.match(/kode ([A-Z0-9]{3,32})/)?.[1] ?? null;
+    const code = t.match(/kode ([A-Z0-9]{3,32})/)?.[1] ?? null;
+    if (!code) return null;
+    // Promo bisa khusus satu merek ("... untuk Fitlife · kode FITLIFE10"): keranjang uji harus berisi merek itu.
+    const brand = t.match(/untuk ([^\n·]+?)\s*·\s*kode /)?.[1]?.trim() ?? null;
+    return { code, brand };
   } catch { return null; } finally { await ctx.close(); }
 }
 
@@ -141,7 +145,7 @@ const promo = await bannerPromo();
 const first = await flow("light", "terang, pelanggan baru");
 await flow("dark", "gelap, pelanggan baru");
 await flow("light", "terang, kode promo salah", { promo: "TIDAKADA", promoValid: false });
-if (promo) await flow("light", `terang, kode promo ${promo}`, { promo, promoValid: true });
+if (promo) await flow("light", `terang, kode promo ${promo.code}${promo.brand ? " (khusus " + promo.brand + ")" : ""}`, { promo: promo.code, promoValid: true, brand: promo.brand });
 else console.log("promo berjalan|INFO|tidak ada spanduk promo di beranda, uji kode valid dilewati");
 const repeat = await flow("light", "terang, pelanggan ulang", {
   repeat: true,
