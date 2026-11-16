@@ -1,14 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { dedupeProducts, sanitizeSearchQuery, shopifyImageUrl } from "../shopify";
 import { CATEGORIES, GOALS } from "../catalog";
 import { brandInitials, hasPrice, productSlug, type DbProduct } from "../catalog-db";
 import { sanitizeSearchQuery as sanitizeDbSearch } from "../catalog.functions";
-import { normalizeOrderStatus } from "../order-status";
 import { enabledDeliveryProviders } from "../delivery-providers";
-import type { ShopifyProduct } from "../shopify";
-
-const product = (id: string, handle: string) =>
-  ({ node: { id, handle } }) as unknown as ShopifyProduct;
 
 const dbProduct = (over: Partial<DbProduct> = {}) =>
   ({
@@ -27,27 +21,8 @@ const dbProduct = (over: Partial<DbProduct> = {}) =>
   }) as unknown as DbProduct;
 
 describe("search hardening", () => {
-  it("strips Shopify search operators from customer text", () => {
-    expect(sanitizeSearchQuery('vitamin c: "best" OR *')).toBe("vitamin c best");
-  });
-  it("returns empty string for operator-only input", () => {
-    expect(sanitizeSearchQuery("*:()")).toBe("");
-  });
   it("strips text-search wildcards from database queries", () => {
     expect(sanitizeDbSearch("whey% _iso (x)")).toBe("whey iso x");
-  });
-});
-
-describe("pagination safety", () => {
-  it("removes duplicate products across cursor pages", () => {
-    const list = [product("1", "a"), product("1", "a"), product("2", "b")];
-    expect(dedupeProducts(list)).toHaveLength(2);
-  });
-});
-
-describe("mobile image sizing", () => {
-  it("requests a width from the Shopify CDN", () => {
-    expect(shopifyImageUrl("https://cdn.shopify.com/x.jpg", 400)).toContain("width=400");
   });
 });
 
@@ -74,39 +49,6 @@ describe("catalog mapping", () => {
     for (const goal of GOALS) {
       expect(goal.subcategories.length).toBeGreaterThan(0);
     }
-  });
-});
-
-describe("order status normalization", () => {
-  it("never reports a paid order as delivered", () => {
-    expect(
-      normalizeOrderStatus({ financialStatus: "PAID", fulfillmentStatus: "UNFULFILLED" }),
-    ).toBe("PAID");
-  });
-  it("treats authorized payment as still pending", () => {
-    expect(normalizeOrderStatus({ financialStatus: "AUTHORIZED" })).toBe("PENDING_PAYMENT");
-  });
-  it("does not upgrade fulfilled to delivered", () => {
-    expect(normalizeOrderStatus({ financialStatus: "PAID", fulfillmentStatus: "FULFILLED" })).toBe(
-      "READY_FOR_DELIVERY",
-    );
-  });
-  it("uses delivered only with real fulfillment evidence", () => {
-    expect(
-      normalizeOrderStatus({
-        financialStatus: "PAID",
-        fulfillmentStatus: "FULFILLED",
-        fulfillmentDisplayStatus: "DELIVERED",
-      }),
-    ).toBe("DELIVERED");
-  });
-  it("keeps partial refunds distinct", () => {
-    expect(normalizeOrderStatus({ financialStatus: "PARTIALLY_REFUNDED" })).toBe(
-      "PARTIALLY_REFUNDED",
-    );
-  });
-  it("maps unknown values to UNKNOWN", () => {
-    expect(normalizeOrderStatus({ financialStatus: "SOMETHING_NEW" })).toBe("UNKNOWN");
   });
 });
 

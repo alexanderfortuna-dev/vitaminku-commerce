@@ -1,3 +1,8 @@
+> **ARSIP — jangan dipakai sebagai keadaan sekarang.** Dokumen ini audit 17 Sep 2026, saat katalog masih
+> dibaca dari Shopify Storefront API dan checkout memakai Shopify. Sejak 2026-11 VitaminKu tidak lagi memakai
+> Shopify sama sekali: katalog dan pesanan ada di Supabase, pembayaran lewat WhatsApp cabang dan Midtrans,
+> seluruh kode Shopify sudah dihapus dari `src/`. Keadaan terkini ada di `.claude/state/PROGRESS.md`.
+
 # VitaminKu — Production Readiness Audit
 
 Run date: 2026-09-17 (UTC). Store: `vitaminku-commerce-u8xhy-ja6xbxet.myshopify.com` (claimed

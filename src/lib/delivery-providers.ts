@@ -1,6 +1,6 @@
 /**
  * Kurir yang benar-benar aktif, ditentukan dari kunci yang terpasang di server. Tidak ada opsi yang ditampilkan
- * bila tidak didukung data/kunci nyata. (Menggantikan scaffold lama yang keliru menyebut ongkir dari Shopify.)
+ * bila tidak didukung data/kunci nyata. (Menggantikan scaffold lama yang keliru menyebut ongkir dari platform pihak ketiga.)
  *
  * - manual_whatsapp : tanpa kunci Biteship; cabang mengonfirmasi ongkir lewat WhatsApp (selalu ada).
  * - biteship_regular: BITESHIP_API_KEY terpasang; ongkir paket dihitung dari berat/ukuran produk dan asal cabang.

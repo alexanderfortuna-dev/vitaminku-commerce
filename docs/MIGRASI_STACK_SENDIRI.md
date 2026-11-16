@@ -72,5 +72,5 @@ catch { "OK ditolak: " + $_.Exception.Response.StatusCode }
 Yang benar: pesan **OK ditolak** (401/403).
 
 ## Hal yang harus dibereskan setelah pindah
-- Token Storefront Shopify lama pernah tertulis di kode (riwayat git `main`): rotasi/cabut di Shopify bila akun itu masih aktif.
+- **PERLU TINDAKAN PEMILIK:** token Storefront Shopify lama pernah tertulis di kode dan masih ada di riwayat git cabang `main` (repositori publik). Cabut token itu di akun Shopify, lalu tutup akun Shopify bila sudah tidak dipakai. Menghapus berkas tidak menghapus riwayat git..
 - `@lovable.dev/vite-tanstack-config` dan `@lovable.dev/mcp-js` masih dipakai sebagai alat build/MCP (paket npm publik; tidak menghubungi server Lovable saat toko berjalan).

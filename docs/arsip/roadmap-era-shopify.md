@@ -1,3 +1,7 @@
+> **ARSIP — bukan keadaan sekarang, jangan dijadikan acuan.** Dokumen ini dari masa awal proyek di Lovable,
+> saat Shopify direncanakan sebagai mesin dagang utama. Sejak 2026-11 VitaminKu berdiri sendiri: kode di GitHub,
+> data di Supabase, terbit di Vercel, tanpa Shopify sama sekali. Acuan yang benar ada di `README.md`.
+
 # VitaminKu Roadmap
 
 ## Sprint 1 — funnel reliability (done)
