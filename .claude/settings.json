@@ -1,28 +1,96 @@
 {
   "permissions": {
     "allow": [
-      "Read", "Grep", "Glob", "Edit", "Write",
-      "Bash(bun install*)", "Bash(bun run *)", "Bash(npx tsc *)", "Bash(npx vitest *)",
-      "Bash(bash scripts/verify.sh)", "Bash(bash test/db/run.sh)",
-      "Bash(git status*)", "Bash(git diff *)", "Bash(git log *)", "Bash(git switch *)", "Bash(git checkout *)",
-      "Bash(git add *)", "Bash(git commit *)", "Bash(git fetch *)",
-      "Bash(git push origin claude/*)", "Bash(git push -u origin claude/*)",
-      "Bash(gh api *)"
+      "Read",
+      "Grep",
+      "Glob",
+      "Edit",
+      "Write",
+      "Bash(bun install*)",
+      "Bash(bun run *)",
+      "Bash(npx tsc *)",
+      "Bash(npx vitest *)",
+      "Bash(bash scripts/verify.sh)",
+      "Bash(bash test/db/run.sh)",
+      "Bash(git status*)",
+      "Bash(git diff *)",
+      "Bash(git log *)",
+      "Bash(git switch *)",
+      "Bash(git checkout *)",
+      "Bash(git add *)",
+      "Bash(git commit *)",
+      "Bash(git fetch *)",
+      "Bash(git push origin claude/*)",
+      "Bash(git push -u origin claude/*)",
+      "Bash(gh api *)",
+      "mcp__Vercel__get_domain_config",
+      "mcp__Vercel__get_project_domain",
+      "mcp__Vercel__list_project_domains",
+      "mcp__Vercel__get_project",
+      "mcp__Vercel__get_deployment",
+      "mcp__Vercel__list_deployments",
+      "mcp__Vercel__filter_project_envs",
+      "mcp__Vercel__edit_project_env",
+      "mcp__Vercel__create_deployment",
+      "mcp__Vercel__get_runtime_errors",
+      "mcp__Vercel__get_runtime_logs",
+      "mcp__Vercel__list_deployment_events",
+      "mcp__github__actions_run_trigger",
+      "mcp__github__actions_get",
+      "mcp__github__actions_list",
+      "mcp__github__get_job_logs",
+      "mcp__github__pull_request_read",
+      "mcp__github__list_pull_requests",
+      "mcp__github__get_commit",
+      "mcp__github__list_commits",
+      "mcp__github__create_pull_request",
+      "mcp__github__update_pull_request",
+      "mcp__Firecrawl__firecrawl_scrape",
+      "mcp__claude-code-remote__send_later",
+      "WebFetch",
+      "Bash(git pull *)",
+      "Bash(git worktree *)",
+      "Bash(node scripts/*)",
+      "Bash(sleep *)",
+      "Bash(date *)"
     ],
     "deny": [
-      "Read(./.env)", "Read(./.env.local)", "Read(./.env.production)",
-      "Bash(git push --force*)", "Bash(git push -f*)",
-      "Bash(git push origin main*)", "Bash(git push origin develop*)", "Bash(git push origin feat/launch-ready-v3*)",
-      "Bash(vercel *)", "Bash(npx vercel*)", "Bash(psql *)", "Bash(rm -rf *)"
+      "Read(./.env)",
+      "Read(./.env.local)",
+      "Read(./.env.production)",
+      "Bash(git push --force*)",
+      "Bash(git push -f*)",
+      "Bash(git push origin main*)",
+      "Bash(git push origin develop*)",
+      "Bash(git push origin feat/launch-ready-v3*)",
+      "Bash(vercel *)",
+      "Bash(npx vercel*)",
+      "Bash(psql *)",
+      "Bash(rm -rf *)"
     ]
   },
   "hooks": {
     "PreToolUse": [
-      { "matcher": "Bash|Read|Edit|Write",
-        "hooks": [ { "type": "command", "command": "python3 \"$CLAUDE_PROJECT_DIR/.claude/hooks/guard.py\"" } ] }
+      {
+        "matcher": "Bash|Read|Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"$CLAUDE_PROJECT_DIR/.claude/hooks/guard.py\""
+          }
+        ]
+      }
     ],
     "Stop": [
-      { "hooks": [ { "type": "command", "command": "python3 \"$CLAUDE_PROJECT_DIR/.claude/hooks/verify_on_stop.py\"", "timeout": 900 } ] }
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"$CLAUDE_PROJECT_DIR/.claude/hooks/verify_on_stop.py\"",
+            "timeout": 900
+          }
+        ]
+      }
     ]
   }
 }
