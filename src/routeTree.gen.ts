@@ -18,7 +18,6 @@ import { Route as CheckoutRouteImport } from './routes/checkout'
 import { Route as KategoriRouteImport } from './routes/kategori'
 import { Route as KeranjangRouteImport } from './routes/keranjang'
 import { Route as MasukRouteImport } from './routes/masuk'
-import { Route as McpRouteImport } from './routes/mcp'
 import { Route as MerekRouteImport } from './routes/merek'
 import { Route as PengembalianRouteImport } from './routes/pengembalian'
 import { Route as PrivasiRouteImport } from './routes/privasi'
@@ -27,7 +26,6 @@ import { Route as SellerRouteImport } from './routes/seller'
 import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
 import { Route as SyaratRouteImport } from './routes/syarat'
 import { Route as TujuanRouteImport } from './routes/tujuan'
-import { Route as Char91DotwellKnownChar93OauthProtectedResourceRouteImport } from './routes/[.well-known]/oauth-protected-resource'
 import { Route as AdminIndexRouteImport } from './routes/admin/index'
 import { Route as AdminAktivasiRouteImport } from './routes/admin/aktivasi'
 import { Route as AdminAktivitasRouteImport } from './routes/admin/aktivitas'
@@ -111,11 +109,6 @@ const MasukRoute = MasukRouteImport.update({
   path: '/masuk',
   getParentRoute: () => rootRouteImport,
 } as any)
-const McpRoute = McpRouteImport.update({
-  id: '/mcp',
-  path: '/mcp',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const MerekRoute = MerekRouteImport.update({
   id: '/merek',
   path: '/merek',
@@ -156,12 +149,6 @@ const TujuanRoute = TujuanRouteImport.update({
   path: '/tujuan',
   getParentRoute: () => rootRouteImport,
 } as any)
-const Char91DotwellKnownChar93OauthProtectedResourceRoute =
-  Char91DotwellKnownChar93OauthProtectedResourceRouteImport.update({
-    id: '/.well-known/oauth-protected-resource',
-    path: '/.well-known/oauth-protected-resource',
-    getParentRoute: () => rootRouteImport,
-  } as any)
 const AdminIndexRoute = AdminIndexRouteImport.update({
   id: '/',
   path: '/',
@@ -359,7 +346,6 @@ export interface FileRoutesByFullPath {
   '/kategori': typeof KategoriRouteWithChildren
   '/keranjang': typeof KeranjangRoute
   '/masuk': typeof MasukRoute
-  '/mcp': typeof McpRoute
   '/merek': typeof MerekRouteWithChildren
   '/pengembalian': typeof PengembalianRoute
   '/privasi': typeof PrivasiRoute
@@ -368,7 +354,6 @@ export interface FileRoutesByFullPath {
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/syarat': typeof SyaratRoute
   '/tujuan': typeof TujuanRouteWithChildren
-  '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   '/admin/aktivasi': typeof AdminAktivasiRoute
   '/admin/aktivitas': typeof AdminAktivitasRoute
   '/admin/antrian': typeof AdminAntrianRoute
@@ -415,14 +400,12 @@ export interface FileRoutesByTo {
   '/checkout': typeof CheckoutRoute
   '/keranjang': typeof KeranjangRoute
   '/masuk': typeof MasukRoute
-  '/mcp': typeof McpRoute
   '/pengembalian': typeof PengembalianRoute
   '/privasi': typeof PrivasiRoute
   '/robots.txt': typeof RobotsDottxtRoute
   '/seller': typeof SellerRouteWithChildren
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/syarat': typeof SyaratRoute
-  '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   '/admin/aktivasi': typeof AdminAktivasiRoute
   '/admin/aktivitas': typeof AdminAktivitasRoute
   '/admin/antrian': typeof AdminAntrianRoute
@@ -472,7 +455,6 @@ export interface FileRoutesById {
   '/kategori': typeof KategoriRouteWithChildren
   '/keranjang': typeof KeranjangRoute
   '/masuk': typeof MasukRoute
-  '/mcp': typeof McpRoute
   '/merek': typeof MerekRouteWithChildren
   '/pengembalian': typeof PengembalianRoute
   '/privasi': typeof PrivasiRoute
@@ -481,7 +463,6 @@ export interface FileRoutesById {
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/syarat': typeof SyaratRoute
   '/tujuan': typeof TujuanRouteWithChildren
-  '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   '/admin/aktivasi': typeof AdminAktivasiRoute
   '/admin/aktivitas': typeof AdminAktivitasRoute
   '/admin/antrian': typeof AdminAntrianRoute
@@ -532,7 +513,6 @@ export interface FileRouteTypes {
     | '/kategori'
     | '/keranjang'
     | '/masuk'
-    | '/mcp'
     | '/merek'
     | '/pengembalian'
     | '/privasi'
@@ -541,7 +521,6 @@ export interface FileRouteTypes {
     | '/sitemap.xml'
     | '/syarat'
     | '/tujuan'
-    | '/.well-known/oauth-protected-resource'
     | '/admin/aktivasi'
     | '/admin/aktivitas'
     | '/admin/antrian'
@@ -588,14 +567,12 @@ export interface FileRouteTypes {
     | '/checkout'
     | '/keranjang'
     | '/masuk'
-    | '/mcp'
     | '/pengembalian'
     | '/privasi'
     | '/robots.txt'
     | '/seller'
     | '/sitemap.xml'
     | '/syarat'
-    | '/.well-known/oauth-protected-resource'
     | '/admin/aktivasi'
     | '/admin/aktivitas'
     | '/admin/antrian'
@@ -644,7 +621,6 @@ export interface FileRouteTypes {
     | '/kategori'
     | '/keranjang'
     | '/masuk'
-    | '/mcp'
     | '/merek'
     | '/pengembalian'
     | '/privasi'
@@ -653,7 +629,6 @@ export interface FileRouteTypes {
     | '/sitemap.xml'
     | '/syarat'
     | '/tujuan'
-    | '/.well-known/oauth-protected-resource'
     | '/admin/aktivasi'
     | '/admin/aktivitas'
     | '/admin/antrian'
@@ -703,7 +678,6 @@ export interface RootRouteChildren {
   KategoriRoute: typeof KategoriRouteWithChildren
   KeranjangRoute: typeof KeranjangRoute
   MasukRoute: typeof MasukRoute
-  McpRoute: typeof McpRoute
   MerekRoute: typeof MerekRouteWithChildren
   PengembalianRoute: typeof PengembalianRoute
   PrivasiRoute: typeof PrivasiRoute
@@ -712,7 +686,6 @@ export interface RootRouteChildren {
   SitemapDotxmlRoute: typeof SitemapDotxmlRoute
   SyaratRoute: typeof SyaratRoute
   TujuanRoute: typeof TujuanRouteWithChildren
-  Char91DotwellKnownChar93OauthProtectedResourceRoute: typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   ApiVitaChatRoute: typeof ApiVitaChatRoute
   ApiVitaminFinderRoute: typeof ApiVitaminFinderRoute
   PesananTokenRoute: typeof PesananTokenRoute
@@ -786,13 +759,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof MasukRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/mcp': {
-      id: '/mcp'
-      path: '/mcp'
-      fullPath: '/mcp'
-      preLoaderRoute: typeof McpRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/merek': {
       id: '/merek'
       path: '/merek'
@@ -847,13 +813,6 @@ declare module '@tanstack/react-router' {
       path: '/tujuan'
       fullPath: '/tujuan'
       preLoaderRoute: typeof TujuanRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/.well-known/oauth-protected-resource': {
-      id: '/.well-known/oauth-protected-resource'
-      path: '/.well-known/oauth-protected-resource'
-      fullPath: '/.well-known/oauth-protected-resource'
-      preLoaderRoute: typeof Char91DotwellKnownChar93OauthProtectedResourceRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/admin/': {
@@ -1236,7 +1195,6 @@ const rootRouteChildren: RootRouteChildren = {
   KategoriRoute: KategoriRouteWithChildren,
   KeranjangRoute: KeranjangRoute,
   MasukRoute: MasukRoute,
-  McpRoute: McpRoute,
   MerekRoute: MerekRouteWithChildren,
   PengembalianRoute: PengembalianRoute,
   PrivasiRoute: PrivasiRoute,
@@ -1245,8 +1203,6 @@ const rootRouteChildren: RootRouteChildren = {
   SitemapDotxmlRoute: SitemapDotxmlRoute,
   SyaratRoute: SyaratRoute,
   TujuanRoute: TujuanRouteWithChildren,
-  Char91DotwellKnownChar93OauthProtectedResourceRoute:
-    Char91DotwellKnownChar93OauthProtectedResourceRoute,
   ApiVitaChatRoute: ApiVitaChatRoute,
   ApiVitaminFinderRoute: ApiVitaminFinderRoute,
   PesananTokenRoute: PesananTokenRoute,
