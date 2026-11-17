@@ -38,6 +38,7 @@ import { Route as AdminFotoShopeeRouteImport } from './routes/admin/foto-shopee'
 import { Route as AdminFotoShopeeBersihRouteImport } from './routes/admin/foto-shopee-bersih'
 import { Route as AdminHargaStokRouteImport } from './routes/admin/harga-stok'
 import { Route as AdminLoginRouteImport } from './routes/admin/login'
+import { Route as AdminLupaSandiRouteImport } from './routes/admin/lupa-sandi'
 import { Route as AdminPanduanRouteImport } from './routes/admin/panduan'
 import { Route as AdminPengaturanRouteImport } from './routes/admin/pengaturan'
 import { Route as AdminPenggunaRouteImport } from './routes/admin/pengguna'
@@ -45,6 +46,7 @@ import { Route as AdminPesananRouteImport } from './routes/admin/pesanan'
 import { Route as AdminPesananMasukRouteImport } from './routes/admin/pesanan-masuk'
 import { Route as AdminProdukCepatRouteImport } from './routes/admin/produk-cepat'
 import { Route as AdminPromoRouteImport } from './routes/admin/promo'
+import { Route as AdminSetelSandiRouteImport } from './routes/admin/setel-sandi'
 import { Route as AdminTautanRouteImport } from './routes/admin/tautan'
 import { Route as AdminUploadMassalRouteImport } from './routes/admin/upload-massal'
 import { Route as AdminVitaInsightRouteImport } from './routes/admin/vita-insight'
@@ -209,6 +211,11 @@ const AdminLoginRoute = AdminLoginRouteImport.update({
   path: '/login',
   getParentRoute: () => AdminRouteRoute,
 } as any)
+const AdminLupaSandiRoute = AdminLupaSandiRouteImport.update({
+  id: '/lupa-sandi',
+  path: '/lupa-sandi',
+  getParentRoute: () => AdminRouteRoute,
+} as any)
 const AdminPanduanRoute = AdminPanduanRouteImport.update({
   id: '/panduan',
   path: '/panduan',
@@ -242,6 +249,11 @@ const AdminProdukCepatRoute = AdminProdukCepatRouteImport.update({
 const AdminPromoRoute = AdminPromoRouteImport.update({
   id: '/promo',
   path: '/promo',
+  getParentRoute: () => AdminRouteRoute,
+} as any)
+const AdminSetelSandiRoute = AdminSetelSandiRouteImport.update({
+  id: '/setel-sandi',
+  path: '/setel-sandi',
   getParentRoute: () => AdminRouteRoute,
 } as any)
 const AdminTautanRoute = AdminTautanRouteImport.update({
@@ -365,6 +377,7 @@ export interface FileRoutesByFullPath {
   '/admin/foto-shopee-bersih': typeof AdminFotoShopeeBersihRoute
   '/admin/harga-stok': typeof AdminHargaStokRoute
   '/admin/login': typeof AdminLoginRoute
+  '/admin/lupa-sandi': typeof AdminLupaSandiRoute
   '/admin/panduan': typeof AdminPanduanRoute
   '/admin/pengaturan': typeof AdminPengaturanRoute
   '/admin/pengguna': typeof AdminPenggunaRoute
@@ -372,6 +385,7 @@ export interface FileRoutesByFullPath {
   '/admin/pesanan-masuk': typeof AdminPesananMasukRoute
   '/admin/produk-cepat': typeof AdminProdukCepatRoute
   '/admin/promo': typeof AdminPromoRoute
+  '/admin/setel-sandi': typeof AdminSetelSandiRoute
   '/admin/tautan': typeof AdminTautanRoute
   '/admin/upload-massal': typeof AdminUploadMassalRoute
   '/admin/vita-insight': typeof AdminVitaInsightRoute
@@ -417,6 +431,7 @@ export interface FileRoutesByTo {
   '/admin/foto-shopee-bersih': typeof AdminFotoShopeeBersihRoute
   '/admin/harga-stok': typeof AdminHargaStokRoute
   '/admin/login': typeof AdminLoginRoute
+  '/admin/lupa-sandi': typeof AdminLupaSandiRoute
   '/admin/panduan': typeof AdminPanduanRoute
   '/admin/pengaturan': typeof AdminPengaturanRoute
   '/admin/pengguna': typeof AdminPenggunaRoute
@@ -424,6 +439,7 @@ export interface FileRoutesByTo {
   '/admin/pesanan-masuk': typeof AdminPesananMasukRoute
   '/admin/produk-cepat': typeof AdminProdukCepatRoute
   '/admin/promo': typeof AdminPromoRoute
+  '/admin/setel-sandi': typeof AdminSetelSandiRoute
   '/admin/tautan': typeof AdminTautanRoute
   '/admin/upload-massal': typeof AdminUploadMassalRoute
   '/admin/vita-insight': typeof AdminVitaInsightRoute
@@ -474,6 +490,7 @@ export interface FileRoutesById {
   '/admin/foto-shopee-bersih': typeof AdminFotoShopeeBersihRoute
   '/admin/harga-stok': typeof AdminHargaStokRoute
   '/admin/login': typeof AdminLoginRoute
+  '/admin/lupa-sandi': typeof AdminLupaSandiRoute
   '/admin/panduan': typeof AdminPanduanRoute
   '/admin/pengaturan': typeof AdminPengaturanRoute
   '/admin/pengguna': typeof AdminPenggunaRoute
@@ -481,6 +498,7 @@ export interface FileRoutesById {
   '/admin/pesanan-masuk': typeof AdminPesananMasukRoute
   '/admin/produk-cepat': typeof AdminProdukCepatRoute
   '/admin/promo': typeof AdminPromoRoute
+  '/admin/setel-sandi': typeof AdminSetelSandiRoute
   '/admin/tautan': typeof AdminTautanRoute
   '/admin/upload-massal': typeof AdminUploadMassalRoute
   '/admin/vita-insight': typeof AdminVitaInsightRoute
@@ -532,6 +550,7 @@ export interface FileRouteTypes {
     | '/admin/foto-shopee-bersih'
     | '/admin/harga-stok'
     | '/admin/login'
+    | '/admin/lupa-sandi'
     | '/admin/panduan'
     | '/admin/pengaturan'
     | '/admin/pengguna'
@@ -539,6 +558,7 @@ export interface FileRouteTypes {
     | '/admin/pesanan-masuk'
     | '/admin/produk-cepat'
     | '/admin/promo'
+    | '/admin/setel-sandi'
     | '/admin/tautan'
     | '/admin/upload-massal'
     | '/admin/vita-insight'
@@ -584,6 +604,7 @@ export interface FileRouteTypes {
     | '/admin/foto-shopee-bersih'
     | '/admin/harga-stok'
     | '/admin/login'
+    | '/admin/lupa-sandi'
     | '/admin/panduan'
     | '/admin/pengaturan'
     | '/admin/pengguna'
@@ -591,6 +612,7 @@ export interface FileRouteTypes {
     | '/admin/pesanan-masuk'
     | '/admin/produk-cepat'
     | '/admin/promo'
+    | '/admin/setel-sandi'
     | '/admin/tautan'
     | '/admin/upload-massal'
     | '/admin/vita-insight'
@@ -640,6 +662,7 @@ export interface FileRouteTypes {
     | '/admin/foto-shopee-bersih'
     | '/admin/harga-stok'
     | '/admin/login'
+    | '/admin/lupa-sandi'
     | '/admin/panduan'
     | '/admin/pengaturan'
     | '/admin/pengguna'
@@ -647,6 +670,7 @@ export interface FileRouteTypes {
     | '/admin/pesanan-masuk'
     | '/admin/produk-cepat'
     | '/admin/promo'
+    | '/admin/setel-sandi'
     | '/admin/tautan'
     | '/admin/upload-massal'
     | '/admin/vita-insight'
@@ -899,6 +923,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminLoginRouteImport
       parentRoute: typeof AdminRouteRoute
     }
+    '/admin/lupa-sandi': {
+      id: '/admin/lupa-sandi'
+      path: '/lupa-sandi'
+      fullPath: '/admin/lupa-sandi'
+      preLoaderRoute: typeof AdminLupaSandiRouteImport
+      parentRoute: typeof AdminRouteRoute
+    }
     '/admin/panduan': {
       id: '/admin/panduan'
       path: '/panduan'
@@ -946,6 +977,13 @@ declare module '@tanstack/react-router' {
       path: '/promo'
       fullPath: '/admin/promo'
       preLoaderRoute: typeof AdminPromoRouteImport
+      parentRoute: typeof AdminRouteRoute
+    }
+    '/admin/setel-sandi': {
+      id: '/admin/setel-sandi'
+      path: '/setel-sandi'
+      fullPath: '/admin/setel-sandi'
+      preLoaderRoute: typeof AdminSetelSandiRouteImport
       parentRoute: typeof AdminRouteRoute
     }
     '/admin/tautan': {
@@ -1089,6 +1127,7 @@ interface AdminRouteRouteChildren {
   AdminFotoShopeeBersihRoute: typeof AdminFotoShopeeBersihRoute
   AdminHargaStokRoute: typeof AdminHargaStokRoute
   AdminLoginRoute: typeof AdminLoginRoute
+  AdminLupaSandiRoute: typeof AdminLupaSandiRoute
   AdminPanduanRoute: typeof AdminPanduanRoute
   AdminPengaturanRoute: typeof AdminPengaturanRoute
   AdminPenggunaRoute: typeof AdminPenggunaRoute
@@ -1096,6 +1135,7 @@ interface AdminRouteRouteChildren {
   AdminPesananMasukRoute: typeof AdminPesananMasukRoute
   AdminProdukCepatRoute: typeof AdminProdukCepatRoute
   AdminPromoRoute: typeof AdminPromoRoute
+  AdminSetelSandiRoute: typeof AdminSetelSandiRoute
   AdminTautanRoute: typeof AdminTautanRoute
   AdminUploadMassalRoute: typeof AdminUploadMassalRoute
   AdminVitaInsightRoute: typeof AdminVitaInsightRoute
@@ -1116,6 +1156,7 @@ const AdminRouteRouteChildren: AdminRouteRouteChildren = {
   AdminFotoShopeeBersihRoute: AdminFotoShopeeBersihRoute,
   AdminHargaStokRoute: AdminHargaStokRoute,
   AdminLoginRoute: AdminLoginRoute,
+  AdminLupaSandiRoute: AdminLupaSandiRoute,
   AdminPanduanRoute: AdminPanduanRoute,
   AdminPengaturanRoute: AdminPengaturanRoute,
   AdminPenggunaRoute: AdminPenggunaRoute,
@@ -1123,6 +1164,7 @@ const AdminRouteRouteChildren: AdminRouteRouteChildren = {
   AdminPesananMasukRoute: AdminPesananMasukRoute,
   AdminProdukCepatRoute: AdminProdukCepatRoute,
   AdminPromoRoute: AdminPromoRoute,
+  AdminSetelSandiRoute: AdminSetelSandiRoute,
   AdminTautanRoute: AdminTautanRoute,
   AdminUploadMassalRoute: AdminUploadMassalRoute,
   AdminVitaInsightRoute: AdminVitaInsightRoute,

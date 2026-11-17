@@ -196,7 +196,9 @@ describe("penjaga halaman terbuka /admin", () => {
     expect(isAdminOpenPath("/admin/login")).toBe(true);
     expect(isAdminOpenPath("/admin/aktivasi")).toBe(true);
     expect(isAdminOpenPath("/admin/aktivasi/")).toBe(true);
-    for (const closed of ["/admin", "/admin/aktivitas", "/admin/aktivasi-lain", "/admin/loginx", "/admin/pengguna"]) {
+    expect(isAdminOpenPath("/admin/lupa-sandi")).toBe(true);
+    expect(isAdminOpenPath("/admin/setel-sandi")).toBe(true);
+    for (const closed of ["/admin", "/admin/aktivitas", "/admin/aktivasi-lain", "/admin/loginx", "/admin/pengguna", "/admin/lupa-sandi-x", "/admin/setel-sandi2"]) {
       expect(isAdminOpenPath(closed)).toBe(false);
     }
   });

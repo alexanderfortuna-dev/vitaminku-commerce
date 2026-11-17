@@ -1,4 +1,4 @@
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { Link, createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { supabase } from "@/integrations/supabase/client";
@@ -118,6 +118,11 @@ function AdminLoginPage() {
           >
             {busy ? "Memproses…" : mode === "login" ? "Masuk" : "Aktifkan akun owner"}
           </button>
+          {mode === "login" && (
+            <Link to="/admin/lupa-sandi" className="block text-center text-xs font-semibold text-muted-foreground underline">
+              Lupa kata sandi?
+            </Link>
+          )}
           {/* Aktivasi owner sekali pakai sudah dilakukan (21 Okt 2026); tautannya disembunyikan dari halaman masuk.
               Bila suatu saat perlu lagi, buka /admin/login?aktivasi=1 (server tetap menolak bila owner sudah ada). */}
           {showActivation && (

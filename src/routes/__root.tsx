@@ -23,6 +23,7 @@ import { useCartSync } from "../hooks/useCartSync";
 import { captureLinkParams } from "../lib/referral";
 import { installClientErrorReporting, reportClientError } from "../lib/client-error-report";
 import { THEME_BOOT_SCRIPT } from "../lib/theme";
+import { recoveryRedirectTarget } from "../lib/password-reset";
 
 function NotFoundComponent() {
   return (
@@ -156,6 +157,11 @@ function RootComponent() {
 function AppShell() {
   useCartSync();
   useEffect(() => captureLinkParams(window.location.search), []);
+  // Tautan "Lupa kata sandi" yang mendarat di halaman lain diarahkan ke halaman setel sandi.
+  useEffect(() => {
+    const target = recoveryRedirectTarget(window.location.pathname, window.location.hash);
+    if (target) window.location.replace(target);
+  }, []);
   useEffect(() => installClientErrorReporting(), []);
   return (
     <div className="min-h-screen bg-background">
