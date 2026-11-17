@@ -52,7 +52,19 @@
       "Bash(git worktree *)",
       "Bash(node scripts/*)",
       "Bash(sleep *)",
-      "Bash(date *)"
+      "Bash(date *)",
+      "Bash",
+      "Agent",
+      "Skill",
+      "WebSearch",
+      "TaskCreate",
+      "TaskUpdate",
+      "TaskList",
+      "mcp__Vercel",
+      "mcp__github",
+      "mcp__Firecrawl",
+      "mcp__claude-code-remote",
+      "mcp__ccd_session"
     ],
     "deny": [
       "Read(./.env)",
@@ -66,7 +78,14 @@
       "Bash(vercel *)",
       "Bash(npx vercel*)",
       "Bash(psql *)",
-      "Bash(rm -rf *)"
+      "Bash(rm -rf *)",
+      "mcp__Vercel__pause_project",
+      "mcp__Vercel__buy_domain",
+      "mcp__Vercel__get_project_deletion_link",
+      "mcp__github__merge_pull_request",
+      "mcp__github__delete_file",
+      "mcp__github__create_repository",
+      "mcp__claude-code-remote__archive_session"
     ]
   },
   "hooks": {
