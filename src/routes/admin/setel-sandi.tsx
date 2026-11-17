@@ -69,7 +69,7 @@ function ResetPasswordPage() {
         <h1 className="text-lg font-extrabold text-navy">Setel kata sandi baru</h1>
         {linkError ? (
           <>
-            <p className="mt-3 text-sm text-destructive">{linkError}</p>
+            <p role="alert" className="mt-3 text-sm text-destructive">{linkError}</p>
             <Link to="/admin/lupa-sandi" className="mt-4 block text-center text-sm font-semibold text-primary underline">
               Minta tautan baru
             </Link>
@@ -86,7 +86,7 @@ function ResetPasswordPage() {
               <span className="text-xs font-semibold text-navy">Ulangi kata sandi baru</span>
               <input type="password" required minLength={PASSWORD_MIN} autoComplete="new-password" value={repeat} onChange={(e) => setRepeat(e.target.value)} className={INPUT} />
             </label>
-            {error && <p className="text-sm text-destructive">{error}</p>}
+            {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
             <button type="submit" disabled={busy} className="w-full rounded-full bg-primary px-4 py-2.5 text-sm font-bold text-primary-foreground disabled:opacity-60">
               {busy ? "Menyimpan…" : "Simpan kata sandi baru"}
             </button>

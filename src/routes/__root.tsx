@@ -25,6 +25,13 @@ import { installClientErrorReporting, reportClientError } from "../lib/client-er
 import { THEME_BOOT_SCRIPT } from "../lib/theme";
 import { recoveryRedirectTarget } from "../lib/password-reset";
 
+// Tautan "Lupa kata sandi" yang mendarat di halaman lain diarahkan ke halaman setel sandi.
+// Dibaca saat modul dimuat (sebelum klien Supabase membaca lalu menghapus hash token).
+if (typeof window !== "undefined") {
+  const recoveryTarget = recoveryRedirectTarget(window.location.pathname, window.location.hash);
+  if (recoveryTarget) window.location.replace(recoveryTarget);
+}
+
 function NotFoundComponent() {
   return (
     <div className="flex min-h-screen items-center justify-center bg-background px-4">
@@ -157,11 +164,6 @@ function RootComponent() {
 function AppShell() {
   useCartSync();
   useEffect(() => captureLinkParams(window.location.search), []);
-  // Tautan "Lupa kata sandi" yang mendarat di halaman lain diarahkan ke halaman setel sandi.
-  useEffect(() => {
-    const target = recoveryRedirectTarget(window.location.pathname, window.location.hash);
-    if (target) window.location.replace(target);
-  }, []);
   useEffect(() => installClientErrorReporting(), []);
   return (
     <div className="min-h-screen bg-background">

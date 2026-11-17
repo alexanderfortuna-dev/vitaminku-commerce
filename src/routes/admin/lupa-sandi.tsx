@@ -34,7 +34,7 @@ function ForgotPasswordPage() {
       <div className="mx-auto max-w-sm p-5 card-surface">
         <h1 className="text-lg font-extrabold text-navy">Lupa kata sandi</h1>
         {sent ? (
-          <p className="mt-3 text-sm text-primary">
+          <p role="status" aria-live="polite" className="mt-3 text-sm text-primary">
             Jika email tersebut terdaftar, tautan untuk menyetel kata sandi baru sudah dikirim. Periksa kotak masuk
             (juga folder spam). Tautan berlaku sekali pakai.
           </p>
